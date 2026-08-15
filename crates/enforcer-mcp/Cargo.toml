@@ -25,6 +25,8 @@ enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: The MCP `scan` tool delegates resolved scan
 # requests to the engine that produces structured finding results.
 enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: MCP adapts literal-scan's distinct typed report without a broad fallback.
+enforcer-literal-scan = { path = "../enforcer-literal-scan", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: The MCP registry exposes coordination, proof,
 # harness, and UI engine capabilities through its typed tool handlers.
 enforcer-coordination = { path = "../enforcer-coordination", version = "0.1.0" }

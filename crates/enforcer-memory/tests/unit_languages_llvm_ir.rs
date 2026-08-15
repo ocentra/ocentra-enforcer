@@ -1,19 +1,19 @@
 //! Hard tests for LLVM IR, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_llvm_ir`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_llvm_ir`]) -- there is
 //! no bespoke `languages::llvm_ir` extractor to prove zero-regression
 //! against (LLVM IR has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::llvm_ir`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::llvm_ir`]'s own doc
 //! comment directly: the positional `fn_define`/`declare` name
-//! extraction [`enforcer_memory::languages::generic::llvm_quirk`]
+//! extraction [`enforcer_syntax::languages::generic::llvm_quirk`]
 //! performs (neither node has a `"name"` field of its own), the
 //! leading `@`-sigil-stripping convention, and the real
 //! `instruction_call`/`instruction_invoke` node kinds (NOT the
 //! baseline's phantom bare `"call"`/`"invoke"`).
 
-use enforcer_memory::languages::generic::parse_llvm_ir;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_llvm_ir;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -23,7 +23,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_llvmir";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

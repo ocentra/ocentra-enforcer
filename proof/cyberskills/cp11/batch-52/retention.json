@@ -1,0 +1,276 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-52",
+  "family": "IF/ot-ics-security",
+  "baselineCommit": "60853e758c678a6ca2c0a1cce98cdca7266a4f13",
+  "scope": "Retain advisory and manual content for the second OT/ICS security packet from immutable CP08 evidence; native predicates are limited to static supplied IEC 62443, NERC CIP, segmentation, incident-response, traffic-analysis, patch, Purdue, Modbus, asset-discovery, facility, ownership, safety, and evidence manifests; no live PLC, historian, SCADA, protocol traffic, PCAP, discovery, firewall, controller, IAM, VPN, jump-host, SIEM, IDS, Claroty, Nozomi, grid, facility, safety, or production execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-iec-62443-security-zones",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-iec-62443-security-zones/SKILL.md",
+        "sha256": "896fd94cd66faaa00c0944e13f9165c079682d836d05d0c5cb54df5fdd50c00c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing IEC 62443 Security Zones:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json",
+        "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain IEC 62443 zoning, conduit, trust-level, safety, change-control, and defensive segmentation guidance.",
+        "notProved": ["Guidance is not live zoning enforcement, segmentation efficacy, safety truth, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and process ownership, legal/privacy/safety review, change approval, stop conditions, analyst validation, rollback, and disclosure decisions.",
+        "notProved": ["No live zone assessment, controller change, safety decision, or governance outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-nerc-cip-compliance-controls",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-nerc-cip-compliance-controls/SKILL.md",
+        "sha256": "bc7766cc0c0605c5956e7808ef0208155d61d41a7edd34811eb5fbf931bce776",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing NERC CIP Compliance Controls:L38"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain NERC CIP asset, access, incident, recovery, evidence, audit, and critical-infrastructure governance guidance.",
+        "notProved": ["Guidance is not NERC CIP compliance, grid safety, control truth, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, utility and asset ownership, legal/regulatory/safety review, data handling, control validation, exception, remediation, recovery, and disclosure decisions.",
+        "notProved": ["No utility, regulator, auditor, control, incident, recovery, exception, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-network-segmentation-for-ot",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-segmentation-for-ot/SKILL.md",
+        "sha256": "e7f5b5a4c549a9c918d3ca815d6ebfab9e4dbc8348aa8e6817fdf963b4f12b28",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Segmentation for OT:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json",
+        "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain OT segmentation, zone, conduit, least-privilege, monitoring, safety, and defensive network-hardening guidance.",
+        "notProved": ["Guidance is not live network topology, traffic, enforcement, availability, safety, or security truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, network and asset ownership, legal/privacy/safety review, operational approval, stop conditions, containment, rollback, and remediation decisions.",
+        "notProved": ["No live segmentation change, firewall action, protocol test, or production outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-ot-incident-response-playbook",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ot-incident-response-playbook/SKILL.md",
+        "sha256": "b6974771855469b12ee29b03df5232d39238c3b56bde6cf69e820a4ffead6b81",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": ["# Implementing OT Incident Response Playbook:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json",
+        "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain OT incident preparation, triage, containment, recovery, escalation, safety, and reporting guidance.",
+        "notProved": ["Guidance is not incident detection, containment, recovery, attribution, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require authorized plant, asset, safety, legal, privacy, incident-owner, communications, containment, recovery, and disclosure decisions.",
+        "notProved": ["No live incident, plant action, evidence decision, or governance outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-ot-network-traffic-analysis-with-nozomi",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ot-network-traffic-analysis-with-nozomi/SKILL.md",
+        "sha256": "c790d01e5bf16f2ca4ddbf83fcaa29b4bebbea8f9e0dd070a5a7c28e9940d074",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": ["# Implementing OT Network Traffic Analysis with Nozomi:L44"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json",
+        "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain OT traffic analysis, alert review, anomaly triage, monitoring, and defensive response guidance.",
+        "notProved": ["Guidance is not Nozomi telemetry, packet truth, alert efficacy, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, plant and sensor ownership, network scope, safety/legal review, data handling, analyst validation, stop conditions, and response decisions.",
+        "notProved": ["No live Nozomi, sensor, packet, historian, network, or production monitoring action is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-patch-management-for-ot-systems",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-patch-management-for-ot-systems/SKILL.md",
+        "sha256": "1b8a790f6c9016c9636a6a5fbf80657aeb1f38d918586eb34b67439f797c30f3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": ["# Implementing Patch Management for OT Systems:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json",
+        "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain OT patch testing, maintenance windows, vendor validation, scheduling, safety review, rollback, and remediation guidance.",
+        "notProved": ["Guidance is not patch inventory truth, vulnerability truth, deployment, safety, or remediation success."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and plant ownership, maintenance and safety approval, vendor validation, change control, stop conditions, rollback, and recovery decisions.",
+        "notProved": ["No live patch, vendor, endpoint, controller, maintenance, or production change is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-purdue-model-network-segmentation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-purdue-model-network-segmentation/SKILL.md",
+        "sha256": "0a3ca09d5164f13c9223fc841f556700f5f1144077a5e5c76802ad61da339eb9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Purdue Model Network Segmentation:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json",
+        "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Purdue zoning, conduits, least privilege, protocol flow, monitoring, change control, safety, and defensive segmentation guidance.",
+        "notProved": ["Guidance is not topology, protocol behavior, segmentation efficacy, availability, safety, or security truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network ownership, legal/privacy/safety review, operational approval, stop conditions, containment, rollback, and disclosure decisions.",
+        "notProved": ["No live Purdue zone, firewall, router, controller, packet, or production enforcement action is proved."]
+      }
+    },
+    {
+      "catalogId": "monitoring-scada-modbus-traffic-anomalies",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/monitoring-scada-modbus-traffic-anomalies/SKILL.md",
+        "sha256": "6229a6df2c35f59c27f9e1dd4788d2a18f729bfd80ec15a7eedc2c76a67cf962",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": ["# Monitoring SCADA Modbus Traffic Anomalies:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-22/decomposition.json",
+        "artifactSha256": "62be168e2acee22d2e93c3313cdfa82912dbb8708d3f4c43c791073bc37bdba6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Modbus anomaly monitoring, SCADA review, alert triage, baseline, and defensive response guidance.",
+        "notProved": ["Guidance is not SCADA state, Modbus telemetry, anomaly detection, alert efficacy, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, plant and controller ownership, protocol scope, safety/legal review, data handling, analyst validation, stop conditions, and response decisions.",
+        "notProved": ["No live SCADA, Modbus, packet, historian, controller, or production monitoring action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-ics-asset-discovery-with-claroty",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ics-asset-discovery-with-claroty/SKILL.md",
+        "sha256": "36f8ddbf78898366516fb557817a9164a9e914c72b73ea8a5cfe98d85afe8127",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing ICS Asset Discovery with Claroty:L44"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-34/decomposition.json",
+        "artifactSha256": "f339e4257c0e4ec852265864e413573f7c9673e55e4a8374dd801317cd53af72"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain ICS asset inventory, protocol, ownership, criticality, safety, and defensive discovery guidance.",
+        "notProved": ["Guidance is not Claroty inventory truth, discovery, protocol capture, safety, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written safety authorization, facility and asset ownership, legal/privacy review, network scope, stop conditions, analyst validation, containment, remediation, and recovery decisions.",
+        "notProved": ["No live Claroty, historian, SCADA, PLC, network, protocol, inventory, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-oil-gas-cybersecurity-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-oil-gas-cybersecurity-assessment/SKILL.md",
+        "sha256": "7a7af8ba0da76e6412e7e0886164e0ee9460fc67d90f8f175de76fb6bdb2d29f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Oil & Gas Cybersecurity Assessment:L39"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-76/decomposition.json",
+        "artifactSha256": "fef0536670b4a4fb7b402f0766da2135a15a34d31cc26315aca4a35b66769b39"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain oil-and-gas risk, OT segmentation, process safety, resilience, incident response, and defensive assessment guidance.",
+        "notProved": ["Guidance is not facility state, asset truth, process safety, risk truth, assessment coverage, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, facility and process ownership, legal/data/safety review, operational approval, stop conditions, analyst validation, containment, remediation, recovery, and disclosure decisions.",
+        "notProved": ["No live facility, OT, SCADA, PLC, safety, network, assessment, or production action is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live PLC, historian, SCADA, DNP3, Modbus, protocol traffic, PCAP, discovery, firewall, controller, IAM, VPN, jump-host, SIEM, IDS, Claroty, Nozomi, grid, facility, safety, or production action is proved.",
+    "No OT asset truth, anomaly detection, attack detection, protocol truth, monitoring efficacy, access enforcement, safety outcome, attribution, remediation, compliance, or security outcome is proved.",
+    "This packet contains the second 10 OT/ICS security skills; the remaining 9 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

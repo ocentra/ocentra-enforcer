@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-41",
+  "baselineCommit": "8ba8d62bfc40b40826cc714f630d6d17c93ae7aa",
+  "family": "Web-request, parser, browser-policy, and protocol security testing",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-clickjacking-attack-test",
+      "performing-csrf-attack-simulation",
+      "performing-directory-traversal-testing",
+      "performing-graphql-security-assessment",
+      "performing-security-headers-audit",
+      "performing-soap-web-service-security-testing",
+      "testing-for-host-header-injection",
+      "testing-for-open-redirect-vulnerabilities",
+      "testing-for-xss-vulnerabilities",
+      "testing-for-xxe-injection-vulnerabilities"
+    ],
+    "reason": "Ten disjoint web-application security skills covering browser policy, request-origin controls, path handling, GraphQL and SOAP protocols, security headers, host routing, redirects, XSS, and XML parser behavior. Native checks are limited to static typed supplied manifests; live endpoints, payload execution, exploitability, and security outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "performing-clickjacking-attack-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-clickjacking-attack-test/SKILL.md",
+        "sha256": "19f23db7c0b5d240e2b34f5e7f917db68847c7582073cf81fd967035215c8667",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Clickjacking Attack Test:L36"]
+      },
+      "components": [
+        {"componentId": "performing-clickjacking-attack-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied route, frame-policy, origin, browser-policy, response-header, configuration, and evidence manifests.", "notProved": ["No live browser, endpoint, framing behavior, payload delivery, exploitability, finding, or security outcome proof."]},
+        {"componentId": "performing-clickjacking-attack-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use browsers, servers, endpoints, Burp, ZAP, payload runners, sessions, or production web authorities.", "notProved": ["No pinned browser or testing adapter, live endpoint, session, payload execution, or normalized result."]},
+        {"componentId": "performing-clickjacking-attack-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive clickjacking testing and browser-policy guidance.", "notProved": ["Guidance is not enforcement and does not prove a vulnerability."]},
+        {"componentId": "performing-clickjacking-attack-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-csrf-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-csrf-attack-simulation/SKILL.md",
+        "sha256": "b4e7130b8614fe1fad4fc044b9422b997900b9fb34aac909bfb9b320865a7ad2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing CSRF Attack Simulation:L30"]
+      },
+      "components": [
+        {"componentId": "performing-csrf-attack-simulation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied request, method, origin, referrer, token, cookie, session-policy, route, and evidence manifests.", "notProved": ["No live session, request forgery, token bypass, payload delivery, exploitability, finding, or security outcome proof."]},
+        {"componentId": "performing-csrf-attack-simulation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use browsers, endpoints, servers, Burp, ZAP, request generators, sessions, payloads, or production systems.", "notProved": ["No live request, session, browser, payload execution, or normalized security result."]},
+        {"componentId": "performing-csrf-attack-simulation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive CSRF testing, token, origin, and cookie guidance.", "notProved": ["Guidance is not enforcement and does not prove request forgery."]},
+        {"componentId": "performing-csrf-attack-simulation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-directory-traversal-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-directory-traversal-testing/SKILL.md",
+        "sha256": "c4c7de462403535b21c246b2194adf2f9a6c40131586dc73ede212a3f718e70f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Directory Traversal Testing:L29"]
+      },
+      "components": [
+        {"componentId": "performing-directory-traversal-testing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied route, path, input, normalization, authorization, response, configuration, and evidence manifests.", "notProved": ["No filesystem access, path traversal, payload execution, exploitability, data exposure, finding, or security outcome proof."]},
+        {"componentId": "performing-directory-traversal-testing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use endpoints, servers, filesystems, browsers, Burp, ZAP, fuzzers, payloads, sessions, or production infrastructure.", "notProved": ["No live path request, filesystem, payload execution, or normalized result."]},
+        {"componentId": "performing-directory-traversal-testing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive path-validation, authorization, and traversal-testing guidance.", "notProved": ["Guidance is not enforcement and does not prove file access or vulnerability."]},
+        {"componentId": "performing-directory-traversal-testing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-graphql-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-graphql-security-assessment/SKILL.md",
+        "sha256": "44700dec87401270795d075676f15b5e6438704d7944cd5345a1d435efd827a2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing GraphQL Security Assessment:L31"]
+      },
+      "components": [
+        {"componentId": "performing-graphql-security-assessment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied GraphQL schema, operation, field, authorization, complexity, request-response, configuration, and evidence manifests.", "notProved": ["No GraphQL endpoint, introspection, query execution, auth bypass, denial, exploitability, finding, or security outcome proof."]},
+        {"componentId": "performing-graphql-security-assessment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use GraphQL servers, clients, browsers, Burp, ZAP, fuzzers, payload execution, sessions, or production APIs.", "notProved": ["No live schema, query, endpoint, payload execution, or normalized security result."]},
+        {"componentId": "performing-graphql-security-assessment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive GraphQL schema, authorization, complexity, and testing guidance.", "notProved": ["Guidance is not enforcement and does not prove GraphQL behavior or vulnerability."]},
+        {"componentId": "performing-graphql-security-assessment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-security-headers-audit",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-security-headers-audit/SKILL.md",
+        "sha256": "7467c71ba1d46bb53d41bdc3d46965705550c2d2c2a35d3a94d27c2169f560e8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Security Headers Audit:L30"]
+      },
+      "components": [
+        {"componentId": "performing-security-headers-audit::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied response-header, route, browser-policy, TLS-policy, configuration, expected-control, and evidence manifests.", "notProved": ["No live response, browser behavior, endpoint reachability, vulnerability, finding, or security outcome proof."]},
+        {"componentId": "performing-security-headers-audit::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use browsers, endpoints, servers, scanners, Burp, ZAP, WAFs, TLS runtimes, or production systems.", "notProved": ["No live header capture, browser evaluation, scanner, or normalized result."]},
+        {"componentId": "performing-security-headers-audit::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive security-header, browser-policy, and remediation guidance.", "notProved": ["Guidance is not enforcement and does not prove deployed control behavior."]},
+        {"componentId": "performing-security-headers-audit::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-soap-web-service-security-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-soap-web-service-security-testing/SKILL.md",
+        "sha256": "b3b1dccbb68a506274a50105070f2a93c73ba559498f7f2ed44c52c3e59a8add",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing SOAP Web Service Security Testing:L33"]
+      },
+      "components": [
+        {"componentId": "performing-soap-web-service-security-testing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied WSDL, schema, operation, request-response, authentication, policy, parser, configuration, and evidence manifests.", "notProved": ["No SOAP endpoint, request execution, parser behavior, auth bypass, exploitability, finding, or security outcome proof."]},
+        {"componentId": "performing-soap-web-service-security-testing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SOAP servers, clients, XML runtimes, browsers, Burp, ZAP, fuzzers, payloads, sessions, or production services.", "notProved": ["No live WSDL, request, parser, payload execution, or normalized security result."]},
+        {"componentId": "performing-soap-web-service-security-testing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SOAP, schema, parser, authentication, and testing guidance.", "notProved": ["Guidance is not enforcement and does not prove service behavior or vulnerability."]},
+        {"componentId": "performing-soap-web-service-security-testing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-host-header-injection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-host-header-injection/SKILL.md",
+        "sha256": "b576bdd3caf3fd11cb56c0b305b34eef992ffd2414be57ead6788189cb3facd6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for Host Header Injection:L32"]
+      },
+      "components": [
+        {"componentId": "testing-for-host-header-injection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied host, forwarded-host, origin, route, proxy, redirect, request-response, configuration, and evidence manifests.", "notProved": ["No live request, proxy behavior, cache poisoning, redirect, exploitability, finding, or security outcome proof."]},
+        {"componentId": "testing-for-host-header-injection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use endpoints, servers, proxies, browsers, Burp, ZAP, fuzzers, payloads, sessions, caches, or production infrastructure.", "notProved": ["No live host-header request, proxy, cache, payload execution, or normalized result."]},
+        {"componentId": "testing-for-host-header-injection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive host validation, proxy trust, routing, and testing guidance.", "notProved": ["Guidance is not enforcement and does not prove host-header behavior or vulnerability."]},
+        {"componentId": "testing-for-host-header-injection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-open-redirect-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-open-redirect-vulnerabilities/SKILL.md",
+        "sha256": "773bc2e3ddb71f93cfe356debef6c75edbcf835bf83f367a4e200e807e976670",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for Open Redirect Vulnerabilities:L32"]
+      },
+      "components": [
+        {"componentId": "testing-for-open-redirect-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied URL, route, redirect, allowlist, origin, response, configuration, and evidence manifests.", "notProved": ["No live redirect, endpoint, browser navigation, phishing delivery, exploitability, finding, or security outcome proof."]},
+        {"componentId": "testing-for-open-redirect-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use browsers, endpoints, servers, Burp, ZAP, fuzzers, payloads, sessions, or production web systems.", "notProved": ["No live redirect request, browser navigation, payload execution, or normalized result."]},
+        {"componentId": "testing-for-open-redirect-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive redirect allowlist, URL validation, and testing guidance.", "notProved": ["Guidance is not enforcement and does not prove redirect behavior or vulnerability."]},
+        {"componentId": "testing-for-open-redirect-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-xss-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-xss-vulnerabilities/SKILL.md",
+        "sha256": "0bcc31f06c8869cba47dcf440421c8a87fbebd50f03d41b921eb9f6f10be79aa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for XSS Vulnerabilities:L35"]
+      },
+      "components": [
+        {"componentId": "testing-for-xss-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied input, output context, encoding, content policy, route, request-response, configuration, and evidence manifests.", "notProved": ["No browser execution, script payload, endpoint, exploitability, session impact, finding, or security outcome proof."]},
+        {"componentId": "testing-for-xss-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use browsers, endpoints, servers, Burp, ZAP, fuzzers, payloads, JavaScript runtimes, sessions, or production systems.", "notProved": ["No live script, browser, payload execution, session, or normalized security result."]},
+        {"componentId": "testing-for-xss-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive XSS, encoding, content-policy, and testing guidance.", "notProved": ["Guidance is not enforcement and does not prove script execution or vulnerability."]},
+        {"componentId": "testing-for-xss-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-xxe-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-xxe-injection-vulnerabilities/SKILL.md",
+        "sha256": "d2501aefc63508db7732a4adaf251d8f0beff93decab5b466754a5f8744e2994",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for XXE Injection Vulnerabilities:L31"]
+      },
+      "components": [
+        {"componentId": "testing-for-xxe-injection-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied XML, parser, DTD, entity, schema, request-response, configuration, and evidence manifests.", "notProved": ["No XML parser execution, entity resolution, file/network access, payload delivery, exploitability, finding, or security outcome proof."]},
+        {"componentId": "testing-for-xxe-injection-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use XML runtimes, SOAP services, endpoints, servers, Burp, ZAP, fuzzers, payloads, sessions, or production systems.", "notProved": ["No live parser, entity, request, payload execution, or normalized security result."]},
+        {"componentId": "testing-for-xxe-injection-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive XML parser, entity, schema, and testing guidance.", "notProved": ["Guidance is not enforcement and does not prove parser behavior or vulnerability."]},
+        {"componentId": "testing-for-xxe-injection-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/safety review, data handling, severity, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization or remediation decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Live endpoints, servers, browsers, Burp, ZAP, fuzzers, payload execution, GraphQL, SOAP, WAF, sessions, and production authorities remain blocked external engines.",
+    "No live exploitability, payload delivery, authentication bypass, parser behavior, vulnerability, finding, containment, remediation, disclosure, or web/security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}

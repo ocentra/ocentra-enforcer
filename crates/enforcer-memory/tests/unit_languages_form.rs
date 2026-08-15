@@ -1,7 +1,7 @@
 //! Hard tests for FORM (the symbolic-manipulation language, not Go
 //! Template's own `form` naming or anything HTML-form-related),
 //! onboarded directly through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_form`]) --
+//! ([`enforcer_syntax::languages::generic::parse_form`]) --
 //! language-parity wave G2.6 (found genuinely missing during the G2.5
 //! closeout audit, no bespoke `languages::form` extractor ever
 //! existed). Real syntax lifted directly from the baseline's own
@@ -9,8 +9,8 @@
 //! (`#procedure name(args) ... #endprocedure`, `#call name(args)`), not
 //! guessed.
 
-use enforcer_memory::languages::generic::parse_form;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_form;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_form";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

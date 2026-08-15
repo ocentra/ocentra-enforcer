@@ -109,6 +109,76 @@ impl std::fmt::Display for NodeName {
     }
 }
 
+/// Stable alias used to select a persisted coordination peer.
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[doc = "BRAND-INVARIANT: peer aliases are bounded safe coordination identities."]
+pub struct CoordinationPeerName(String);
+impl CoordinationPeerName {
+    pub fn parse(raw: &str) -> Result<Self, DecodeError> {
+        (identity_spelling(raw) == IdentitySpelling::Valid)
+            // ALLOC-JUSTIFICATION: the validated peer identity owns its bounded spelling.
+            .then(|| Self(raw.to_owned()))
+            .ok_or_else(|| DecodeError::new("coordinationPeerName", "expected a safe peer alias"))
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// HTTP endpoint for a native coordination peer.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[doc = "BRAND-INVARIANT: only explicit non-empty http endpoints are accepted by the native transport."]
+pub struct CoordinationPeerUrl(String);
+impl CoordinationPeerUrl {
+    pub fn parse(raw: &str) -> Result<Self, DecodeError> {
+        if raw.starts_with("http://")
+            && raw.len() > "http://".len()
+            && !raw.chars().any(char::is_whitespace)
+        {
+            // ALLOC-JUSTIFICATION: endpoint brand owns its canonical no-trailing-slash form.
+            Ok(Self(raw.trim_end_matches('/').to_owned()))
+        } else {
+            Err(DecodeError::new(
+                "coordinationPeerUrl",
+                "expected a non-empty http:// peer endpoint",
+            ))
+        }
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+/// Environment-variable name holding a peer bearer token, never the token itself.
+#[derive(Clone, PartialEq, Eq, Hash)]
+#[doc = "BRAND-INVARIANT: a persisted registry retains only a safe environment variable name, never a secret."]
+pub struct CoordinationPeerTokenEnv(String);
+impl std::fmt::Debug for CoordinationPeerTokenEnv {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str("CoordinationPeerTokenEnv([redacted])")
+    }
+}
+impl CoordinationPeerTokenEnv {
+    pub fn parse(raw: String) -> Result<Self, DecodeError> {
+        let valid = !raw.is_empty()
+            && raw.len() <= 128
+            && raw.chars().enumerate().all(|(index, c)| {
+                c == '_'
+                    || c.is_ascii_alphanumeric()
+                        && (index > 0 || c.is_ascii_alphabetic() || c == '_')
+            });
+        valid.then_some(Self(raw)).ok_or_else(|| {
+            DecodeError::new(
+                "coordinationPeerTokenEnv",
+                "expected a safe non-empty environment variable name",
+            )
+        })
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 /// `<nodeId>.<lane>` identity attached to an appended coordination event.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 #[doc = "BRAND-INVARIANT: composed only from validated node and lane identities."]
@@ -454,6 +524,16 @@ non_blank_coordination_brand!(
     "A non-blank message body carried by coordination mail."
 );
 non_blank_coordination_brand!(
+    CoordinationReportTitle,
+    "coordinationReportTitle",
+    "A non-blank title carried by a durable coordination report."
+);
+non_blank_coordination_brand!(
+    CoordinationReportSummary,
+    "coordinationReportSummary",
+    "A non-blank summary carried by a durable coordination report."
+);
+non_blank_coordination_brand!(
     CoordinationStreamName,
     "coordinationStreamName",
     "The canonical name of a coordination event stream."
@@ -563,6 +643,10 @@ impl FindingCount {
 pub struct CoordinationEventCount(usize);
 
 impl CoordinationEventCount {
+    pub const fn value(self) -> usize {
+        self.0
+    }
+
     pub fn from_collection<T>(values: &[T]) -> Self {
         Self(values.len())
     }
@@ -676,18 +760,42 @@ pub enum ProtectedSingletonStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CoordinationEventKind {
     Claim,
+    ClaimResolve,
     Release,
     Message,
     Acknowledgement,
+    Report,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RepairMode {
+    DryRun,
+    Write,
+}
+
+/// BRAND-INVARIANT: produced only by exact active-claim selection.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RepairMatchCount(usize);
+impl RepairMatchCount {
+    pub const fn get(self) -> usize {
+        self.0
+    }
+}
+impl From<usize> for RepairMatchCount {
+    fn from(value: usize) -> Self {
+        Self(value)
+    }
 }
 
 impl CoordinationEventKind {
     pub fn as_str(self) -> &'static str {
         match self {
             Self::Claim => "claim",
+            Self::ClaimResolve => "claim.resolve",
             Self::Release => "release",
             Self::Message => "message",
             Self::Acknowledgement => "ack",
+            Self::Report => "report",
         }
     }
 }

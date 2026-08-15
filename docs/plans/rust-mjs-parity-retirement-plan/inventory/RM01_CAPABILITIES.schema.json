@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ocentra.dev/schemas/plans/rust-mjs-parity-rm01-capabilities.schema.json",
+  "$comment": "sourceOwner: docs/plans/rust-mjs-parity-retirement-plan/workpacks/rm01-capability-inventory.md; generator: boss-owned RM01 schema integrator; sourceHash: sha256:8f781b3e5cc8da06ffb2fefb5e73812c3be5ccff37d9f107ee0d2ca3bd02dbf9",
+  "title": "Ocentra Enforcer RM01 Capability Inventory",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "workpackId",
+    "inventoryState",
+    "sourceReport",
+    "coverage",
+    "rows",
+    "unresolved",
+    "proves",
+    "doesNotProve"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "workpackId": {
+      "const": "RM01"
+    },
+    "inventoryState": {
+      "enum": [
+        "incomplete",
+        "complete-unproved",
+        "oracle-active",
+        "adjudicated"
+      ]
+    },
+    "sourceReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "managerThreadId",
+        "observedAtCandidateSha",
+        "authorityDecisionInputCandidateSha",
+        "publicOracleSha",
+        "provenanceBaseSha",
+        "privateOverlaySha",
+        "overlayCommits",
+        "evidenceLevel"
+      ],
+      "properties": {
+        "managerThreadId": {
+          "type": "string",
+          "minLength": 1
+        },
+        "observedAtCandidateSha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "authorityDecisionInputCandidateSha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "publicOracleSha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "provenanceBaseSha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "privateOverlaySha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "overlayCommits": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/gitSha"
+          }
+        },
+        "evidenceLevel": {
+          "const": "source-inventory-only"
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposalRowCount",
+        "complete",
+        "knownPublicSurfaceCounts",
+        "unexpandedSurfaces"
+      ],
+      "properties": {
+        "proposalRowCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "complete": {
+          "type": "boolean"
+        },
+        "knownPublicSurfaceCounts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "canonicalMcpTools",
+            "legacyMcpAliases",
+            "registeredRuleIds"
+          ],
+          "properties": {
+            "canonicalMcpTools": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "legacyMcpAliases": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "registeredRuleIds": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "unexpandedSurfaces": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/capabilityRow"
+      }
+    },
+    "unresolved": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/note"
+      }
+    },
+    "proves": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "doesNotProve": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "$defs": {
+    "gitSha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "sourceAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "authority",
+        "sha",
+        "anchors"
+      ],
+      "properties": {
+        "authority": {
+          "enum": [
+            "public",
+            "overlay",
+            "none"
+          ]
+        },
+        "sha": {
+          "type": "string"
+        },
+        "anchors": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "rustAnchor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sha",
+        "anchors"
+      ],
+      "properties": {
+        "sha": {
+          "$ref": "#/$defs/gitSha"
+        },
+        "anchors": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "capabilityRow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "family",
+        "authoritySources",
+        "observableBehavior",
+        "rustSources",
+        "initialDisposition",
+        "overlayBehaviorId",
+        "proofNeeded",
+        "evidenceStatus",
+        "observedResult",
+        "doesNotProve"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "family": {
+          "enum": [
+            "cli-mcp-runtime",
+            "scanner-rules-policy-config",
+            "coordination-locks-mail-lanes",
+            "ci-proof-release-retirement"
+          ]
+        },
+        "authoritySources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sourceAnchor"
+          }
+        },
+        "observableBehavior": {
+          "type": "string",
+          "minLength": 1
+        },
+        "rustSources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/rustAnchor"
+          }
+        },
+        "initialDisposition": {
+          "enum": [
+            "unknown",
+            "missing",
+            "intentional-enhancement"
+          ]
+        },
+        "overlayBehaviorId": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "enum": [
+            null,
+            "private-rust-test-module-exact-match",
+            "private-rust-test-module-policy-preservation"
+          ]
+        },
+        "proofNeeded": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidenceStatus": {
+          "const": "source-inventory-only"
+        },
+        "observedResult": {
+          "enum": [
+            "unmeasured",
+            "equal",
+            "stricter",
+            "not-yet-native",
+            "legacy-only",
+            "intentionally-retired"
+          ]
+        },
+        "doesNotProve": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "detail"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "detail": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

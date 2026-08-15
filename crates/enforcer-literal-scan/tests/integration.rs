@@ -145,6 +145,48 @@ fn many_language_dataset_scans_broad_language_families() -> Result<(), Box<dyn s
 }
 
 #[test]
+fn canonical_detection_projection_preserves_known_and_unknown_routing(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let root = temp_dir("literal_scan_canonical_detection")?;
+    fs::write(root.join("Dockerfile"), "RUN echo \"docker\"\n")?;
+    fs::write(root.join("service.env.local"), "VALUE=\"env\"\n")?;
+    fs::write(root.join("x.c"), "const char* value = \"c\";\n")?;
+    fs::write(root.join("x.nim"), "let value = \"nim\"\n")?;
+    fs::write(root.join("unknown.extension"), "value = \"unknown\"\n")?;
+
+    let known_only = run_scan(&CliOptions {
+        root: root.clone().into(),
+        include_low: true.into(),
+        min_score: enforcer_domain::scan_types::LiteralRiskScore::ZERO,
+        ..CliOptions::default()
+    })?;
+    let known_languages: BTreeSet<_> = known_only
+        .languages
+        .keys()
+        .map(|key| key.as_str())
+        .collect();
+    let expected_known = ["c", "dockerfile", "nim"].into_iter().collect();
+    assert_eq!(known_languages, expected_known);
+
+    let with_unknown = run_scan(&CliOptions {
+        root: root.clone().into(),
+        include_low: true.into(),
+        include_unknown_code: true.into(),
+        min_score: enforcer_domain::scan_types::LiteralRiskScore::ZERO,
+        ..CliOptions::default()
+    })?;
+    let all_languages: BTreeSet<_> = with_unknown
+        .languages
+        .keys()
+        .map(|key| key.as_str())
+        .collect();
+    let expected_all = ["c", "dockerfile", "nim", "unknown"].into_iter().collect();
+    assert_eq!(all_languages, expected_all);
+    let _ = fs::remove_dir_all(root);
+    Ok(())
+}
+
+#[test]
 fn ignored_files_are_skipped_by_default() -> Result<(), Box<dyn std::error::Error>> {
     let opts = CliOptions {
         root: fixture("ignored").into(),

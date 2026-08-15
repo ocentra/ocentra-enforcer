@@ -32,17 +32,19 @@ use crate::domain::{self, HubConfig};
 use crate::error::{CoordinationError, Result};
 use crate::events::boundary::HubEventResponse;
 use crate::ledger::active_claims;
-use crate::lock::{blockers_for_request, enrich_claim, ClaimContext, RawClaim};
-use crate::sync::stream::read_all_streams;
+use crate::lock::{blockers_for_request, enrich_claim, path_overlaps, ClaimContext, RawClaim};
+use crate::sync::{retention, stream::read_all_streams};
 use enforcer_domain::coordination_types::{
     ClaimContextPresence, ClaimEventId, ClaimFilterMatch, ClaimGroup, ClaimLane,
-    ClaimOutcomeStatus, ClaimPath, ClaimReason, ClaimWriter, CloseoutLaneScope, CoordinationBranch,
-    CoordinationEventKind, CoordinationLedgerRoot, CoordinationMessageBody,
-    CoordinationOwnerIdentity, CoordinationProjectId, CoordinationRejection, CoordinationRepoRoot,
-    CoordinationRepository, CoordinationWorktree, LockKind, NodeId, NodeName, Operation, WriterId,
+    ClaimOutcomeStatus, ClaimPath, ClaimReason, ClaimWriter, CloseoutLaneScope,
+    CompactionKeepCount, CoordinationBranch, CoordinationEventKind, CoordinationLedgerRoot,
+    CoordinationMatch, CoordinationMessageBody, CoordinationOwnerIdentity, CoordinationProjectId,
+    CoordinationRejection, CoordinationRepoRoot, CoordinationReportSummary,
+    CoordinationReportTitle, CoordinationRepository, CoordinationWorktree, LockKind, NodeId,
+    NodeName, Operation, RepairMatchCount, RepairMode, WriterId,
 };
 
-mod boundary;
+pub mod boundary;
 
 use boundary::{
     append_event, decode_hub_config, encode_hub_config, now_iso, AppendEventArgs, EventContextRefs,
@@ -113,6 +115,27 @@ pub struct Hub {
 pub fn open(root: CoordinationLedgerRoot) -> Result<Hub> {
     let config = load_identity(root.as_path())?;
     Ok(Hub { root, config })
+}
+
+/// Read unacknowledged inbox and primary-lane report wake-ups. With `peek`,
+/// no cursor is advanced; otherwise only the derived notifier cursor is
+/// atomically replaced after the canonical stream was successfully replayed.
+pub fn notify(
+    hub: &Hub,
+    lane: &LaneId,
+    request: boundary::NotifyRequest,
+) -> Result<boundary::NotifyResponseDto> {
+    boundary::notify(hub, lane, request)
+}
+
+/// Compact an already-authorized ledger without creating an identity or
+/// accepting an untyped retention value at the transport boundary.
+///
+/// The caller must obtain a [`Hub`] through [`open`] first. This keeps a
+/// compaction request from turning a misspelled or absent ledger root into a
+/// newly initialized authority as a side effect.
+pub fn compact(hub: &Hub, keep_latest: CompactionKeepCount) -> Result<retention::CompactionResult> {
+    retention::compact_ledger(&hub.root, keep_latest)
 }
 
 /// L1: idempotent init. If an identity already exists at `root`, it is
@@ -300,6 +323,54 @@ pub fn release(
     caller: &CallerContext,
     reason: Option<&ClaimReason>,
 ) -> Result<HubEventResponse> {
+    let active = active_claims(&read_all_streams(hub.root.as_path())?.events);
+    let writer = ClaimWriter::from(&WriterId::new(&hub.config.node_id, lane));
+    let owned: Vec<&RawClaim> = active
+        .iter()
+        .filter(|claim| {
+            matches!(
+                claim_matches_caller(claim, &writer, lane, caller),
+                CoordinationMatch::Matches
+            )
+        })
+        .collect();
+    let release_paths: Vec<ClaimPath> = paths
+        .iter()
+        .filter(|requested| {
+            let selected: Vec<&RawClaim> = owned
+                .iter()
+                .copied()
+                .filter(|claim| {
+                    claim.paths.iter().any(|owned_path| {
+                        matches!(
+                            path_overlaps(requested, owned_path),
+                            CoordinationMatch::Matches
+                        )
+                    })
+                })
+                .collect();
+            !selected.is_empty()
+                && !active.iter().any(|other| {
+                    selected
+                        .iter()
+                        .all(|claim| claim.event_id != other.event_id)
+                        && other.paths.iter().any(|owned_path| {
+                            matches!(
+                                path_overlaps(requested, owned_path),
+                                CoordinationMatch::Matches
+                            )
+                        })
+                })
+        })
+        .cloned()
+        .collect();
+    if release_paths.is_empty() {
+        return Err(CoordinationError::rejected(
+            CoordinationRejection::from_static(
+                "coordination release matched no caller-owned active claims",
+            )?,
+        ));
+    }
     // CLONE-JUSTIFICATION: append_event consumes context while the caller remains borrowed by this API.
     let context = caller
         .clone()
@@ -309,7 +380,7 @@ pub fn release(
         AppendEventArgs {
             lane,
             kind: CoordinationEventKind::Release,
-            paths: Some(paths.to_vec()),
+            paths: Some(release_paths),
             reason: reason.cloned(),
             context: Some(EventContextRefs {
                 claim: &context,
@@ -318,6 +389,98 @@ pub fn release(
             metadata: EventMetadata::default(),
         },
     )
+}
+
+fn claim_matches_caller(
+    claim: &RawClaim,
+    writer: &ClaimWriter,
+    lane: &LaneId,
+    caller: &CallerContext,
+) -> CoordinationMatch {
+    if &claim.writer == writer
+        && claim.lane.as_str() == lane.as_str()
+        && claim.context.project_id.as_ref() == Some(&caller.project_id)
+        && claim.context.worktree_root.as_ref() == Some(&caller.worktree_root)
+        && claim.context.branch.as_ref() == Some(&caller.branch)
+        && claim.context.codex_thread_id.as_ref() == caller.codex_thread_id.as_ref()
+        && claim.context.codex_session_id.as_ref() == caller.codex_session_id.as_ref()
+    {
+        CoordinationMatch::Matches
+    } else {
+        CoordinationMatch::Differs
+    }
+}
+
+/// Resolve active claims only for exact requested paths and (when supplied)
+/// exact writers. Dry-run never appends; write mode emits one auditable
+/// `claim.resolve` event rather than mutating prior stream records.
+#[derive(Debug, Clone, Copy)]
+pub struct RepairStaleClaimsArgs<'a> {
+    pub lane: &'a LaneId,
+    pub paths: &'a [ClaimPath],
+    pub owners: Option<&'a [ClaimWriter]>,
+    pub caller: &'a CallerContext,
+    pub mode: RepairMode,
+}
+
+/// Match stale claims and optionally append one auditable resolution event.
+pub fn repair_stale_claims(
+    hub: &Hub,
+    args: RepairStaleClaimsArgs<'_>,
+) -> Result<(RepairMatchCount, Option<HubEventResponse>)> {
+    let RepairStaleClaimsArgs {
+        lane,
+        paths,
+        owners,
+        caller,
+        mode,
+    } = args;
+    let active = active_claims(&read_all_streams(hub.root.as_path())?.events);
+    let matched = active
+        .into_iter()
+        .filter(|claim| {
+            claim.paths.iter().any(|owned| {
+                paths
+                    .iter()
+                    .any(|path| matches!(path_overlaps(path, owned), CoordinationMatch::Matches))
+            }) && owners.is_none_or(|owners| {
+                owners
+                    .iter()
+                    .any(|owner| owner.as_str() == claim.writer.as_str())
+            })
+        })
+        .count();
+    if matches!(mode, RepairMode::DryRun) || matched == 0 {
+        return Ok((matched.into(), None));
+    }
+    // CLONE-JUSTIFICATION: persisted event context outlives the borrowed caller request.
+    let context = caller
+        .clone()
+        .into_claim_context(ClaimContextExtras::default())?;
+    let event = append_event(
+        hub,
+        AppendEventArgs {
+            lane,
+            kind: CoordinationEventKind::ClaimResolve,
+            paths: Some(paths.to_vec()),
+            reason: Some(ClaimReason::from_static("coordination stale claim repair")?),
+            context: Some(EventContextRefs {
+                claim: &context,
+                caller,
+            }),
+            metadata: EventMetadata {
+                // ALLOC-JUSTIFICATION: persisted event JSON owns selected writer values.
+                owners: owners.map(|owners| {
+                    owners
+                        .iter()
+                        .map(|owner| owner.as_str().to_owned())
+                        .collect()
+                }),
+                ..Default::default()
+            },
+        },
+    )?;
+    Ok((matched.into(), Some(event)))
 }
 
 /// Append a lane-addressed coordination message to the caller's own stream.
@@ -350,6 +513,39 @@ pub fn send_message(
             metadata: EventMetadata {
                 to: Some(recipient_lane),
                 body: Some(body),
+                ..Default::default()
+            },
+        },
+    )
+}
+
+/// Append a durable lane report. Reports are canonical append-only events;
+/// read models may project them but never become the authority.
+pub fn report(
+    hub: &Hub,
+    lane: &LaneId,
+    title: CoordinationReportTitle,
+    summary: CoordinationReportSummary,
+    caller: &CallerContext,
+) -> Result<HubEventResponse> {
+    // CLONE-JUSTIFICATION: the persisted report owns its context while the API retains the borrowed caller identity.
+    let context = caller
+        .clone()
+        .into_claim_context(ClaimContextExtras::default())?;
+    append_event(
+        hub,
+        AppendEventArgs {
+            lane,
+            kind: CoordinationEventKind::Report,
+            paths: None,
+            reason: None,
+            context: Some(EventContextRefs {
+                claim: &context,
+                caller,
+            }),
+            metadata: EventMetadata {
+                title: Some(title),
+                summary: Some(summary),
                 ..Default::default()
             },
         },
@@ -503,8 +699,9 @@ pub fn closeout(
     let all = read_all_streams(hub.root.as_path())?;
     let active = active_claims(&all.events);
     let matching: Vec<RawClaim> = active
-        .into_iter()
+        .iter()
         .filter(|claim| matches!(matches_filters(claim, filters), ClaimFilterMatch::Matches))
+        .cloned()
         .collect();
     if matching.is_empty() {
         return Ok(Vec::new());
@@ -512,7 +709,21 @@ pub fn closeout(
     let mut by_lane: std::collections::BTreeMap<ClaimLane, Vec<ClaimPath>> =
         std::collections::BTreeMap::new();
     for claim in matching {
-        by_lane.entry(claim.lane).or_default().extend(claim.paths);
+        let safe_paths = claim
+            .paths
+            .into_iter()
+            .filter(|path| {
+                !active.iter().any(|other| {
+                    other.event_id != claim.event_id
+                        && other.paths.iter().any(|other_path| {
+                            matches!(path_overlaps(path, other_path), CoordinationMatch::Matches)
+                        })
+                })
+            })
+            .collect::<Vec<_>>();
+        if !safe_paths.is_empty() {
+            by_lane.entry(claim.lane).or_default().extend(safe_paths);
+        }
     }
     // CLONE-JUSTIFICATION: release events own their transport context after validation.
     let context = caller

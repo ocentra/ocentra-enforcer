@@ -1,15 +1,15 @@
 //! Hard tests for Liquid, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_liquid`]). Asserts
+//! ([`enforcer_syntax::languages::generic::parse_liquid`]). Asserts
 //! against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::liquid`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::liquid`]'s own doc
 //! comment: the real root node kind is `program` (NOT baseline's
 //! claimed `template`), and `include_statement` is claimed by
-//! [`enforcer_memory::languages::generic::liquid_quirk`] (the generic
+//! [`enforcer_syntax::languages::generic::liquid_quirk`] (the generic
 //! walker's own `import_types` branch has no field-driven default of
 //! its own at all).
 
-use enforcer_memory::languages::generic::parse_liquid;
+use enforcer_syntax::languages::generic::parse_liquid;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

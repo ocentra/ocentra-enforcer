@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-13",
+  "family": "IF/cloud-security",
+  "baselineCommit": "b25aa2044de51ad9f18f7e45e78ba061dafd117e",
+  "scope": "Retain advisory and manual content for the final deterministic cloud-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "securing-aws-iam-permissions",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-aws-iam-permissions/SKILL.md",
+        "sha256": "b7313a722e17b556e56767a46f28f07aae48d83bd2ce9aa694a6877d020f6bc9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["### Step 3: Scope Policies to Specific Resources and Conditions:L127"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-04/decomposition.json",
+        "artifactSha256": "04cdd6b0cda44129373c802694deb5bf606b8a8910003663f52ced1ce7f41df9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive AWS IAM least-privilege, resource scoping, conditions, evidence review, access governance, and remediation planning guidance.",
+        "notProved": ["Guidance is not IAM, AWS, an identity provider, policy engine, cloud API, scanner, or production enforcement and does not prove permissions, access, least privilege, exposure, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, principal, role, policy, resource, action, condition, credential, and data scope; owner validation, legal/privacy review, key custody, least privilege, exception, revocation, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, account, principal, role, policy, resource, credential, permission, access, exception, revocation, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-aws-lambda-execution-roles",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-aws-lambda-execution-roles/SKILL.md",
+        "sha256": "164425391564bbe694e627af1eb4d79286e54bad6f56a6ae846692f9288decd1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["### Step 3: Create Least-Privilege Execution Policies:L113"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-04/decomposition.json",
+        "artifactSha256": "04cdd6b0cda44129373c802694deb5bf606b8a8910003663f52ced1ce7f41df9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Lambda execution-role, trust-policy, least-privilege, event-source, logging, evidence, and hardening guidance.",
+        "notProved": ["Guidance is not Lambda, AWS, IAM, an execution runtime, event source, cloud API, scanner, or production enforcement and does not prove role behavior, invocation, isolation, access, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, function, role, trust relationship, event, resource, permission, data, and deployment scope; owner validation, legal/privacy/safety review, change control, validation, revocation, rollback, remediation, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, function, role, trust policy, event, permission, invocation, access, revocation, rollback, remediation, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-azure-with-microsoft-defender",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-azure-with-microsoft-defender/SKILL.md",
+        "sha256": "369d38943684d6b81915abcc039aef4bbe41f3bb0cec730c93960da0f13483e4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Azure with Microsoft Defender:L42"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-81/decomposition.json",
+        "artifactSha256": "ff701913c6bad304bcf96c60eba0865b71d51e80f9a6f446fa7105839a4072cc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Azure and Defender posture, workload, identity, alert, vulnerability, evidence, and remediation planning guidance.",
+        "notProved": ["Guidance is not Defender, Azure, CSPM, scanner, endpoint, SIEM, cloud API, or production enforcement and does not prove posture, vulnerability, alert, detection, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, subscription, resource, workload, identity, alert, policy, finding, and data scope; owner validation, legal/privacy review, provider terms, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, subscription, resource, workload, identity, alert, policy, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-container-registry-images",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-container-registry-images/SKILL.md",
+        "sha256": "e2f12498f74be474e54c5f6ec60470c025a6fef72e05e11326849595ec8090b7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Container Registry Images:L35", "## Workflow:L55", "### Step 1: Scan Images for Vulnerabilities with Trivy:L57"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive image provenance, registry access, vulnerability-review, signing, admission, evidence, and supply-chain hardening guidance.",
+        "notProved": ["Guidance is not a container registry, Trivy, scanner, Cosign, signer, Kubernetes admission controller, artifact store, or production enforcement and does not prove vulnerability, signature, provenance, admission, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact registry, repository, image, tag, digest, signer, key, cluster, admission, artifact, and release scope; owner validation, legal review, key custody, severity, exception, release, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, registry, repository, image, digest, signer, key, vulnerability, admission, release, rollback, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-kubernetes-on-cloud",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-kubernetes-on-cloud/SKILL.md",
+        "sha256": "5e12a4c654a22950abcec72fe92b73d9dac8f8ce8ef84114f01e7ec4e6666ee1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Kubernetes on Cloud:L35", "## Workflow:L54", "### Step 1: Enforce Pod Security Standards:L56"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Kubernetes cloud architecture, pod security, RBAC, network, workload, image, logging, evidence, and hardening guidance.",
+        "notProved": ["Guidance is not Kubernetes, a cluster, admission controller, cloud provider, CNI, runtime, image scanner, SIEM, endpoint, or production enforcement and does not prove pod security, isolation, RBAC, workload, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact cluster, node, namespace, pod, service, workload, image, identity, network, policy, and data scope; owner validation, legal/privacy/safety review, change control, maintenance window, validation, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, cluster, node, namespace, pod, service, workload, image, identity, policy, access, isolation, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-serverless-functions",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-serverless-functions/SKILL.md",
+        "sha256": "3e2dcca6e33c4c34c9eccef272eb0bbb72aefc039d8b32302524fd7cb07edd71",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Serverless Functions:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive serverless threat modeling, function identity, dependency, event, data, logging, evidence, and secure-deployment guidance.",
+        "notProved": ["Guidance is not a serverless runtime, Lambda, cloud provider, event bus, scanner, endpoint, or production enforcement and does not prove code safety, invocation, isolation, access, data protection, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, function, runtime, layer, event, role, dependency, data, deployment, and change scope; owner validation, legal/privacy/safety review, change control, severity, rollback, remediation, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, function, runtime, event, role, dependency, invocation, finding, rollback, remediation, recovery, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 6,
+    "advisoryRetained": 6,
+    "manualRetained": 6,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live AWS, Azure, Kubernetes, Lambda, container registry, Defender, IAM, cloud provider, account, tenant, identity, credential, policy, image, signer, admission controller, scanner, endpoint, network, session, containment, remediation, recovery, or production execution is proved.",
+    "No permission, access, least privilege, vulnerability, signature, provenance, posture, compliance, detection, exploitation, attribution, remediation, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

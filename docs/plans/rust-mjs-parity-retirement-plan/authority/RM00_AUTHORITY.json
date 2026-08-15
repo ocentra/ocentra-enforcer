@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "workpackId": "RM00",
+  "observedDate": "2026-08-02",
+  "decisionInputCandidateSha": "221179f0226665d66d2151897f757c4936bc1092",
+  "authorities": {
+    "publicFrozenOracle": {
+      "refObserved": "origin/safety-main",
+      "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+      "role": "public-behavior-oracle",
+      "pinnedBySha": true
+    },
+    "provenanceBase": {
+      "sha": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
+      "role": "common-fork-provenance-only"
+    },
+    "privateOverlay": {
+      "checkoutPath": "E:/ocentra-enforcer",
+      "branch": "codex/private-rust-test-allowlist",
+      "sha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+      "role": "two-exact-private-behaviors-only",
+      "publicVerdictAuthority": false,
+      "mergeSource": false
+    },
+    "candidate": {
+      "checkoutPath": "E:/ocentra-enforcer-rust-build",
+      "branch": "rust-build",
+      "decisionInputSha": "221179f0226665d66d2151897f757c4936bc1092"
+    }
+  },
+  "relationships": {
+    "mergeBase": "d7162b6173e2c664547fcb9715ba135c435d0b1e",
+    "publicDeltaCommits": [
+      {
+        "sha": "267af94b701bd592e01a47649e3c18c26ee04239",
+        "subject": "fix(scanner): distinguish boundary decoding from domain decisions"
+      }
+    ],
+    "overlayDeltaCommits": [
+      {
+        "sha": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+        "subject": "feat(enforcer): allow exact private Rust test modules"
+      },
+      {
+        "sha": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+        "subject": "fix(enforcer): preserve private Rust test allowlists"
+      }
+    ]
+  },
+  "dogfoodPins": [
+    {
+      "path": ".github/workflows/dogfood.yml",
+      "field": "FROZEN_SAFETY_SCANNER_COMMIT",
+      "sha": "267af94b701bd592e01a47649e3c18c26ee04239"
+    },
+    {
+      "path": "scripts/ci/verify-workflow-contract.mjs",
+      "field": "FROZEN_SAFETY_SCANNER_COMMIT contract assertion",
+      "sha": "267af94b701bd592e01a47649e3c18c26ee04239"
+    }
+  ],
+  "overlayBehaviors": [
+    {
+      "id": "private-rust-test-module-exact-match",
+      "sourceCommit": "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+      "contract": "Accept only an exact configured ownerFile/moduleFile/moduleName triple, same-directory private module, existing module file, exact cfg-path-mod declaration, and no second cfg(test) declaration.",
+      "anchors": [
+        "scripts/check-source-core-private-rust-test-module.mjs",
+        "tests/enforcer-checks.test.mjs"
+      ]
+    },
+    {
+      "id": "private-rust-test-module-policy-preservation",
+      "sourceCommit": "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36",
+      "contract": "Validate the complete allowlist entry in Effect and JSON schemas and preserve privateRustTestModuleAllowlist through policy/config-lockdown processing.",
+      "anchors": [
+        "schemas/effect/enforcer-schemas-config.mjs",
+        "schemas/json/enforcer-config.schema.json",
+        "src/check-policy.mjs",
+        "tests/enforcer-policy.test.mjs",
+        "tests/enforcer-schemas.test.mjs"
+      ]
+    }
+  ],
+  "aggregateParityContract": {
+    "publicBehaviorSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+    "requiredOverlayBehaviorIds": [
+      "private-rust-test-module-exact-match",
+      "private-rust-test-module-policy-preservation"
+    ],
+    "candidateVerdict": "equal-or-stricter",
+    "privateOverlayMayProducePublicPass": false
+  },
+  "prohibitions": [
+    "do-not-modify-frozen-authorities",
+    "do-not-merge-safety-main",
+    "do-not-merge-private-overlay",
+    "do-not-use-private-overlay-as-public-verdict-authority",
+    "do-not-retain-mjs-as-production-fallback-after-cutover"
+  ]
+}

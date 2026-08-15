@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-73",
+  "baselineCommit": "4cf7616e0e11ea8728a38f693e82ae4d0637afc0",
+  "family": "Authorized assessment and incident-response evidence manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-authenticated-scan-with-openvas",
+      "performing-authenticated-vulnerability-scan",
+      "performing-bandwidth-throttling-attack-simulation",
+      "performing-binary-exploitation-analysis",
+      "performing-blind-ssrf-exploitation",
+      "performing-bluetooth-security-assessment",
+      "performing-brand-monitoring-for-impersonation",
+      "performing-cloud-incident-containment-procedures",
+      "performing-cloud-native-threat-hunting-with-aws-detective",
+      "performing-cloud-penetration-testing-with-pacu"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-72."
+  },
+  "accounting": {
+    "acceptedPrior": 720,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 730,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "performing-authenticated-scan-with-openvas",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-authenticated-scan-with-openvas/SKILL.md","sha256":"40673c6f2de09532c9b22125ab23361f88a34dfb8373d5cbd9fb095fbf6b94ac","availability":"available","license":"Apache-2.0","anchors":["# Performing Authenticated Scan with OpenVAS:L32"]},
+      "components": [
+        {"id":"performing-authenticated-scan-with-openvas::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed target, identity, scan-profile, protocol, scope, finding, owner, and evidence-manifest fields without scanner or endpoint access.","notProved":["asset discovery","scan result","vulnerability"]},
+        {"id":"performing-authenticated-scan-with-openvas::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep OpenVAS, authenticated scanners, credentials, network protocols, endpoints, and production infrastructure external.","notProved":["coverage","credential validity","finding truth"]},
+        {"id":"performing-authenticated-scan-with-openvas::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain authenticated scanning design, vulnerability triage, hardening, and defensive remediation guidance as advisory.","notProved":["severity","priority truth","remediation effectiveness"]},
+        {"id":"performing-authenticated-scan-with-openvas::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, asset ownership, legal/privacy/safety review, credential handling, scope, analyst validation, and remediation decisions.","notProved":["authorization","scan delivery","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-authenticated-vulnerability-scan",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-authenticated-vulnerability-scan/SKILL.md","sha256":"fbca14d16a6af61ff25d85e71d71e9ea670707e23a6f9557dae1db5f4f2a53d9","availability":"available","license":"Apache-2.0","anchors":["# Performing Authenticated Vulnerability Scan:L31"]},
+      "components": [
+        {"id":"performing-authenticated-vulnerability-scan::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed asset, account, scan-plan, credential-reference, finding, severity, owner, and evidence-manifest fields only.","notProved":["authenticated access","vulnerability","exploitability"]},
+        {"id":"performing-authenticated-vulnerability-scan::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep vulnerability scanners, credentials, endpoints, network services, cloud APIs, and production authorities external.","notProved":["scan output","coverage","remediation"]},
+        {"id":"performing-authenticated-vulnerability-scan::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain authenticated assessment, vulnerability management, prioritization, and defensive remediation guidance as advisory.","notProved":["finding validity","risk score","security outcome"]},
+        {"id":"performing-authenticated-vulnerability-scan::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, asset and data ownership, legal/privacy/safety review, credential custody, scope, analyst validation, and remediation decisions.","notProved":["authorization","scan execution","remediation completion"]}
+      ]
+    },
+    {
+      "catalogId": "performing-bandwidth-throttling-attack-simulation",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-bandwidth-throttling-attack-simulation/SKILL.md","sha256":"877ac39c47c22ce76b848885d93565431b69c1b59518f83564fc41dab7f7c774","availability":"available","license":"Apache-2.0","anchors":["# Performing Bandwidth Throttling Attack Simulation:L31"]},
+      "components": [
+        {"id":"performing-bandwidth-throttling-attack-simulation::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed topology, bandwidth profile, service, load, safety limit, scope, stop-condition, and evidence-manifest fields without traffic generation.","notProved":["throttling behavior","availability impact","network resilience"]},
+        {"id":"performing-bandwidth-throttling-attack-simulation::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep traffic generators, packet tools, network interfaces, links, services, endpoints, and production networks external.","notProved":["packet delivery","degradation","outage"]},
+        {"id":"performing-bandwidth-throttling-attack-simulation::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain controlled resilience testing, capacity planning, defensive monitoring, and safety guidance as advisory.","notProved":["simulation fidelity","detection efficacy","availability"]},
+        {"id":"performing-bandwidth-throttling-attack-simulation::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, network ownership, isolated scope, legal/ethics/safety review, rate limits, stop conditions, and recovery decisions.","notProved":["authorization","live traffic","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-binary-exploitation-analysis",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-binary-exploitation-analysis/SKILL.md","sha256":"f3a9f7d3b775dc1d4fb51b6f00c424a5dbbfed173fcc64fd335d8555bbdee8b2","availability":"available","license":"Apache-2.0","anchors":["# Performing Binary Exploitation Analysis:L28"]},
+      "components": [
+        {"id":"performing-binary-exploitation-analysis::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed binary, vulnerability, memory-safety, mitigation, test-plan, scope, and evidence-manifest fields without compilation or exploit execution.","notProved":["memory behavior","exploitability","code execution"]},
+        {"id":"performing-binary-exploitation-analysis::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep debuggers, disassemblers, compilers, exploit frameworks, binaries, processes, hosts, and runtime environments external.","notProved":["crash","payload delivery","privilege gain"]},
+        {"id":"performing-binary-exploitation-analysis::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain secure-code review, binary-analysis, mitigation, vulnerability triage, and defensive remediation guidance as advisory.","notProved":["finding validity","exploit reliability","security outcome"]},
+        {"id":"performing-binary-exploitation-analysis::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, sample ownership, legal/safety review, isolated analysis scope, analyst validation, containment, and disclosure decisions.","notProved":["authorization","exploitation","compromise"]}
+      ]
+    },
+    {
+      "catalogId": "performing-blind-ssrf-exploitation",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-blind-ssrf-exploitation/SKILL.md","sha256":"463a1d04e54a8b18a34f951085f87777d2e2aa9729012ba9f8b79e19232bb1f6","availability":"available","license":"Apache-2.0","anchors":["# Performing Blind SSRF Exploitation:L32"]},
+      "components": [
+        {"id":"performing-blind-ssrf-exploitation::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed route, parameter, callback, trust boundary, scope, authorization, and evidence-manifest fields without requests or payload delivery.","notProved":["SSRF","internal access","data exposure"]},
+        {"id":"performing-blind-ssrf-exploitation::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep web endpoints, servers, DNS, callback infrastructure, payloads, proxies, cloud metadata, credentials, and networks external.","notProved":["callback","server-side request","exfiltration"]},
+        {"id":"performing-blind-ssrf-exploitation::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain SSRF threat modeling, defensive validation, egress control, and remediation guidance as advisory.","notProved":["vulnerability","impact","control effectiveness"]},
+        {"id":"performing-blind-ssrf-exploitation::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, application ownership, legal/safety/data review, bounded scope, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live request","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-bluetooth-security-assessment",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-bluetooth-security-assessment/SKILL.md","sha256":"f704774e9827ed5eb832149c72902f6181a26b5d405fc00deca644ab79fe4f76","availability":"available","license":"Apache-2.0","anchors":["# Performing Bluetooth Security Assessment:L25"]},
+      "components": [
+        {"id":"performing-bluetooth-security-assessment::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed device, service, pairing, policy, test-plan, ownership, safety, and evidence-manifest fields without radio or device access.","notProved":["device discovery","pairing state","Bluetooth vulnerability"]},
+        {"id":"performing-bluetooth-security-assessment::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Bluetooth radios, interfaces, scanners, devices, packets, mobile systems, credentials, and physical environments external.","notProved":["radio activity","injection","device compromise"]},
+        {"id":"performing-bluetooth-security-assessment::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain Bluetooth threat modeling, pairing-hardening, device assessment, and defensive remediation guidance as advisory.","notProved":["coverage","finding validity","safety outcome"]},
+        {"id":"performing-bluetooth-security-assessment::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, device ownership, physical and legal/safety review, bounded scope, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live assessment","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-brand-monitoring-for-impersonation",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-brand-monitoring-for-impersonation/SKILL.md","sha256":"aa50148754f553d26661af277c8586dd640bc5d28b5b87391be01759b120880b","availability":"available","license":"Apache-2.0","anchors":["# Performing Brand Monitoring for Impersonation:L63"]},
+      "components": [
+        {"id":"performing-brand-monitoring-for-impersonation::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed brand, domain, account, indicator, source, confidence, review, notification, and evidence-manifest fields without live collection.","notProved":["impersonation","source truth","brand abuse"]},
+        {"id":"performing-brand-monitoring-for-impersonation::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep search engines, social platforms, domain services, takedown providers, OSINT feeds, and live web authorities external.","notProved":["freshness","ownership","takedown result"]},
+        {"id":"performing-brand-monitoring-for-impersonation::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain brand-protection, impersonation triage, source validation, notification, and defensive response guidance as advisory.","notProved":["indicator validity","attribution","response effectiveness"]},
+        {"id":"performing-brand-monitoring-for-impersonation::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, brand ownership, legal/privacy/ethics review, source terms, analyst validation, escalation, disclosure, and remediation decisions.","notProved":["authorization","live collection","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-cloud-incident-containment-procedures",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-cloud-incident-containment-procedures/SKILL.md","sha256":"e2059db588b4ed34848667e1269d1bfe2d3c831d31410b7ffecc00fd84a49496","availability":"available","license":"Apache-2.0","anchors":["# Performing Cloud Incident Containment Procedures:L39"]},
+      "components": [
+        {"id":"performing-cloud-incident-containment-procedures::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed cloud asset, incident, account, isolation, owner, approval, evidence, and recovery-plan manifests without cloud API calls.","notProved":["incident truth","containment","account state"]},
+        {"id":"performing-cloud-incident-containment-procedures::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep cloud providers, consoles, APIs, IAM, sessions, logs, workloads, networks, and production enforcement authorities external.","notProved":["live compromise","isolation","service impact"]},
+        {"id":"performing-cloud-incident-containment-procedures::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain cloud incident response, containment planning, evidence handling, recovery, and communication guidance as advisory.","notProved":["attribution","containment effectiveness","recovery"]},
+        {"id":"performing-cloud-incident-containment-procedures::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, tenant and asset ownership, legal/privacy/safety review, incident-lead approval, chain of custody, rollback, and disclosure decisions.","notProved":["authorization","live containment","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-cloud-native-threat-hunting-with-aws-detective",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-cloud-native-threat-hunting-with-aws-detective/SKILL.md","sha256":"19798b1f9fa857c193d4ffeca0de9e4a08ccbb8c79159692fc6be2a0cd3d5845","availability":"available","license":"Apache-2.0","anchors":["# Performing Cloud-Native Threat Hunting with AWS Detective:L34"]},
+      "components": [
+        {"id":"performing-cloud-native-threat-hunting-with-aws-detective::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed cloud asset, hypothesis, observation, relationship, timestamp, confidence, scope, and evidence-manifest fields without cloud telemetry access.","notProved":["threat activity","relationship truth","compromise"]},
+        {"id":"performing-cloud-native-threat-hunting-with-aws-detective::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep AWS Detective, CloudTrail, GuardDuty, cloud APIs, accounts, sessions, endpoints, networks, and production telemetry external.","notProved":["live finding","attribution","detection efficacy"]},
+        {"id":"performing-cloud-native-threat-hunting-with-aws-detective::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain cloud threat-hunting hypotheses, investigation, triage, evidence review, and defensive response guidance as advisory.","notProved":["coverage","source truth","response effectiveness"]},
+        {"id":"performing-cloud-native-threat-hunting-with-aws-detective::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, tenant ownership, legal/privacy/safety review, data handling, analyst validation, escalation, containment, and disclosure decisions.","notProved":["authorization","live hunt","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-cloud-penetration-testing-with-pacu",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-cloud-penetration-testing-with-pacu/SKILL.md","sha256":"03ae0ee0c5c52aac22a6f152c2fc52c09370fc27a26afbff0ffb5a8f9815c77e","availability":"available","license":"Apache-2.0","anchors":["# Performing Cloud Penetration Testing with Pacu:L34"]},
+      "components": [
+        {"id":"performing-cloud-penetration-testing-with-pacu::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed cloud asset, account, permission, test-plan, scope, authorization, safety, and evidence-manifest fields without API calls or exploitation.","notProved":["cloud exposure","privilege escalation","data access"]},
+        {"id":"performing-cloud-penetration-testing-with-pacu::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Pacu, cloud APIs, IAM, credentials, sessions, workloads, storage, network services, and production authorities external.","notProved":["enumeration","exploit delivery","compromise"]},
+        {"id":"performing-cloud-penetration-testing-with-pacu::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain authorized cloud assessment, least-privilege review, attack-path analysis, hardening, and remediation guidance as advisory.","notProved":["finding validity","impact","remediation effectiveness"]},
+        {"id":"performing-cloud-penetration-testing-with-pacu::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, tenant and data ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst validation, rollback, and disclosure decisions.","notProved":["authorization","live test","security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, OT, HR, or production telemetry is proved.",
+    "No authenticated scan, vulnerability, bandwidth impact, binary exploitation, SSRF, Bluetooth assessment, impersonation, cloud containment, threat hunt, cloud penetration test, execution, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}

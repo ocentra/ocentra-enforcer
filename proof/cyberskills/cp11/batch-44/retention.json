@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-44",
+  "family": "IF/mobile-security",
+  "baselineCommit": "4c34e8c9eda327c2b954efc29c6f6731d9733a67",
+  "scope": "Retain advisory and manual content for the deterministic first mobile-security packet from immutable CP08 evidence; no native implementation, live device/app execution, endpoint/device/network/session access, credential/session handling, traffic interception, exploit delivery, runtime instrumentation, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-ios-app-security-with-objection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-ios-app-security-with-objection/SKILL.md",
+        "sha256": "bab48e7c16fe54b88444e8fae1735aed6a0750af9d47a4ee32ea29b01fb4ada9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing iOS App Security with Objection:L37"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-mobile-malware-behavior",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-mobile-malware-behavior/SKILL.md",
+        "sha256": "468db0313a9c2acbec5d86641a5d37908eed6db81f01b0c8a4cba5d3b5b4c31b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Mobile Malware Behavior:L62"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "exploiting-deeplink-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-deeplink-vulnerabilities/SKILL.md",
+        "sha256": "239d1e6df647cc8403e0b3ecb1386c0cab593317e556a50e8e5c71205c3f3749",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Exploiting Deep Link Vulnerabilities:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-61/decomposition.json",
+        "artifactSha256": "0b81a35a21873e3ffdee8ab17e3f396619da3034cc4cec52651212fae88cb451"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "exploiting-insecure-data-storage-in-mobile",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-insecure-data-storage-in-mobile/SKILL.md",
+        "sha256": "8c0159c98420bec915e9b37ba8acda73ea80370266d794bafa081225e7d94213",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Exploiting Insecure Data Storage in Mobile:L44"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-mobile-application-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-mobile-application-management/SKILL.md",
+        "sha256": "8488dae72f10e2c885ff1ab702ce6b2dae008c2d8ea6a7ba41b7cd7d7b7fc7bc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Mobile Application Management:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-68/decomposition.json",
+        "artifactSha256": "e2226d0c0dd63876748f7fd414ad8ff2d18563358dd5de54805ccb63bf234f5e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "intercepting-mobile-traffic-with-burpsuite",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/intercepting-mobile-traffic-with-burpsuite/SKILL.md",
+        "sha256": "b3c61ea86f063d96d8a7fa9dd13f79e9fa76a49ec29fb8a53efff835bdde142e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Intercepting Mobile Traffic with Burp Suite:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-android-app-static-analysis-with-mobsf",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-android-app-static-analysis-with-mobsf/SKILL.md",
+        "sha256": "33d2ead9c4bfd2e83c27f4ecb9e1bb3caf9216a072ef8e1308d4dce697b4d2e9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Android App Static Analysis with MobSF:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-dynamic-analysis-of-android-app",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-dynamic-analysis-of-android-app/SKILL.md",
+        "sha256": "e90aa7b42fb2ecba0d0d9cd585b529db9f26ebc7c1c66606bea69ce3dfce4a8b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Dynamic Analysis of Android App:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-ios-app-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ios-app-security-assessment/SKILL.md",
+        "sha256": "47376e0b2d0e3883927c1db471e4e9470f5a5accc54e18f003cbe421de08d33f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing iOS App Security Assessment:L39"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-mobile-app-certificate-pinning-bypass",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-mobile-app-certificate-pinning-bypass/SKILL.md",
+        "sha256": "b3d5118d2533c6e55767a019b036a8aadb031dd3e193f2f2539b03c9c8a9e1c4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Mobile App Certificate Pinning Bypass:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, and certificate guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live mobile device, app, exploit, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved.",
+    "No vulnerability validity, exploitability, certificate-pinning bypass success, malware detection efficacy, privacy conclusion, legal conclusion, remediation success, or security outcome is proved.",
+    "This packet contains the first 10 mobile-security skills; the remaining 3 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

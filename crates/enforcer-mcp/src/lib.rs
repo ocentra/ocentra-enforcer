@@ -70,6 +70,7 @@
 
 #[path = "boundary/aliases.rs"]
 pub mod aliases;
+pub mod application;
 pub mod boundary;
 pub mod fingerprint;
 #[path = "boundary/gate.rs"]
@@ -84,3 +85,4 @@ pub mod sink;
 #[path = "boundary/tool_surface.rs"]
 pub mod tool_surface;
 pub mod transport;
+pub mod validation_history;

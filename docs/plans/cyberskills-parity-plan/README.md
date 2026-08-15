@@ -1,0 +1,72 @@
+# CyberSkills Parity Plan
+
+<!-- agent-capsule -->
+> Plan: `cyberskills-parity-plan`
+> Purpose: turn the 817-skill vendor corpus into truthful, deterministic Enforcer coverage while reusing the Rust grammar and graph parity already present in `enforcer-memory`.
+> Authority: this plan refines the broad `h11` and `h12` workpacks; it does not silently mark either one complete.
+> Completion rule: all 817 tracked source identities are accounted for; every available-source enforcement claim has executable evidence; `sourceUnavailable` is explicit and never counted as covered; and the terminal dogfood gate is green on the exact source SHA.
+<!-- /agent-capsule -->
+
+## Outcome
+
+The vendor corpus is knowledge for AI and humans. It is not executable policy by itself. Every skill is decomposed into one or more independently evidenced components:
+
+| Component kind | Owner | Meaning |
+|---|---|---|
+| `native-predicate` | Rust Enforcer | Deterministic T1 or T2 behavior over typed input or syntax facts |
+| `external-engine` | Third-party tool behind a Rust-owned adapter | The mature engine performs the specialist analysis; Enforcer controls execution and gates its typed output |
+| `advisory` | Retained vendor knowledge | Useful guidance that does not decide pass/fail |
+| `manual` | Explicit human procedure | Judgment or environment-dependent work that cannot honestly be mechanized |
+
+One skill may contain all four. `covered` means every declared component from an available source has an honest disposition. It does not mean every component is a blocking Rust rule. A tracked identity with unavailable source is `sourceUnavailable`, not covered, retained, decomposed, implemented, or proved.
+
+## Intent-driven execution model
+
+The complete execution inventory is [CYBERSKILLS_INTENT_MATRIX.json](./CYBERSKILLS_INTENT_MATRIX.json), summarized for humans in [INTENT_WORKPACKS.md](./INTENT_WORKPACKS.md). It maps all 816 available identities into 34 canonical intent families (the protected identity is excluded) and derives bounded action packets from those families.
+
+The product decision is Rust-native. External repositories, Python implementations, and third-party tools are reference/parity material used to understand intent and test expected behavior; they are not user-facing installation requirements and do not become native coverage. A packet must either implement a bounded deterministic predicate/parser/safe offline model in Rust, or retain the capability as explicit advisory/manual truth with a precise `notProved`. Live endpoint, cloud, host, device, packet-capture, external-service, exploit, attribution, and production outcomes remain non-proofs unless a separate Rust-owned evidence contract actually proves them.
+
+The graph derives native packets (CP09, at most five skills; CP12, one cross-file predicate) and advisory/manual packets (CP11, at most ten skills). `graph next` may select only a packet whose dependencies are satisfied by derived `done` states or an explicit READY entry-routing gate; the gate is routing-only and a CP08 decomposition row never promotes implementation or executable proof.
+
+## Confirmed Baseline
+
+These are the live values observed on `rust-build` at plan creation, not completion claims:
+
+| Measure | Baseline |
+|---|---:|
+| Tracked vendor skill directories | 817 |
+| Readable `SKILL.md` files | 816 |
+| Source-unavailable identities | 1: `detecting-fileless-malware-techniques`, tracked blob `df48fa4149dd25956e730443d3582693a3f825a8` |
+| Original triage | 145 T1, 137 T2, 399 adapter, 136 prose |
+| Current disposition manifest | 6 native, 278 unported, 398 adapter-deferred, 135 advisory-prose |
+| Native CyberSkills rule records | 41 |
+| Formally source-linked native mappings | 6 |
+| Generic adapter gates | 1 |
+| Live third-party runners | 0 |
+
+The original triage is an inventory aid, not an architecture. In particular, `399 adapter` must not produce 399 shallow wrappers.
+
+## Read Order
+
+1. [AGENTS.md](./AGENTS.md)
+2. [PLAN_STATE.md](./PLAN_STATE.md)
+3. [ARCHITECTURE.md](./ARCHITECTURE.md)
+4. [WORKPACK_INDEX.md](./WORKPACK_INDEX.md)
+5. [CYBERSKILLS_INTENT_MATRIX.json](./CYBERSKILLS_INTENT_MATRIX.json)
+6. [INTENT_WORKPACKS.md](./INTENT_WORKPACKS.md)
+7. [WORKER_CHECKLIST.md](./WORKER_CHECKLIST.md)
+8. The one assigned workpack or graph-derived packet
+9. The matching row in [TEST_PROOF_EXPECTATIONS.md](./TEST_PROOF_EXPECTATIONS.md)
+
+Luna additionally reads [LUNA_RUNBOOK.md](./LUNA_RUNBOOK.md).
+
+## Non-negotiable Safety
+
+- The protected deletion at `vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md` is `sourceUnavailable` with tracked blob `df48fa4149dd25956e730443d3582693a3f825a8`; it is never restored, staged, committed, or discarded without an explicit owner decision.
+- Existing Rust parsers, analyzers, rules, fixtures, and graph services are reused first. External repositories and tools are reference/parity inputs only; the product path does not require users to install or purchase them. Native Rust predicates exist for the bounded intent we can prove, while live or environment-dependent behavior remains explicitly advisory/manual or notProved.
+- `cyberskills-ledger-integrator` is the sole writer of the CyberSkills disposition ledger. `tool-adapter-integrator` is the sole writer of the shared adapter registry, runner, and normalized tool-result schema.
+- [Accepted Universal UL02 grammar ownership decision](../universal-language-enforcement-plan/decisions/UL02-GRAMMAR-OWNERSHIP.md) governs the shared syntax dependency; UL03 remains gated until that decision and its grammar freeze are in force.
+- The frozen MJS checkout remains comparison authority until Rust cutover proof is complete.
+- Workers never merge to `rust-build` or `main`; the boss integrates accepted checkpoints.
+- No AI classification is accepted as pass/fail evidence. AI proposes; schemas, fixtures, validators, and Enforcer gates decide.
+- No parser, grammar, or external process is duplicated merely to make one security rule convenient.

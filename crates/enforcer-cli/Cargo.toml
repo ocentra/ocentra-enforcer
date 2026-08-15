@@ -27,6 +27,9 @@ enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
 enforcer-scan = { path = "../enforcer-scan", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: the Cyber Plan graph is owned by enforcer-plan;
+# the CLI only loads and renders its typed read-only views.
+enforcer-plan = { path = "../enforcer-plan", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: the first-class install command delegates native harness registration and verification to the installer core.
 enforcer-install = { path = "../enforcer-install", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: CLI adapters delegate MCP, proof, planning, and literal-risk work to their typed crates.
@@ -44,6 +47,8 @@ enforcer-ui = { path = "../enforcer-ui", version = "0.1.0", optional = true }
 # DEPENDENCY-JUSTIFICATION: Black-box CLI tests need isolated repositories and process assertions.
 tempfile = "3.27.0"
 assert_cmd = "2.2.2"
+# DEPENDENCY-JUSTIFICATION: argument-route normalizers require generated totality and preservation coverage.
+proptest = "=1.9.0"
 
 [lints]
 workspace = true

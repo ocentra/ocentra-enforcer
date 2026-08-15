@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-98",
+  "family": "IF/zero-trust-architecture",
+  "baselineCommit": "f66757fcc4eb1d81190ed0f8ccf9cdf1793568ad",
+  "scope": "Retain the final zero-trust-architecture packet covering device posture, identity verification, Guardicore microsegmentation, Zero Trust DNS, SaaS access, Zscaler access, BeyondCorp, and HashiCorp Boundary guidance from immutable CP08 evidence; native predicates are limited to static supplied identity, device-posture, network-admission, federation, SAML, mTLS, DNS-policy, SaaS-access, session, ownership, configuration, and evidence manifests; cloud providers, identity providers, access gateways, devices, endpoints, networks, sessions, VPNs, production enforcement, and live tenant authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-device-posture-assessment-in-zero-trust",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-device-posture-assessment-in-zero-trust/SKILL.md",
+        "sha256": "494b9c2065eba1a09ba37f4114f74e84ae992562b0c174694b1bc90634c63127",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Device Posture Assessment in Zero Trust:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive device-posture, trust-signal, admission, identity, policy, and least-privilege guidance as advisory.",
+        "notProved": ["No live device, posture signal, admission decision, identity operation, policy enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and owner approval, legal/privacy/safety review, scope, enrollment, revocation, exception, rollback, and remediation decisions.",
+        "notProved": ["No human posture approval, enrollment, revocation, exception, rollback, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-identity-verification-for-zero-trust",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-identity-verification-for-zero-trust/SKILL.md",
+        "sha256": "0620337601be2085bf537902bd94df030d8975aa58e31bd409915aa65353686b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Identity Verification for Zero Trust:L67"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-09/decomposition.json",
+        "artifactSha256": "6e8649af278f30d2762bcaffaa3730386b5bee5396552c82527751ae833e4ee2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive identity verification, authentication, authorization, federation, session, and trust-boundary guidance as advisory.",
+        "notProved": ["No live identity, authentication, authorization, federation, session, verification, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, identity-owner approval, legal/privacy review, scope, data handling, least privilege, enrollment, revocation, and remediation decisions.",
+        "notProved": ["No human identity approval, authentication result, access grant, revocation, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-microsegmentation-with-guardicore",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-microsegmentation-with-guardicore/SKILL.md",
+        "sha256": "7b19b1759266990a9cf42c3748299e690b3d5d757abffc7a4791378e4830fa65",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Microsegmentation with Guardicore:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-68/decomposition.json",
+        "artifactSha256": "e2226d0c0dd63876748f7fd414ad8ff2d18563358dd5de54805ccb63bf234f5e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive microsegmentation, workload identity, network policy, isolation, exception, and least-privilege guidance as advisory.",
+        "notProved": ["No live Guardicore system, workload, network policy, isolation, enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, workload and network ownership, legal/safety review, scope, change approval, exception, rollback, containment, and remediation decisions.",
+        "notProved": ["No human segmentation change, enforcement action, exception approval, rollback, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-zero-trust-dns-with-nextdns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-dns-with-nextdns/SKILL.md",
+        "sha256": "0d12be158c191ab26ac1cc7d5e5854051c3ddeb2443a8a6d9c2790597a175ff1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust DNS with NextDNS:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Zero Trust DNS, policy, filtering, resolution, identity, and data-boundary guidance as advisory.",
+        "notProved": ["No live NextDNS tenant, DNS resolution, filtering, policy enforcement, identity, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, DNS and tenant ownership, legal/privacy review, scope, data handling, exception, rollback, disclosure, and remediation decisions.",
+        "notProved": ["No human DNS change, filtering decision, exception, rollback, disclosure, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-zero-trust-for-saas-applications",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-for-saas-applications/SKILL.md",
+        "sha256": "a26b5684bacb5d62bc943cfaff730383dfdc5459bc9f849f3834b588b1948f31",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust for SaaS Applications:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SaaS access, identity, session, tenant boundary, policy, data handling, and least-privilege guidance as advisory.",
+        "notProved": ["No live SaaS tenant, identity, access, session, data boundary, policy enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, SaaS and data-owner approval, legal/privacy review, scope, data handling, exception, rollback, disclosure, and remediation decisions.",
+        "notProved": ["No human SaaS access approval, tenant change, data decision, exception, rollback, disclosure, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-zero-trust-network-access-with-zscaler",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-network-access-with-zscaler/SKILL.md",
+        "sha256": "5c1dfd1611576f8ab14595c0ce4045b173da8d9d54367540af3e1fbe90f71d1a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust Network Access with Zscaler:L28"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive ZTNA, identity, device posture, application access, connector, session, and least-privilege guidance as advisory.",
+        "notProved": ["No live Zscaler tenant, connector, identity, device, access, session, network, enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, tenant and application-owner approval, legal/privacy/safety review, scope, enrollment, revocation, exception, rollback, and remediation decisions.",
+        "notProved": ["No human tenant change, access grant, revocation, exception, rollback, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-zero-trust-with-beyondcorp",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-with-beyondcorp/SKILL.md",
+        "sha256": "da53e04694bdff45ab04fdca0203e81dcb5f1650a6346cf1ea001a1fb926e24f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust with BeyondCorp:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive BeyondCorp identity, device posture, context-aware access, policy, session, and least-privilege guidance as advisory.",
+        "notProved": ["No live BeyondCorp identity, device posture, access, session, policy enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, organization and application ownership, legal/privacy review, scope, enrollment, revocation, exception, analyst validation, and remediation decisions.",
+        "notProved": ["No human access policy, posture decision, enrollment, revocation, exception, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-zero-trust-with-hashicorp-boundary",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-with-hashicorp-boundary/SKILL.md",
+        "sha256": "db52e09c1dc513546c7b8ca596e83cebe767bc4eb8e7ec0ca8bf4992f6923df2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust with HashiCorp Boundary:L60"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Boundary access, session brokering, identity, target ownership, policy, and least-privilege guidance as advisory.",
+        "notProved": ["No live Boundary controller, worker, identity, target, session, access, network, enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, target and service ownership, legal/privacy/safety review, scope, credential handling, session approval, revocation, rollback, and remediation decisions.",
+        "notProved": ["No human target approval, credential operation, session grant, revocation, rollback, or security outcome is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 8,
+    "advisoryRetained": 8,
+    "manualRetained": 8,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live cloud provider, identity provider, device, endpoint, network, VPN, gateway, session, SAML, mTLS, DNS, SaaS, credential, tenant, target, or production enforcement is proved.",
+    "No identity, device posture, access, admission, federation, segmentation, policy, revocation, session, maturity, vulnerability, finding, remediation, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, cloud services, identity providers, gateways, devices, networks, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

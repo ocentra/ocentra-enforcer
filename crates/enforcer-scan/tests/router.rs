@@ -12,7 +12,12 @@ use enforcer_config::project_tie::{load_project_tie, ResolvedProjectTie};
 use enforcer_config::serde::{WireEnforcerScope, WireNativeMode, WireNativeTool};
 use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
 use enforcer_scan::boundary::router::{
-    NativeToolRouteResponse, RoutePlanResponse, RouteTieResponse,
+    CanonicalCapabilityDisposition, CanonicalCliLanguage,
+    CanonicalConsumerCapabilityProjectionResponse, CanonicalConsumerDisposition,
+    CanonicalDetectionMatcher, CanonicalLanguageRouteResponse, CanonicalLiteralDisposition,
+    CanonicalNativeToolDisposition, CanonicalRulePackDisposition, CanonicalScanFamily,
+    CanonicalScanFamilyDisposition, CanonicalStructuralDisposition, NativeToolRouteResponse,
+    RoutePlanResponse, RouteTieResponse,
 };
 use enforcer_scan::router::plan::build_route_plan;
 use enforcer_scan::walk::{walk, IgnoreRules};
@@ -85,6 +90,39 @@ fn mixed_repo_routes_rust_and_ts_packs_and_native_tools() -> Result<(), Box<dyn 
             .collect::<Vec<_>>(),
         vec![WireNativeTool::Cargo, WireNativeTool::Tsc],
         "mixed repositories must attach the native tool for each detected language"
+    );
+    Ok(())
+}
+
+#[test]
+fn dart_repo_routes_dart_pack_and_native_tool() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::write(
+        temp.path().join("main.dart"),
+        "class OrderPage { void load(Map<String, String> params) { final id = int.parse(params['id']!); print(id); } }",
+    )?;
+    let paths = walked_paths(temp.path())?;
+    let tie = tie_for(temp.path())?;
+    let plan = build_route_plan(&paths, &RouteScope::Repo, &tie);
+
+    assert_eq!(plan.languages, vec![DetectedLanguage::Dart]);
+    assert_eq!(
+        plan.rule_packs,
+        vec![
+            RulePack::Dart,
+            RulePack::Security,
+            RulePack::LiteralScanFloor,
+            RulePack::SecurityAudit,
+        ],
+        "a Dart repository must route the Dart pack plus cross-cutting packs"
+    );
+    assert_eq!(
+        plan.native_tools
+            .iter()
+            .map(|route| route.tool)
+            .collect::<Vec<_>>(),
+        vec![WireNativeTool::Dart],
+        "a Dart repository must expose the typed Dart native-tool route"
     );
     Ok(())
 }
@@ -355,5 +393,105 @@ fn every_router_fixture_case_is_declared_and_proven() -> Result<(), Box<dyn std:
             "case `{case}`: plan must round-trip unchanged"
         );
     }
+    Ok(())
+}
+
+#[test]
+fn canonical_projection_keeps_identity_dispositions_separate(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let response = vec![
+        CanonicalLanguageRouteResponse::Canonical {
+            language_id: 1,
+            canonical_name: "Rust".to_owned(),
+            structural: CanonicalStructuralDisposition::ParseFile,
+            literal_disposition: CanonicalLiteralDisposition::Registered {
+                literal_name: "rust".to_owned(),
+            },
+            capability: CanonicalCapabilityDisposition::Unsupported,
+            consumer_capabilities: CanonicalConsumerCapabilityProjectionResponse {
+                native_scan: CanonicalScanFamilyDisposition::Mapped {
+                    family: CanonicalScanFamily::Rust,
+                },
+                native_tool: CanonicalNativeToolDisposition::Mapped {
+                    tool: WireNativeTool::Cargo,
+                },
+                rule_packs: CanonicalRulePackDisposition::Mapped {
+                    packs: vec![RulePack::Rust, RulePack::Security],
+                },
+                cli: CanonicalConsumerDisposition::Mapped {
+                    language: CanonicalCliLanguage::Rust,
+                },
+                ui: CanonicalConsumerDisposition::NotApplicable,
+            },
+            detection_matcher: CanonicalDetectionMatcher::Extension {
+                value: "rs".to_owned(),
+            },
+        },
+        CanonicalLanguageRouteResponse::SupplementalLiteral {
+            literal_name: "nim".to_owned(),
+            detection_matcher: CanonicalDetectionMatcher::Extension {
+                value: "nim".to_owned(),
+            },
+        },
+        CanonicalLanguageRouteResponse::Unknown,
+    ];
+    assert_eq!(response.len(), 3);
+
+    assert!(matches!(
+        &response[0],
+        CanonicalLanguageRouteResponse::Canonical {
+            language_id: 1,
+            canonical_name,
+            structural: CanonicalStructuralDisposition::ParseFile,
+            literal_disposition: CanonicalLiteralDisposition::Registered { literal_name },
+            capability: CanonicalCapabilityDisposition::Unsupported,
+            consumer_capabilities:
+                CanonicalConsumerCapabilityProjectionResponse {
+                    native_scan: CanonicalScanFamilyDisposition::Mapped {
+                        family: CanonicalScanFamily::Rust,
+                    },
+                    native_tool: CanonicalNativeToolDisposition::Mapped {
+                        tool: WireNativeTool::Cargo,
+                    },
+                    rule_packs: CanonicalRulePackDisposition::Mapped { packs },
+                    cli: CanonicalConsumerDisposition::Mapped {
+                        language: CanonicalCliLanguage::Rust,
+                    },
+                    ui: CanonicalConsumerDisposition::NotApplicable,
+                },
+            detection_matcher: CanonicalDetectionMatcher::Extension { value: matcher },
+        } if canonical_name == "Rust"
+            && literal_name == "rust"
+            && matcher == "rs"
+            && *packs == vec![RulePack::Rust, RulePack::Security]
+    ));
+    assert!(matches!(
+        &response[1],
+        CanonicalLanguageRouteResponse::SupplementalLiteral {
+            literal_name,
+            detection_matcher: CanonicalDetectionMatcher::Extension { value: matcher },
+        } if literal_name == "nim" && matcher == "nim"
+    ));
+    assert!(matches!(
+        &response[2],
+        CanonicalLanguageRouteResponse::Unknown
+    ));
+
+    let wire = serde_json::to_value(&response)?;
+    assert_eq!(wire[0]["kind"], "canonical");
+    assert_eq!(wire[0]["languageId"], 1);
+    assert_eq!(wire[0]["canonicalName"], "Rust");
+    assert_eq!(wire[0]["detectionMatcher"]["kind"], "extension");
+    assert_eq!(wire[0]["detectionMatcher"]["value"], "rs");
+    assert_eq!(wire[0]["structural"]["kind"], "parseFile");
+    assert_eq!(wire[0]["capability"]["kind"], "unsupported");
+    assert_eq!(wire[1]["kind"], "supplementalLiteral");
+    assert_eq!(wire[1]["detectionMatcher"]["kind"], "extension");
+    assert_eq!(wire[1]["detectionMatcher"]["value"], "nim");
+    assert_eq!(wire[2]["kind"], "unknown");
+    assert_eq!(
+        serde_json::from_value::<Vec<CanonicalLanguageRouteResponse>>(wire)?,
+        response
+    );
     Ok(())
 }

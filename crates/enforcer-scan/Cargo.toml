@@ -14,11 +14,17 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 rayon = { workspace = true }
 sha2 = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Crate-scoped routing must read the typed Cargo package table rather than depend on source formatting.
+toml_edit = { workspace = true }
+# DEPENDENCY-JUSTIFICATION: Runtime literal policy stores reviewed regex allow patterns; native compilation is required to preserve their exact semantics.
+regex = "=1.12.4"
 # DEPENDENCY-JUSTIFICATION: TypeScript declarations mirror scan-facing typed records at the UI boundary.
 ts-rs = { workspace = true }
 enforcer-core = { path = "../enforcer-core", version = "0.1.0" }
 enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 enforcer-config = { path = "../enforcer-config", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Canonical identity routing consumes the typed registry metadata and precedence projection.
+enforcer-syntax = { path = "../enforcer-syntax", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: Validator dispatch and event records form the scan engine's typed execution contract.
 enforcer-validator = { path = "../enforcer-validator", version = "0.1.0" }
 enforcer-events = { path = "../enforcer-events", version = "0.1.0" }
@@ -27,6 +33,8 @@ enforcer-lang-rust = { path = "../enforcer-lang-rust", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: Language-family validators are dispatched through this central scan engine.
 enforcer-lang-ts = { path = "../enforcer-lang-ts", version = "0.1.0" }
 enforcer-lang-py = { path = "../enforcer-lang-py", version = "0.1.0" }
+# DEPENDENCY-JUSTIFICATION: Existing Dart validators are dispatched by the central scan engine.
+enforcer-lang-dart = { path = "../enforcer-lang-dart", version = "0.1.0" }
 enforcer-lang-security = { path = "../enforcer-lang-security", version = "0.1.0" }
 enforcer-lang-iac = { path = "../enforcer-lang-iac", version = "0.1.0" }
 # DEPENDENCY-JUSTIFICATION: Kubernetes and literal-risk validators participate in routed scan reports.

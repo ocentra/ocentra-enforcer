@@ -84,6 +84,19 @@ test('checked-in workflows satisfy the reusable contract', () => {
   assert.deepEqual(verifyWorkflowContract(process.cwd()), []);
 });
 
+test('workflow contract requires the corrected immutable frozen scanner revision', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-frozen-pin-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const dogfood = path.join(root, '.github', 'workflows', 'dogfood.yml');
+  const outdatedPin = readFileSync(dogfood, 'utf8').replace(
+    '267af94b701bd592e01a47649e3c18c26ee04239',
+    'c078c5ceb7318caa295ca26a9496354c238a3b8f',
+  );
+  writeFileSync(dogfood, outdatedPin);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('267af94b701bd592e01a47649e3c18c26ee04239')));
+});
+
 test('workflow contract rejects caching generated Cargo target output', () => {
   const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-target-cache-'));
   cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
@@ -95,6 +108,19 @@ test('workflow contract rejects caching generated Cargo target output', () => {
   writeFileSync(workflow, cachedTarget);
   const failures = verifyWorkflowContract(root);
   assert.ok(failures.some((failure) => failure.includes('generated target output')));
+});
+
+test('workflow contract rejects legacy Node policy commands in CI', () => {
+  const root = mkdtempSync(path.join(tmpdir(), 'enforcer-ci-native-policy-'));
+  cpSync(path.join(process.cwd(), '.github'), path.join(root, '.github'), { recursive: true });
+  const workflow = path.join(root, '.github', 'workflows', 'ci.yml');
+  const legacyPolicy = readFileSync(workflow, 'utf8').replace(
+    './target/debug/enforcer policy secrets',
+    'node scripts/ocentra-enforcer.mjs check secrets --root .',
+  );
+  writeFileSync(workflow, legacyPolicy);
+  const failures = verifyWorkflowContract(root);
+  assert.ok(failures.some((failure) => failure.includes('native Rust policy commands')));
 });
 
 test('workflow contract rejects a branch-local scanner labelled as frozen', () => {

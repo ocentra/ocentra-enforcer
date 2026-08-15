@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-68",
+  "baselineCommit": "a2ee490abd78b11e409155ffba957523cfb066d0",
+  "family": "Defensive telemetry, resilience, segmentation, identity, and control-evidence predicates",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "implementing-infrastructure-as-code-security-scanning",
+      "implementing-log-forwarding-with-fluentd",
+      "implementing-log-integrity-with-blockchain",
+      "implementing-memory-protection-with-dep-aslr",
+      "implementing-microsegmentation-with-guardicore",
+      "implementing-mimecast-targeted-attack-protection",
+      "implementing-mitre-attack-coverage-mapping",
+      "implementing-mobile-application-management",
+      "implementing-network-deception-with-honeypots",
+      "implementing-pam-for-database-access"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-67."
+  },
+  "accounting": {
+    "acceptedPrior": 670,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 680,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-infrastructure-as-code-security-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-infrastructure-as-code-security-scanning/SKILL.md",
+        "sha256": "1cbf4e495942e96150f36ae0cdc6a4d5f75c1c0ac500513c6f1ad4b80e872799",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Infrastructure as Code Security Scanning:L36"]
+      },
+      "components": [
+        {"id": "implementing-infrastructure-as-code-security-scanning::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed IaC, resource, provider, policy, finding, owner, scope, version, and evidence-manifest fields without scanning or deployment access.", "notProved": ["IaC security", "resource state", "finding validity"]},
+        {"id": "implementing-infrastructure-as-code-security-scanning::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep IaC scanners, Terraform, cloud APIs, registries, CI runners, deployment systems, and production infrastructure external.", "notProved": ["scan result", "cloud posture", "deployment outcome"]},
+        {"id": "implementing-infrastructure-as-code-security-scanning::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain IaC review, policy design, secure defaults, finding triage, and defensive remediation guidance as advisory.", "notProved": ["coverage", "scan efficacy", "remediation effectiveness"]},
+        {"id": "implementing-infrastructure-as-code-security-scanning::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, code and tenant ownership, legal/privacy/safety review, analyst validation, severity, release approval, rollback, and disclosure decisions.", "notProved": ["authorization", "finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-log-forwarding-with-fluentd",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-log-forwarding-with-fluentd/SKILL.md",
+        "sha256": "e5eed2ccb44adbe754632f80a4991920dd1fee134604d6c4c4ffb2417231fb01",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Log Forwarding with Fluentd:L31"]
+      },
+      "components": [
+        {"id": "implementing-log-forwarding-with-fluentd::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed log, source, parser, route, destination, timestamp, owner, scope, and evidence-manifest fields without collectors or live logs.", "notProved": ["log forwarding", "event completeness", "telemetry truth"]},
+        {"id": "implementing-log-forwarding-with-fluentd::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Fluentd, collectors, endpoints, networks, SIEM, storage, live logs, and production telemetry external.", "notProved": ["collector state", "delivery truth", "detection efficacy"]},
+        {"id": "implementing-log-forwarding-with-fluentd::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain logging architecture, routing, parsing, retention, monitoring, and defensive observability guidance as advisory.", "notProved": ["coverage", "delivery efficacy", "incident resolution"]},
+        {"id": "implementing-log-forwarding-with-fluentd::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source and data ownership, legal/privacy/safety review, retention approval, analyst validation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "log finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-log-integrity-with-blockchain",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-log-integrity-with-blockchain/SKILL.md",
+        "sha256": "6548fa5ee3d64dd4bcceda5793d880911f0f90e768818838034d24964e71dfd1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Log Integrity with Blockchain:L32"]
+      },
+      "components": [
+        {"id": "implementing-log-integrity-with-blockchain::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed log, hash, timestamp, ledger, block, signer, source, scope, and evidence-manifest fields without ledger or log access.", "notProved": ["log integrity", "blockchain state", "evidentiary validity"]},
+        {"id": "implementing-log-integrity-with-blockchain::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep blockchain networks, nodes, wallets, log stores, SIEM, collectors, and production telemetry external.", "notProved": ["ledger state", "hash anchoring", "tamper detection"]},
+        {"id": "implementing-log-integrity-with-blockchain::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain log-integrity design, hashing, signer governance, retention, verification, and defensive evidence guidance as advisory.", "notProved": ["coverage", "integrity efficacy", "evidence outcome"]},
+        {"id": "implementing-log-integrity-with-blockchain::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, log and ledger ownership, legal/privacy/safety review, key custody, chain of custody, analyst validation, remediation, and disclosure decisions.", "notProved": ["authorization", "integrity finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-memory-protection-with-dep-aslr",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-memory-protection-with-dep-aslr/SKILL.md",
+        "sha256": "8ad41b6cea0bc59a16b5cace8c3054cf5c71dc895916c51b3e2241ebe17869e8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Memory Protection with DEP and ASLR:L35"]
+      },
+      "components": [
+        {"id": "implementing-memory-protection-with-dep-aslr::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed binary, image, mitigation, process, host, policy, build, owner, scope, and evidence-manifest fields without process or memory access.", "notProved": ["DEP state", "ASLR state", "exploit prevention"]},
+        {"id": "implementing-memory-protection-with-dep-aslr::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep operating systems, processes, memory, debuggers, endpoints, EDR, compilers, and production enforcement external.", "notProved": ["host state", "mitigation truth", "exploitability"]},
+        {"id": "implementing-memory-protection-with-dep-aslr::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain secure-build, mitigation, compiler, endpoint-hardening, compatibility, and defensive review guidance as advisory.", "notProved": ["coverage", "mitigation efficacy", "remediation effectiveness"]},
+        {"id": "implementing-memory-protection-with-dep-aslr::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, code and host ownership, legal/privacy/safety review, release approval, analyst validation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "mitigation finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-microsegmentation-with-guardicore",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-microsegmentation-with-guardicore/SKILL.md",
+        "sha256": "7b19b1759266990a9cf42c3748299e690b3d5d757abffc7a4791378e4830fa65",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Microsegmentation with Guardicore:L35"]
+      },
+      "components": [
+        {"id": "implementing-microsegmentation-with-guardicore::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed segment, asset, identity, flow, policy, zone, owner, scope, and evidence-manifest fields without network or enforcement access.", "notProved": ["segmentation", "network flow", "policy enforcement"]},
+        {"id": "implementing-microsegmentation-with-guardicore::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Guardicore, network controllers, endpoints, packet sensors, firewalls, EDR, and production enforcement external.", "notProved": ["topology state", "flow truth", "containment efficacy"]},
+        {"id": "implementing-microsegmentation-with-guardicore::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain segmentation design, least privilege, policy review, monitoring, change control, and defensive hardening guidance as advisory.", "notProved": ["coverage", "segmentation efficacy", "incident resolution"]},
+        {"id": "implementing-microsegmentation-with-guardicore::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and network ownership, legal/privacy/safety review, change approval, stop conditions, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "segmentation finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-mimecast-targeted-attack-protection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-mimecast-targeted-attack-protection/SKILL.md",
+        "sha256": "4658640f7cfb669a53ba777ce53fad0151946bf298c1d5f7acf56287a13da827",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Mimecast Targeted Attack Protection:L58"]
+      },
+      "components": [
+        {"id": "implementing-mimecast-targeted-attack-protection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed mail, sender, recipient, URL, attachment, policy, campaign, owner, scope, and evidence-manifest fields without mail or delivery access.", "notProved": ["message delivery", "targeted attack", "mail protection"]},
+        {"id": "implementing-mimecast-targeted-attack-protection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Mimecast, mail systems, URL scanners, sandboxes, identity providers, endpoints, and live message authorities external.", "notProved": ["mailbox state", "message analysis", "detection efficacy"]},
+        {"id": "implementing-mimecast-targeted-attack-protection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain mail-security policy, phishing triage, awareness, URL review, attachment handling, and defensive guidance as advisory.", "notProved": ["coverage", "user susceptibility", "incident resolution"]},
+        {"id": "implementing-mimecast-targeted-attack-protection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, mail and data ownership, legal/privacy/ethics review, notification, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "mail finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-mitre-attack-coverage-mapping",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-mitre-attack-coverage-mapping/SKILL.md",
+        "sha256": "ca05f329d8645a32142d551ac5a6b8b94c7499a5365ffd94631c5f55d5dd5f55",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing MITRE ATT&CK Coverage Mapping:L43"]
+      },
+      "components": [
+        {"id": "implementing-mitre-attack-coverage-mapping::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed ATT&CK technique, control, telemetry, rule, coverage, owner, scope, confidence, and evidence-manifest fields without detection-engine access.", "notProved": ["coverage", "technique activity", "detection efficacy"]},
+        {"id": "implementing-mitre-attack-coverage-mapping::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep MITRE tooling, SIEM, EDR, threat intelligence, detection engines, endpoints, and live telemetry external.", "notProved": ["technique prevalence", "coverage truth", "control effectiveness"]},
+        {"id": "implementing-mitre-attack-coverage-mapping::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain ATT&CK mapping, control review, detection planning, gap analysis, and defensive prioritization guidance as advisory.", "notProved": ["completeness", "detection efficacy", "incident resolution"]},
+        {"id": "implementing-mitre-attack-coverage-mapping::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system ownership, legal/privacy/safety review, analyst validation, severity, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "coverage finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-mobile-application-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-mobile-application-management/SKILL.md",
+        "sha256": "8488dae72f10e2c885ff1ab702ce6b2dae008c2d8ea6a7ba41b7cd7d7b7fc7bc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Mobile Application Management:L36"]
+      },
+      "components": [
+        {"id": "implementing-mobile-application-management::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed mobile app, device, user, policy, certificate, package, owner, scope, and evidence-manifest fields without device or app-store access.", "notProved": ["mobile posture", "application security", "policy enforcement"]},
+        {"id": "implementing-mobile-application-management::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep MAM/MDM platforms, mobile devices, app stores, IdPs, certificates, endpoints, and production application controls external.", "notProved": ["device state", "app inventory", "enforcement efficacy"]},
+        {"id": "implementing-mobile-application-management::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain mobile governance, app approval, certificate review, privacy, device policy, and defensive management guidance as advisory.", "notProved": ["coverage", "mobile posture", "incident resolution"]},
+        {"id": "implementing-mobile-application-management::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, device and application ownership, legal/privacy/ethics/safety review, enrollment approval, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "mobile finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-network-deception-with-honeypots",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-deception-with-honeypots/SKILL.md",
+        "sha256": "39d1d4ad661e8464034f247487cf2cc3a768fb84fea298b9a3db80201d7c7776",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Deception with Honeypots:L31"]
+      },
+      "components": [
+        {"id": "implementing-network-deception-with-honeypots::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed honeypot, service, network, placement, trigger, owner, scope, event, and evidence-manifest fields without deployment or network access.", "notProved": ["honeypot activity", "intrusion", "attacker behavior"]},
+        {"id": "implementing-network-deception-with-honeypots::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep honeypot platforms, networks, endpoints, packet sensors, SIEM, DNS, and live deception infrastructure external.", "notProved": ["event truth", "network activity", "detection efficacy"]},
+        {"id": "implementing-network-deception-with-honeypots::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain deception architecture, placement, alert triage, network monitoring, and defensive response guidance as advisory.", "notProved": ["coverage", "intrusion detection", "incident resolution"]},
+        {"id": "implementing-network-deception-with-honeypots::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and network ownership, legal/privacy/ethics/safety review, stop conditions, evidence handling, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "honeypot finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-pam-for-database-access",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-pam-for-database-access/SKILL.md",
+        "sha256": "da283609029de9bb10b33092e346419fbbbfcc089709241238553b9dd82b94b4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing PAM for Database Access:L58"]
+      },
+      "components": [
+        {"id": "implementing-pam-for-database-access::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed database, identity, role, secret, session, approval, query, owner, scope, and evidence-manifest fields without database or PAM access.", "notProved": ["database access", "privileged session", "query execution"]},
+        {"id": "implementing-pam-for-database-access::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep PAM platforms, databases, vaults, IdPs, credentials, sessions, endpoints, and production data systems external.", "notProved": ["database state", "credential validity", "access outcome"]},
+        {"id": "implementing-pam-for-database-access::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain database PAM, least privilege, approval, session review, key custody, monitoring, and defensive governance guidance as advisory.", "notProved": ["coverage", "PAM efficacy", "incident resolution"]},
+        {"id": "implementing-pam-for-database-access::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, database and identity ownership, key custody, legal/privacy/safety review, approval, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "database finding validity", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, or production telemetry is proved.",
+    "No IaC scan, log delivery, ledger integrity, memory mitigation, segmentation, targeted mail protection, ATT&CK coverage, mobile management, honeypot activity, PAM access, execution, compromise, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, containment, remediation, recovery, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}

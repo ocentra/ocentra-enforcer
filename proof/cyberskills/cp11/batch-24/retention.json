@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-24",
+  "family": "IF/devsecops",
+  "baselineCommit": "1b50830dff9a488c1c74884cb71e2f3b2a540975",
+  "scope": "Retain advisory and manual content for the deterministic DevSecOps packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "integrating-dast-with-owasp-zap-in-pipeline",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/integrating-dast-with-owasp-zap-in-pipeline/SKILL.md",
+        "sha256": "60d7a1b8714d01ab8c1a93e46447b8ae17265f59fb14f5f19b56153c91154961",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Integrating DAST with OWASP ZAP in Pipeline:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-50/decomposition.json",
+        "artifactSha256": "2091d873aac0c60153c9c0fd8bda86df8bd37e4053f3de47484430363edc1b90"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "integrating-sast-into-github-actions-pipeline",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/integrating-sast-into-github-actions-pipeline/SKILL.md",
+        "sha256": "5767c9ddf1fe9b5cdb7739ea88fc745807ec42afe53f05321236a3f331f9ec4b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Integrating SAST into GitHub Actions Pipeline:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-71/decomposition.json",
+        "artifactSha256": "67f903bd350f095a032b24e8457d7cf7a5d3a6f929da13ceb0d9797f94f8fc4b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-container-image-hardening",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-container-image-hardening/SKILL.md",
+        "sha256": "4bd116ec9bf56b56ce10ec69ab9da6eb12c9f0db36bdc14402e5eb96f24da97d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Container Image Hardening:L34",
+          "## Workflow:L53",
+          "### Step 1: Use Multi-Stage Builds to Minimize Image Size:L55"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-sca-dependency-scanning-with-snyk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-sca-dependency-scanning-with-snyk/SKILL.md",
+        "sha256": "dfd1a2b52caf065f5e901bc58cf843cadf7da76990e9f7ed466661863b3120c9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing SCA Dependency Scanning with Snyk:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-threat-modeling-with-owasp-threat-dragon",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-modeling-with-owasp-threat-dragon/SKILL.md",
+        "sha256": "f343a1c66955144e9c38a0839af1a0d51134ea33383933568444e94adb062737",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Threat Modeling with OWASP Threat Dragon:L39"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-79/decomposition.json",
+        "artifactSha256": "dbc9422fc04edceb306c4f80fee5be0380cd830f1a2be95a1d8acec471c1e0ae"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "scanning-containers-with-trivy-in-cicd",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-containers-with-trivy-in-cicd/SKILL.md",
+        "sha256": "77d25536c0325643925024b3213cb6b0c4b91a08665b91a15066bab3a51a47ec",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Scanning Containers with Trivy in CI/CD:L35",
+          "## Workflow:L54",
+          "### Step 1: Configure Trivy Scanning in GitHub Actions:L56"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "scanning-iac-and-images-with-trivy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-iac-and-images-with-trivy/SKILL.md",
+        "sha256": "687f1f393c389bb196f6870c62afbef4f2b98321432079107597d9414f5f94a6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Scanning IaC and Images with Trivy:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "securing-github-actions-workflows",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-github-actions-workflows/SKILL.md",
+        "sha256": "2b97435cc35f746c3dfe8ce527d2b74602906c8ee61e098aeb7547efc9c5a210",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Securing GitHub Actions Workflows:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 8,
+    "advisoryRetained": 8,
+    "manualRetained": 8,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live OWASP ZAP, GitHub Actions, container scanner, Snyk, OWASP Threat Dragon, Trivy, GitHub workflow, registry, artifact store, CI runner, deployment, endpoint, cloud, or production execution is proved.",
+    "No vulnerability truth, dependency risk, image hardening, threat-model validity, secret detection, provenance validity, CI security, artifact integrity, release approval, remediation, rollback, compliance, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

@@ -15,7 +15,7 @@
 //!
 //! # Never the legacy literal
 //!
-//! The registration key is always [`enforcer_mcp::name::SERVER_NAME`]
+//! The registration key is always [`enforcer_domain::mcp_types::SERVER_NAME`]
 //! (`"enforcer"`) — this module never writes (or reads for identity) the
 //! retired `ocentra-enforcer` string. `command` is always the caller's
 //! supplied **absolute** binary path; a relative path is rejected at
@@ -50,7 +50,7 @@ use std::path::Path;
 /// The top-level `mcpServers` map key every generic-adapter registration
 /// writes under. Always the x01 const — never the legacy literal.
 fn server_key() -> &'static str {
-    enforcer_mcp::name::SERVER_NAME
+    enforcer_domain::mcp_types::SERVER_NAME
 }
 
 /// Configuration for one generic-adapter instance: which harness key it

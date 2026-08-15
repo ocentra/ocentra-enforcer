@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-37",
+  "family": "IF/incident-response",
+  "baselineCommit": "8428651ff09f5cddb6cdf59f3d8c561eece40cfd",
+  "scope": "Retain advisory and manual content for the deterministic incident-response packet from immutable CP08 evidence; no native implementation, live detection, investigation, containment, eradication, recovery, forensic, endpoint, network, cloud, SIEM, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-linux-audit-logs-for-intrusion",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-linux-audit-logs-for-intrusion/SKILL.md",
+        "sha256": "36728ade3067bbc663459be37f0384094a16ab0e22cbbd897725c41ccf3777c0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Linux Audit Logs for Intrusion:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-12/decomposition.json",
+        "artifactSha256": "bb8dfde4dff8786b08a57541aa6542b96bcf3d739a1ad8ad488eb4b7ea596e05"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain audit-log review, intrusion triage, and incident-investigation guidance.",
+        "notProved": ["Guidance is not log truth, intrusion detection, or attribution."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written scope, legal authority, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": ["No live host, log, process, or incident outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "analyzing-network-traffic-for-incidents",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-network-traffic-for-incidents/SKILL.md",
+        "sha256": "b5467621b7bfea98bc9cbf2d7e952d88be2cfe1a0d1b6558235e7331d48f4ac7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Network Traffic for Incidents:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-13/decomposition.json",
+        "artifactSha256": "3afbaad52b35c81b2bb1c6aa9150cc405d59449346a9bb61e73e21b195940aea"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network-incident analysis, triage, and traffic-review guidance.",
+        "notProved": ["Guidance is not packet capture, traffic truth, or incident detection."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require network-owner authorization, privacy, scope, evidence handling, and containment decisions.",
+        "notProved": ["No live network, packet, attribution, or containment outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "analyzing-security-logs-with-splunk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-security-logs-with-splunk/SKILL.md",
+        "sha256": "2835c266b1ed47ff1f3b6b4d299f2ddcda236c77c0db08169f861a2bf2855342",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Security Logs with Splunk:L51"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-53/decomposition.json",
+        "artifactSha256": "985bda0f2523df050ff41f4b2867ee1ed731307bdfd5bbdacba97d72b25ea664"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain security-log triage, correlation, and incident-review guidance.",
+        "notProved": ["Guidance is not Splunk, SIEM, log truth, or detection efficacy."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require data-owner authorization, privacy, retention, analyst validation, and escalation decisions.",
+        "notProved": ["No live SIEM, log, detection, or incident outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "building-incident-response-playbook",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-incident-response-playbook/SKILL.md",
+        "sha256": "a30ed65e7fa5cdfee8bd8411b1c3237c63b2e0b451f7fdb37a2ffe7d1edf5daf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Incident Response Playbooks:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-44/decomposition.json",
+        "artifactSha256": "3081c7a7c474da5f0480d10cd67415909fa3553316782efac9156c98c2406d62"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain incident-response preparation, triage, containment, recovery, and communication guidance.",
+        "notProved": ["Guidance is not an incident-response system or operational outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require incident-owner, legal, privacy, safety, communications, containment, and recovery decisions.",
+        "notProved": ["No live playbook execution or recovery outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "building-incident-timeline-with-timesketch",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-incident-timeline-with-timesketch/SKILL.md",
+        "sha256": "f290286d58c11e541d18d879ea3e0a896411309f53a0cffa1cd5b9fc3ecf0ef8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Incident Timeline with Timesketch:L38"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-39/decomposition.json",
+        "artifactSha256": "d0b8a9fe21e9a30c35c3a8db24aa3cb75d994b477230b575adcf1af2dd63de1a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain timeline construction, evidence correlation, and incident-analysis guidance.",
+        "notProved": ["Guidance is not Timesketch, timeline truth, or evidentiary validity."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require chain of custody, legal scope, privacy, acquisition safety, analyst interpretation, and disclosure decisions.",
+        "notProved": ["No live acquisition, timeline, attribution, or incident outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "building-malware-incident-communication-template",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-malware-incident-communication-template/SKILL.md",
+        "sha256": "7fbc0423fdaaa327b72846e511bb5aae382a71133d37a924bcb683eb794b615d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Malware Incident Communication Template:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-18/decomposition.json",
+        "artifactSha256": "9831ad238578af4949b3d78b755782f10b3dd2ed97e5fcb2f1a62c0d127d9cda"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware-incident communications and stakeholder-notification guidance.",
+        "notProved": ["Guidance is not malware detection, attribution, or communication delivery."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require incident-commander, legal, privacy, executive, customer, and disclosure decisions.",
+        "notProved": ["No live notification, incident, or recovery outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "collecting-indicators-of-compromise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/collecting-indicators-of-compromise/SKILL.md",
+        "sha256": "c6b4fefdd2bdc3eaa8888334199ab13c64636c3e76a336d9d360e9f24b48a225",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Collecting Indicators of Compromise:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-55/decomposition.json",
+        "artifactSha256": "0e7ea377341afe2f35a52a5e1f1e3976202f6936fe71f3e4c42a3046e59c3ca9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain IOC collection, validation, provenance, and incident-triage guidance.",
+        "notProved": ["Guidance is not IOC validity, freshness, detection, or compromise truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require source authorization, legal/privacy scope, data handling, analyst validation, and dissemination decisions.",
+        "notProved": ["No live collection, enrichment, attribution, or incident outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "collecting-volatile-evidence-from-compromised-host",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/collecting-volatile-evidence-from-compromised-host/SKILL.md",
+        "sha256": "b97d7246ea4c15ba1f22860c3ac2147a219daf28a1722ddebd862f47f78b30e7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Collecting Volatile Evidence from Compromised Hosts:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-39/decomposition.json",
+        "artifactSha256": "d0b8a9fe21e9a30c35c3a8db24aa3cb75d994b477230b575adcf1af2dd63de1a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain volatile-evidence handling, acquisition planning, and incident-forensics guidance.",
+        "notProved": ["Guidance is not live acquisition, memory access, or evidentiary validity."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, chain of custody, privacy, safety, and analyst decisions.",
+        "notProved": ["No live host, memory, process, acquisition, or recovery outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-cloud-incident-response",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-cloud-incident-response/SKILL.md",
+        "sha256": "19ccd8078ae1458e001e583b7178f4b47b8bdfa86b780b3dfc975317c0948802",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Cloud Incident Response:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-55/decomposition.json",
+        "artifactSha256": "0e7ea377341afe2f35a52a5e1f1e3976202f6936fe71f3e4c42a3046e59c3ca9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain cloud-incident triage, containment, investigation, and recovery guidance.",
+        "notProved": ["Guidance is not cloud-provider access, log truth, containment, or recovery."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require tenant ownership, provider authorization, legal/privacy scope, data handling, and rollback decisions.",
+        "notProved": ["No live cloud, account, log, containment, or recovery outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-malware-incident-response",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-malware-incident-response/SKILL.md",
+        "sha256": "3d5d84b6b4182ab272cdd3ad08de2f90abecd278278819397837c3ad436c7b45",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Malware Incident Response:L39"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-18/decomposition.json",
+        "artifactSha256": "9831ad238578af4949b3d78b755782f10b3dd2ed97e5fcb2f1a62c0d127d9cda"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware triage, containment, eradication, recovery, and communications guidance.",
+        "notProved": ["Guidance is not malware detection, containment, eradication, or recovery."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require incident authority, legal/privacy scope, evidence handling, safety, remediation, and disclosure decisions.",
+        "notProved": ["No live malware, endpoint, containment, recovery, attribution, or security outcome is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live detection, investigation, attribution, triage, containment, eradication, recovery, acquisition, endpoint, network, cloud, SIEM, or production execution is proved.",
+    "No incident severity, compromise, IOC validity, timeline truth, legal conclusion, privacy conclusion, remediation success, RTO/RPO, or security outcome is proved.",
+    "This packet contains incident-response skills 1 through 10; the remaining sixteen family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

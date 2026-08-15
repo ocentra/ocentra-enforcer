@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-97",
+  "family": "IF/zero-trust-architecture",
+  "baselineCommit": "a4a9e0098777957c53d83189a8e02d2e5ec8eb70",
+  "scope": "Retain the first zero-trust-architecture packet covering verified access, identity-aware proxy, microsegmentation, Zscaler, Cloudflare Access, Prisma Access, software-defined perimeter, Tailscale, and BeyondCorp guidance from immutable CP08 evidence; native predicates are limited to static supplied identity, device-posture, network-admission, federation, SAML, mTLS, DNS-policy, SaaS-access, session, ownership, configuration, and evidence manifests; cloud providers, identity providers, access gateways, devices, endpoints, networks, sessions, VPNs, production enforcement, and live tenant authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "configuring-aws-verified-access-for-ztna",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-aws-verified-access-for-ztna/SKILL.md",
+        "sha256": "c14083395d03f6be4d6ef0adc3d2a69fdccf801a94d626a495d404bcc989944b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Configuring AWS Verified Access for ZTNA:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive zero-trust access, identity, device posture, policy, least privilege, and tenant-boundary guidance as advisory.",
+        "notProved": ["No live AWS Verified Access policy, identity, device posture, session, admission, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, tenant and owner approval, legal/privacy review, scope, safety, enrollment and revocation decisions, analyst validation, and remediation decisions.",
+        "notProved": ["No human authorization, tenant change, access decision, revocation, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "configuring-identity-aware-proxy-with-google-iap",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-identity-aware-proxy-with-google-iap/SKILL.md",
+        "sha256": "552a7e7877796aa8ad767192050db2140fb861121f389524ea68c49398099060",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Configuring Identity-Aware Proxy with Google IAP:L55"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-05/decomposition.json",
+        "artifactSha256": "e5f932b0b26f265ae5c413ae349fcdbb7dbcb1369065260b10ed71665762ffbf"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive identity-aware proxy, authentication, authorization, service exposure, session, and application-boundary guidance as advisory.",
+        "notProved": ["No live Google IAP identity, authentication, authorization, proxy, session, endpoint, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application and identity-owner approval, legal/privacy review, scope, data handling, least privilege, enrollment, revocation, and remediation decisions.",
+        "notProved": ["No human access approval, identity operation, session, revocation, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "configuring-microsegmentation-for-zero-trust",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-microsegmentation-for-zero-trust/SKILL.md",
+        "sha256": "3f60a7fda2def112a1ccd94e2f7c015862848c91920a0e352ad1b342eaaaf403",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Configuring Microsegmentation for Zero Trust:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive segmentation, identity, workload, network admission, policy exception, and least-privilege guidance as advisory.",
+        "notProved": ["No live segmentation, network admission, identity, workload isolation, enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, network and workload ownership, legal/safety review, scope, change approval, exception, rollback, containment, and remediation decisions.",
+        "notProved": ["No human segmentation change, enforcement action, exception approval, rollback, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "configuring-zscaler-private-access-for-ztna",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-zscaler-private-access-for-ztna/SKILL.md",
+        "sha256": "5988187bf658823d7144f16006f16a634840858470f8a191b6baaf22f154dbbd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Configuring Zscaler Private Access for ZTNA:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive private access, identity, connector, application policy, session, and least-privilege guidance as advisory.",
+        "notProved": ["No live Zscaler access, connector, identity, session, network, policy enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, tenant and application-owner approval, legal/privacy review, scope, safety, enrollment, revocation, exceptions, and remediation decisions.",
+        "notProved": ["No human tenant change, access grant, revocation, exception, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "deploying-cloudflare-access-for-zero-trust",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-cloudflare-access-for-zero-trust/SKILL.md",
+        "sha256": "0d27fe12fdbd7281525e26d5b02d73128e6d731c4eea6e93499e7682f055599c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Deploying Cloudflare Access for Zero Trust:L42"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive access proxy, identity, device posture, application policy, session, and zero-trust architecture guidance as advisory.",
+        "notProved": ["No live Cloudflare Access tenant, identity, device posture, session, route, enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, tenant and application ownership, legal/privacy review, scope, enrollment, revocation, exception, rollback, disclosure, and remediation decisions.",
+        "notProved": ["No human tenant operation, access decision, revocation, rollback, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "deploying-palo-alto-prisma-access-zero-trust",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-palo-alto-prisma-access-zero-trust/SKILL.md",
+        "sha256": "0ff702b1177dcdf65742565805c5123627dab5c66db76a733ca208f79a52c606",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Deploying Palo Alto Prisma Access Zero Trust:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Prisma Access, identity, device posture, network admission, policy, segmentation, session, and recovery guidance as advisory.",
+        "notProved": ["No live Prisma Access tenant, device, network, session, enforcement, policy, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, tenant and network-owner approval, legal/privacy/safety review, scope, change window, exceptions, rollback, and remediation decisions.",
+        "notProved": ["No human tenant change, network admission, policy exception, rollback, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "deploying-software-defined-perimeter",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-software-defined-perimeter/SKILL.md",
+        "sha256": "5bc8b48a12ada613dd7369a91d55cced0a90992573a4a6bf612aaeda4b7abe81",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Deploying Software-Defined Perimeter:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive software-defined perimeter, identity, admission, segmentation, policy, and service-discovery guidance as advisory.",
+        "notProved": ["No live perimeter, discovery, identity, admission, network, service, enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, service and network ownership, legal/safety review, scope, data handling, enrollment, revocation, stop conditions, rollback, and remediation decisions.",
+        "notProved": ["No human perimeter deployment, access decision, revocation, rollback, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "deploying-tailscale-for-zero-trust-vpn",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-tailscale-for-zero-trust-vpn/SKILL.md",
+        "sha256": "391e02937ec1ee418be8409060b11e4ee9f8b1be76174ae5a47e1abfca3f4920",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Deploying Tailscale for Zero Trust VPN:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive mesh VPN, identity, device enrollment, ACL, route, session, and least-privilege guidance as advisory.",
+        "notProved": ["No live Tailscale network, device, identity, route, ACL, session, enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and network ownership, legal/privacy/safety review, scope, enrollment, revocation, exception, rollback, and remediation decisions.",
+        "notProved": ["No human device enrollment, route change, access decision, revocation, rollback, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-beyondcorp-zero-trust-access-model",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-beyondcorp-zero-trust-access-model/SKILL.md",
+        "sha256": "2e597f862fa5a9eaced1d22d0ef8031a5b82fa385d6ea6a297b5c380e542d7b5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing BeyondCorp Zero Trust Access Model:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive BeyondCorp identity, device posture, context-aware access, policy, session, and least-privilege guidance as advisory.",
+        "notProved": ["No live BeyondCorp identity, device posture, access, session, policy enforcement, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, organization and application ownership, legal/privacy review, scope, enrollment, revocation, exceptions, analyst validation, and remediation decisions.",
+        "notProved": ["No human access policy, posture decision, enrollment, revocation, exception, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-cisa-zero-trust-maturity-model",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cisa-zero-trust-maturity-model/SKILL.md",
+        "sha256": "f7316e823f7376970b113139c6e3cc89b06b90bbde9d80ac810937c13a7b789f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing CISA Zero Trust Maturity Model:L40"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive zero-trust maturity, identity, device, network, application, data, governance, and measurement guidance as advisory.",
+        "notProved": ["No live maturity assessment, identity, device posture, network control, governance result, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, organization ownership, legal/privacy review, scope, evidence handling, owner validation, maturity interpretation, exception, remediation, and disclosure decisions.",
+        "notProved": ["No human maturity rating, policy approval, control result, exception, remediation, or security outcome is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live cloud provider, identity provider, device, endpoint, network, VPN, gateway, session, SAML, mTLS, DNS, SaaS, credential, tenant, or production enforcement is proved.",
+    "No identity, device posture, access, admission, federation, segmentation, policy, revocation, maturity, vulnerability, finding, remediation, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, cloud services, identity providers, gateways, devices, networks, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

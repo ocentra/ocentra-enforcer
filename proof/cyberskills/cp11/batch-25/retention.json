@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-25",
+  "family": "IF/digital-forensics",
+  "baselineCommit": "f7e10b332b0b3744097cf2268f18ec7dcc422c9b",
+  "scope": "Retain advisory and manual content for the deterministic digital-forensics packet from immutable CP08 evidence; no native implementation, live acquisition, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "acquiring-disk-image-with-dd-and-dcfldd",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/acquiring-disk-image-with-dd-and-dcfldd/SKILL.md",
+        "sha256": "1b2246182396593c69f5644b56216808de861f652d9fbe01cc460823f784e7f5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Acquiring Disk Image with dd and dcfldd:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-23/decomposition.json",
+        "artifactSha256": "3421408d66a97bf6367c00b94c6a3a7cdfb2db21e24a1faa95cd533372679334"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-browser-forensics-with-hindsight",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-browser-forensics-with-hindsight/SKILL.md",
+        "sha256": "b1c909b3f3449b4bed0d35c9c8d425d068b0c487d5abc79bcd4c515062eb9ff8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Browser Forensics with Hindsight:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-15/decomposition.json",
+        "artifactSha256": "0567ccb73747be5c0cb5840c2ac1fdc1ccd66a6f396ab1e8739485956314c2f2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-disk-image-with-autopsy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-disk-image-with-autopsy/SKILL.md",
+        "sha256": "10813b5f2d12c990ab8b8b8a793c53d8f1ac0687844cb4c606dd3dc907c83968",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Disk Image with Autopsy:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-15/decomposition.json",
+        "artifactSha256": "0567ccb73747be5c0cb5840c2ac1fdc1ccd66a6f396ab1e8739485956314c2f2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-docker-container-forensics",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-docker-container-forensics/SKILL.md",
+        "sha256": "bdbee7f68a5dcb5a2c47d49a3de4721c78ed3cf14546e824e7610baf93de66e5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Docker Container Forensics:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-23/decomposition.json",
+        "artifactSha256": "3421408d66a97bf6367c00b94c6a3a7cdfb2db21e24a1faa95cd533372679334"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-email-headers-for-phishing-investigation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-email-headers-for-phishing-investigation/SKILL.md",
+        "sha256": "755f45233a32943411c52ac3ee5656a1b1c41c7933ad333cf1ff375c5f2caad5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Email Headers for Phishing Investigation:L63"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-08/decomposition.json",
+        "artifactSha256": "3711f536dc9c5f71586f5c3fcf5d6cf572cb5b4d1b1e9112de2ea82f7a6a1bb3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-linux-kernel-rootkits",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-linux-kernel-rootkits/SKILL.md",
+        "sha256": "8d5aa9406912fe35e261eb5eb9b30c01d4a799fe74c797d4fa79fab0d65b78ac",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Linux Kernel Rootkits:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-12/decomposition.json",
+        "artifactSha256": "bb8dfde4dff8786b08a57541aa6542b96bcf3d739a1ad8ad488eb4b7ea596e05"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-linux-system-artifacts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-linux-system-artifacts/SKILL.md",
+        "sha256": "9231782615dec2e22cede8f3aaff2c52128eb9bfa918f0ea8964fddeeaeef64b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Linux System Artifacts:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-12/decomposition.json",
+        "artifactSha256": "bb8dfde4dff8786b08a57541aa6542b96bcf3d739a1ad8ad488eb4b7ea596e05"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-lnk-file-and-jump-list-artifacts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-lnk-file-and-jump-list-artifacts/SKILL.md",
+        "sha256": "609b0d44a866bddb1ad0357782c2be64e3a1ef04708f000ec81c4cadd4b428e8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing LNK File and Jump List Artifacts:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-15/decomposition.json",
+        "artifactSha256": "0567ccb73747be5c0cb5840c2ac1fdc1ccd66a6f396ab1e8739485956314c2f2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-mft-for-deleted-file-recovery",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-mft-for-deleted-file-recovery/SKILL.md",
+        "sha256": "8a04f0a4f4bcb86afa73f427adbe1d5e22e8d7fc5d6323044c2688fdb0758129",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing MFT for Deleted File Recovery:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-15/decomposition.json",
+        "artifactSha256": "0567ccb73747be5c0cb5840c2ac1fdc1ccd66a6f396ab1e8739485956314c2f2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-outlook-pst-for-email-forensics",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-outlook-pst-for-email-forensics/SKILL.md",
+        "sha256": "8ecd1f46d9a7b6e9eb7513191b3b22070867833b49df02f65c4dfe6b343ee258",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Outlook PST for Email Forensics:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-23/decomposition.json",
+        "artifactSha256": "3421408d66a97bf6367c00b94c6a3a7cdfb2db21e24a1faa95cd533372679334"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live disk imaging, browser, Autopsy, Docker, email, Linux host, kernel, file system, MFT, PST, memory, device, cloud, endpoint, network, packet, database, acquisition, imaging, or production execution is proved.",
+    "No credential extraction, file recovery, timeline truth, hash validity, chain-of-custody validity, evidentiary validity, attribution, remediation, recovery, privacy, legal, or security outcome is proved.",
+    "The remaining 31 digital-forensics skills are not included in this B01 packet and remain unretained until later graph-selected packets.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

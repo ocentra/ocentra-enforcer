@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-16",
+  "family": "IF/container-security",
+  "baselineCommit": "09b80c864bbc8b55730d268bab4e4c28c1e70efc",
+  "scope": "Retain advisory and manual content for the next deterministic container-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "hardening-docker-daemon-configuration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hardening-docker-daemon-configuration/SKILL.md",
+        "sha256": "56a5cb91d14ca7820d4887772e3e7d083665f92d16196e794f432f097e70a894",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hardening Docker Daemon Configuration:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Docker daemon, socket, registry, TLS, rootless, capability, storage, logging, and rollback guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove Docker hardening or availability."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, host and workload ownership, legal/privacy/safety review, daemon-change approval, data handling, validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human daemon, host, change, containment, remediation, rollback, or recovery decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-container-image-minimal-base-with-distroless",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-container-image-minimal-base-with-distroless/SKILL.md",
+        "sha256": "ea910f5c45d70101e6dbb415a9757db96ea0766ea5128999dc4f9d85fb337321",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Container Image Minimal Base with Distroless:L33",
+          "## Multi-Stage Build Patterns:L65",
+          "## Available Distroless Images:L54"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Distroless selection, debugging, migration, and multi-stage build guidance.",
+        "notProved": [
+          "No base-image suitability claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Choose a supported Distroless variant, build, test, and observe application behavior after migration.",
+        "notProved": [
+          "No build or runtime proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-container-network-policies-with-calico",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-container-network-policies-with-calico/SKILL.md",
+        "sha256": "af354a01c381e94617ea99457f1422a55c0cfa85eec4980d8af464231247e496",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Container Network Policies with Calico:L29",
+          "## Steps:L50",
+          "## Expected Output:L64"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Calico installation, troubleshooting, rollout, and remediation guidance.",
+        "notProved": [
+          "No compatibility or deployment-completeness claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Install or upgrade Calico and validate allowed/blocked traffic in a controlled namespace.",
+        "notProved": [
+          "No live connectivity proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-image-provenance-verification-with-cosign",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-image-provenance-verification-with-cosign/SKILL.md",
+        "sha256": "56d0e682beb1b035746683713934eff8d4af5e91e29fdc6e07cca1c382357726",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Image Provenance Verification with Cosign:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain image provenance and artifact verification guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, image/source/owner validation, signing-key custody, legal/data handling, release approval, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live provenance verification proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-kubernetes-network-policy-with-calico",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-kubernetes-network-policy-with-calico/SKILL.md",
+        "sha256": "555cc3988e1b3ba3d354447b969ea4167f3d4a85b43a095fadd1d3d3953ca3a7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "### Default Deny All Traffic:L84",
+          "### Allow Specific Pod-to-Pod Communication:L111",
+          "### GlobalNetworkPolicy (Cluster-Wide):L179"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Calico installation, troubleshooting, policy-tier, and remediation guidance.",
+        "notProved": [
+          "No deployment or compatibility proof."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Install/upgrade Calico, choose policy tiers, and validate connectivity in an authorized cluster.",
+        "notProved": [
+          "No live cluster proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-kubernetes-pod-security-standards",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-kubernetes-pod-security-standards/SKILL.md",
+        "sha256": "97db23269a0ec865f051c6f207c4d5c43ede1257da74398fd74e4b1b16eb5269",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "### Three Security Profiles:L50",
+          "### Step 1: Label Namespaces for PSA:L68",
+          "### Step 3: Create Compliant Pod Specs:L132"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain profile definitions, migration sequencing, and remediation guidance.",
+        "notProved": [
+          "No profile-completeness claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Choose namespace policy levels, migrate workloads, and review audit/warn output in the target cluster.",
+        "notProved": [
+          "No live PSA proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-network-policies-for-kubernetes",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-policies-for-kubernetes/SKILL.md",
+        "sha256": "57582966b832904eee9245a91efb82d17894e90433e3d3300b25981563ef6060",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "### Step 1: Default Deny All Traffic:L50",
+          "### Step 2: Allow DNS Egress (Required for Service Discovery):L66",
+          "### Step 6: Block Cloud Metadata Access:L197"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain zero-trust policy design, rollout, and remediation guidance.",
+        "notProved": [
+          "No complete policy semantics claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Apply policies and validate blocked/allowed traffic in an authorized cluster.",
+        "notProved": [
+          "No live connectivity proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-opa-gatekeeper-for-policy-enforcement",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-opa-gatekeeper-for-policy-enforcement/SKILL.md",
+        "sha256": "85e9e5ea95c3f3312dd1d4c88b258edacf6436989ad7a6ede35b623a725fb746",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing OPA Gatekeeper for Policy Enforcement:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive OPA, constraint, admission, exception, policy lifecycle, and Kubernetes governance guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove policy correctness or admission behavior."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, policy approval, exception governance, validation, severity, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human policy, exception, admission, remediation, rollback, or recovery decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-pod-security-admission-controller",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-pod-security-admission-controller/SKILL.md",
+        "sha256": "91669e49dacb903629b8a86627e8bbb5c4c2df6954e52afd1f0ff0d6470b72d8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Pod Security Admission Controller:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Pod Security, namespace profile, capability, host-access, exception, and admission governance guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove pod policy or admission behavior."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, profile approval, exception governance, validation, severity, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human profile, exception, admission, remediation, rollback, or recovery decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-rbac-hardening-for-kubernetes",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-rbac-hardening-for-kubernetes/SKILL.md",
+        "sha256": "7926a636d0a9578b88b02d65546f13ae53c0f5d53e1d3ee020713e182967ff66",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "### 1. Eliminate cluster-admin Sprawl:L55",
+          "### 4. Restrict Dangerous Permissions:L130",
+          "### Step 4: Verify Token Auto-Mount:L223"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain least-privilege design, OIDC, audit cadence, and remediation guidance.",
+        "notProved": [
+          "No policy completeness claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Apply RBAC changes, coordinate identity-provider impact, and validate workload behavior in the target cluster.",
+        "notProved": [
+          "No live cluster proof."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live Kubernetes, Docker, Calico, Cosign, OPA/Gatekeeper, pod-security admission, cluster, node, pod, container, host, kernel, runtime, registry, image, SIEM, cloud, endpoint, network, or production execution is proved.",
+    "No policy correctness, provenance, signature, access, isolation, admission, detection efficacy, hardening, remediation, containment, recovery, attribution, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

@@ -1,6 +1,6 @@
 //! Hard tests for JSON, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_json`]) -- grammar:
+//! ([`enforcer_syntax::languages::generic::parse_json`]) -- grammar:
 //! `tree-sitter-json` 0.24.8. Matches the baseline's own fully nominal
 //! row (baseline's own `json_var_types: ["pair"]` has no equivalent in
 //! this crate's own narrower [`LangSpec`] shape, see that row's own
@@ -10,10 +10,10 @@
 //! now classifies to the real extractor rather than the pre-existing
 //! `ConfigJson` no-op fallback.
 //!
-//! [`LangSpec`]: enforcer_memory::languages::spec::LangSpec
+//! [`LangSpec`]: enforcer_syntax::languages::spec::LangSpec
 
-use enforcer_memory::parsers::SymbolKind;
-use enforcer_memory::{languages::generic::parse_json, parsers};
+use enforcer_syntax::parsers::SymbolKind;
+use enforcer_syntax::{languages::generic::parse_json, parsers};
 use std::error::Error;
 use std::fs;
 use std::path::Path;

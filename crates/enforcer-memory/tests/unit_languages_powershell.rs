@@ -1,11 +1,11 @@
 //! Hard tests for PowerShell, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_powershell`]) -- there
+//! ([`enforcer_syntax::languages::generic::parse_powershell`]) -- there
 //! is no bespoke `languages::powershell` extractor to prove
 //! zero-regression against (PowerShell has never had one in this
 //! crate), so these tests assert against the grammar-shape ground truth
 //! recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::powershell`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::powershell`]'s own doc
 //! comment directly: a `function` statement, a class with a method and
 //! `class Dog : Animal` heritage, a `command` call (paren-less, bare
 //! space-separated arguments), a member-call `invokation_expression`,
@@ -13,8 +13,8 @@
 //! IMPORTS edge (mirroring the baseline's own `parse_powershell_imports`
 //! exactly).
 
-use enforcer_memory::languages::generic::parse_powershell;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_powershell;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -24,7 +24,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_powershell";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

@@ -1,0 +1,34 @@
+h11 CyberSkills native Rust core closeout evidence
+Date: 2026-07-30
+
+Verified focused behavior
+- PASS `cargo test --frozen -p enforcer-lang-security`
+  Harness run: 20260730025043-6be8bff2
+- PASS `cargo test --frozen -p enforcer-security`
+  Harness run: 20260730025106-9263aef5
+- PASS `cargo test --frozen -p enforcer-scan --test cyberskills_vendor_dogfood`
+  Harness run: 20260730025146-d724825b
+- PASS Enforcer `required-tests` over the h11 native/security/scan test surface.
+- PASS `rustfmt --check crates/enforcer-scan/tests/cyberskills_vendor_dogfood.rs`
+  Harness run: 20260730025300-44d97758
+
+Deletion-era vendor evidence
+- `cyberskills_vendor_not_dogfooded` uses the real repository root and the
+  `ocentra-enforcer` profile; it proves no `vendor/` path is walked.
+- `without_the_vendor_glob_the_walk_would_see_vendor_files` proves the same
+  real corpus would be walked without the exclusion.
+- Both tests now fail if `vendor/anthropic-cybersecurity-skills` is absent.
+  This evidence is therefore a required pre-deletion proof, not a vacuous
+  post-deletion success. A vendor-deletion packet must replace this test only
+  after preserving this artifact and proving no remaining dependency on the
+  vendor path.
+
+Known scoped closeout blocker
+- `cargo clippy --frozen -p enforcer-lang-security -p enforcer-security -p
+  enforcer-scan -- -D warnings` is blocked by four existing
+  `clippy::needless_borrow` errors in
+  `crates/enforcer-scan/src/boundary/native_scan.rs` (lines 172, 177, 187,
+  and 209). That file is outside h11 ownership and was not changed here.
+- Workspace `cargo fmt --check` cannot start on this Windows checkout:
+  `The filename or extension is too long. (os error 206)`. The exact changed
+  test file passed direct rustfmt validation.

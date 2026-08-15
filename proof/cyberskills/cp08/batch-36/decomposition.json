@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-36",
+  "baselineCommit": "89c842cf820380ff2dc95b77fe28c3c16f35bc0c",
+  "family": "Software supply-chain integrity, dependency/package risk, artifact provenance, and CI/CD security",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["detecting-malicious-npm-packages", "detecting-typosquatting-packages", "detecting-typosquatting-packages-in-npm-pypi", "implementing-code-signing-for-artifacts", "implementing-github-advanced-security-for-code-scanning", "implementing-image-provenance-verification-with-cosign", "implementing-secrets-scanning-in-ci-cd", "performing-sca-dependency-scanning-with-snyk", "scanning-iac-and-images-with-trivy", "securing-github-actions-workflows"],
+    "reason": "Ten disjoint software supply-chain and CI/CD security skills covering package risk, dependency analysis, signing, provenance, secret scanning, IaC/image scanning, code scanning, and workflow hardening. Native checks are limited to static typed supplied manifests; live registries, scanners, runners, authorities, and outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-malicious-npm-packages",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-malicious-npm-packages/SKILL.md", "sha256": "a1537f89b6a9f2eba7b3b4e61eca3ea89a73d080dd1b4a3c93db981266bf630c", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Malicious npm Packages:L23"]},
+      "components": [
+        {"componentId": "detecting-malicious-npm-packages::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed package, maintainer, version, dependency, provenance, finding, owner, and evidence manifests.", "notProved": ["No malicious-package determination, registry scan, execution, remediation, or security outcome proof."]},
+        {"componentId": "detecting-malicious-npm-packages::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use npm registries, package analysis, threat intelligence, scanners, CI runners, and deployment authorities.", "notProved": ["No pinned adapter, registry runtime, package execution, or normalized evidence."]},
+        {"componentId": "detecting-malicious-npm-packages::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain malicious-package detection and supply-chain guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-malicious-npm-packages::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, package ownership and maintainer validation, legal/data handling, severity, release, remediation, rollback, and disclosure decisions.", "notProved": ["No live package investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-typosquatting-packages",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-typosquatting-packages/SKILL.md", "sha256": "ed5b6eb14f33f324bb238ab8cdeb41a5489dea4c34a9a78d2362391a551912be", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Typosquatting Packages:L23"]},
+      "components": [
+        {"componentId": "detecting-typosquatting-packages::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed package name, namespace, dependency, similarity, maintainer, finding, owner, and evidence fields.", "notProved": ["No typosquatting truth, registry discovery, package execution, remediation, or security outcome proof."]},
+        {"componentId": "detecting-typosquatting-packages::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use package registries, similarity engines, scanners, threat intelligence, CI runners, and deployment authorities.", "notProved": ["No pinned adapter, registry state, analysis runtime, or normalized evidence."]},
+        {"componentId": "detecting-typosquatting-packages::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain package-typosquatting detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-typosquatting-packages::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, namespace/owner validation, legal/data handling, severity, release, remediation, rollback, and disclosure decisions.", "notProved": ["No live typosquatting investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-typosquatting-packages-in-npm-pypi",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-typosquatting-packages-in-npm-pypi/SKILL.md", "sha256": "b3d46c0184c4a0993b1c31f0e1d91e368d14a47063dd0083e9e51f87d4cfe0ed", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Typosquatting Packages in npm and PyPI:L39"]},
+      "components": [
+        {"componentId": "detecting-typosquatting-packages-in-npm-pypi::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed npm/PyPI package, name, version, namespace, maintainer, similarity, finding, and evidence manifests.", "notProved": ["No npm/PyPI typosquatting truth, registry query, package execution, remediation, or security outcome proof."]},
+        {"componentId": "detecting-typosquatting-packages-in-npm-pypi::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use npm/PyPI registries, scanners, package analysis, threat intelligence, CI runners, and deployment authorities.", "notProved": ["No pinned adapter, registry runtime, package execution, or normalized evidence."]},
+        {"componentId": "detecting-typosquatting-packages-in-npm-pypi::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cross-registry package-typosquatting guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-typosquatting-packages-in-npm-pypi::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, registry/package ownership validation, legal/data handling, severity, release, remediation, rollback, and disclosure decisions.", "notProved": ["No live registry investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-code-signing-for-artifacts",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-code-signing-for-artifacts/SKILL.md", "sha256": "ce1d6eb5837e351f6b86540d7520b84ae0962bf853ec772ff55c7d81943dda31", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Code Signing for Artifacts:L34"]},
+      "components": [
+        {"componentId": "implementing-code-signing-for-artifacts::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed artifact, digest, signature, signer, key-custody, policy, approval, and evidence fields.", "notProved": ["No signature validity, key custody, artifact integrity, release approval, deployment, or security outcome proof."]},
+        {"componentId": "implementing-code-signing-for-artifacts::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use signing authorities, HSM/KMS, registries, CI runners, artifact stores, Cosign, and deployment systems.", "notProved": ["No pinned adapter, signing runtime, key authority, or normalized evidence."]},
+        {"componentId": "implementing-code-signing-for-artifacts::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain artifact signing and key-custody guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-code-signing-for-artifacts::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, signer/key-owner validation, key custody, legal/data handling, release approval, remediation, rollback, and disclosure decisions.", "notProved": ["No live signing or release proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-github-advanced-security-for-code-scanning",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-github-advanced-security-for-code-scanning/SKILL.md", "sha256": "eb11fb928c5b7cf9d033bc6bd625556730ca7c7cf213e35ee111b10ab36f964e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing GitHub Advanced Security for Code Scanning:L29"]},
+      "components": [
+        {"componentId": "implementing-github-advanced-security-for-code-scanning::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed repository, branch, code-scan, finding, owner, approval, workflow, and evidence manifests.", "notProved": ["No code-scan result, vulnerability truth, CI enforcement, remediation, release, or security outcome proof."]},
+        {"componentId": "implementing-github-advanced-security-for-code-scanning::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use GitHub Advanced Security, repositories, CI runners, code scanners, ticketing, artifact stores, and deployment authorities.", "notProved": ["No pinned adapter, repository access, scan runtime, or normalized evidence."]},
+        {"componentId": "implementing-github-advanced-security-for-code-scanning::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain GitHub code-scanning and secure-development guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-github-advanced-security-for-code-scanning::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository/owner validation, legal/data handling, severity, release approval, remediation, rollback, and disclosure decisions.", "notProved": ["No live code-scanning proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-image-provenance-verification-with-cosign",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-image-provenance-verification-with-cosign/SKILL.md", "sha256": "56d0e682beb1b035746683713934eff8d4af5e91e29fdc6e07cca1c382357726", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Image Provenance Verification with Cosign:L31"]},
+      "components": [
+        {"componentId": "implementing-image-provenance-verification-with-cosign::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed image, digest, attestation, signature, builder, source, policy, approval, and evidence fields.", "notProved": ["No Cosign verification, provenance authenticity, image integrity, release, deployment, or security outcome proof."]},
+        {"componentId": "implementing-image-provenance-verification-with-cosign::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Cosign, signing authorities, registries, CI runners, artifact stores, builders, and deployment systems.", "notProved": ["No pinned adapter, signing runtime, registry state, or normalized evidence."]},
+        {"componentId": "implementing-image-provenance-verification-with-cosign::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain image provenance and artifact verification guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-image-provenance-verification-with-cosign::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, image/source/owner validation, signing-key custody, legal/data handling, release approval, remediation, rollback, and disclosure decisions.", "notProved": ["No live provenance verification proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-secrets-scanning-in-ci-cd",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-secrets-scanning-in-ci-cd/SKILL.md", "sha256": "d27c80a229695c253995fda9af2d12fac8ed04c2c4be6b2aea2ae888bd172f07", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Secrets Scanning in CI/CD:L27"]},
+      "components": [
+        {"componentId": "implementing-secrets-scanning-in-ci-cd::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed repository, secret finding, pattern, owner, approval, revocation-plan, workflow, and evidence manifests.", "notProved": ["No secret exposure, scanner completeness, credential validity, revocation, remediation, or security outcome proof."]},
+        {"componentId": "implementing-secrets-scanning-in-ci-cd::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use secret scanners, repositories, CI runners, vault/KMS, IdP, ticketing, artifact stores, and deployment authorities.", "notProved": ["No pinned adapter, scan runtime, credential authority, or normalized evidence."]},
+        {"componentId": "implementing-secrets-scanning-in-ci-cd::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain CI/CD secret-scanning and credential-hygiene guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-secrets-scanning-in-ci-cd::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository/owner validation, key custody, legal/data handling, severity, release, remediation, rollback, and disclosure decisions.", "notProved": ["No live secret remediation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-sca-dependency-scanning-with-snyk",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-sca-dependency-scanning-with-snyk/SKILL.md", "sha256": "dfd1a2b52caf065f5e901bc58cf843cadf7da76990e9f7ed466661863b3120c9", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing SCA Dependency Scanning with Snyk:L33"]},
+      "components": [
+        {"componentId": "performing-sca-dependency-scanning-with-snyk::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed repository, dependency, version, vulnerability, license, owner, approval, and evidence manifests.", "notProved": ["No Snyk result, vulnerability truth, license truth, scanner completeness, remediation, release, or security outcome proof."]},
+        {"componentId": "performing-sca-dependency-scanning-with-snyk::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Snyk, package registries, vulnerability feeds, CI runners, repositories, ticketing, and deployment authorities.", "notProved": ["No pinned adapter, dependency scan runtime, feed authority, or normalized evidence."]},
+        {"componentId": "performing-sca-dependency-scanning-with-snyk::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain SCA dependency and supply-chain guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-sca-dependency-scanning-with-snyk::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository/owner validation, legal/data handling, severity, release approval, remediation, rollback, and disclosure decisions.", "notProved": ["No live SCA result or remediation proof."]}
+      ]
+    },
+    {
+      "catalogId": "scanning-iac-and-images-with-trivy",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/scanning-iac-and-images-with-trivy/SKILL.md", "sha256": "687f1f393c389bb196f6870c62afbef4f2b98321432079107597d9414f5f94a6", "availability": "available", "license": "Apache-2.0", "anchors": ["# Scanning IaC and Images with Trivy:L23"]},
+      "components": [
+        {"componentId": "scanning-iac-and-images-with-trivy::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed IaC, image, digest, finding, policy, owner, approval, and evidence manifests.", "notProved": ["No Trivy result, vulnerability truth, image integrity, scanner completeness, remediation, release, or security outcome proof."]},
+        {"componentId": "scanning-iac-and-images-with-trivy::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Trivy, registries, CI runners, builders, artifact stores, cloud, and deployment authorities.", "notProved": ["No pinned adapter, scan runtime, registry state, or normalized evidence."]},
+        {"componentId": "scanning-iac-and-images-with-trivy::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain IaC and image scanning guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "scanning-iac-and-images-with-trivy::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository/image owner validation, legal/data handling, severity, release approval, remediation, rollback, and disclosure decisions.", "notProved": ["No live IaC/image scan proof."]}
+      ]
+    },
+    {
+      "catalogId": "securing-github-actions-workflows",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/securing-github-actions-workflows/SKILL.md", "sha256": "2b97435cc35f746c3dfe8ce527d2b74602906c8ee61e098aeb7547efc9c5a210", "availability": "available", "license": "Apache-2.0", "anchors": ["# Securing GitHub Actions Workflows:L35"]},
+      "components": [
+        {"componentId": "securing-github-actions-workflows::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed repository, workflow, permission, secret, approval, artifact, owner, and evidence manifests.", "notProved": ["No GitHub Actions enforcement, runner isolation, secret safety, artifact integrity, release, or security outcome proof."]},
+        {"componentId": "securing-github-actions-workflows::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use GitHub Actions, CI runners, repositories, secret stores, artifact stores, signing authorities, and deployment systems.", "notProved": ["No pinned adapter, workflow runtime, runner state, or normalized evidence."]},
+        {"componentId": "securing-github-actions-workflows::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain GitHub Actions workflow-hardening guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "securing-github-actions-workflows::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository/owner validation, key custody, legal/data handling, severity, release approval, remediation, rollback, and disclosure decisions.", "notProved": ["No live workflow security proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Registries, Snyk, Trivy, GitHub Advanced Security/Actions, Cosign/signing authorities, secret scanners, CI runners, artifact stores, and deployment systems remain blocked external engines.",
+    "No malicious-package, typosquatting, vulnerability, secret, signature, provenance, CI, artifact, release, remediation, rollback, disclosure, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

@@ -1,16 +1,16 @@
 //! Hard tests for Scala, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_scala`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_scala`])
 //! -- there is no bespoke `languages::scala` extractor to prove
 //! zero-regression against (Scala has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::scala`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::scala`]'s own doc
 //! comment directly: symbol kinds (function/method/class/trait-as-
 //! interface/object/enum/type-alias), `extends ... with ...` heritage
 //! (INHERITS), call edges, and repeated-field import-path
 //! reconstruction.
 
-use enforcer_memory::languages::generic::parse_scala;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_scala;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_scala";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

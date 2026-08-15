@@ -14,7 +14,7 @@
 use crate::boundary::router::NativeToolRouteResponse;
 use enforcer_config::project_tie::ResolvedProjectTie;
 use enforcer_domain::config_types::NativeTool;
-use enforcer_domain::scan_types::DetectedLanguage;
+use enforcer_domain::scan_types::{DetectedLanguage, LanguageFamily};
 
 /// ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`
 /// proves this nested DTO round-trips as part of its enclosing route plan.
@@ -37,12 +37,26 @@ use enforcer_domain::scan_types::DetectedLanguage;
 /// invented one.
 fn native_tool_for(language: DetectedLanguage) -> Option<NativeTool> {
     match language {
-        DetectedLanguage::Rust => Some(NativeTool::Cargo),
-        DetectedLanguage::TypeScript => Some(NativeTool::Tsc),
-        DetectedLanguage::Python => Some(NativeTool::Ruff),
+        DetectedLanguage::Rust => native_tool_for_scan_family(LanguageFamily::Rust),
+        DetectedLanguage::TypeScript => native_tool_for_scan_family(LanguageFamily::TypeScript),
+        DetectedLanguage::Python => native_tool_for_scan_family(LanguageFamily::Python),
         DetectedLanguage::Dart => Some(NativeTool::Dart),
         DetectedLanguage::Cfml => Some(NativeTool::Cflint),
         DetectedLanguage::Go | DetectedLanguage::Other => None,
+    }
+}
+
+/// Return the existing native-tool identity for one scan family when the
+/// current consumer mapping has an exact typed tool. This is a
+/// consumer-specific projection seam; it does not claim that the tool can
+/// execute successfully or that every identity in the family is supported.
+pub(crate) const fn native_tool_for_scan_family(family: LanguageFamily) -> Option<NativeTool> {
+    match family {
+        LanguageFamily::Rust => Some(NativeTool::Cargo),
+        LanguageFamily::TypeScript => Some(NativeTool::Tsc),
+        LanguageFamily::Python => Some(NativeTool::Ruff),
+        LanguageFamily::Dart => Some(NativeTool::Dart),
+        LanguageFamily::Terraform | LanguageFamily::YamlOrConfig | LanguageFamily::Unknown => None,
     }
 }
 
@@ -65,11 +79,11 @@ pub fn native_tools_for(
 
 #[cfg(test)]
 mod tests {
-    use super::native_tools_for;
+    use super::{native_tool_for_scan_family, native_tools_for};
     use enforcer_config::project_tie::{ProjectConfig, ResolvedProjectTie};
     use enforcer_config::serde::{WireNativeMode, WireNativeTool};
     use enforcer_domain::config_types::ConfigSource;
-    use enforcer_domain::scan_types::DetectedLanguage;
+    use enforcer_domain::scan_types::{DetectedLanguage, LanguageFamily};
 
     fn default_tie() -> Result<ResolvedProjectTie, Box<dyn std::error::Error>> {
         Ok(ResolvedProjectTie::resolve(
@@ -100,5 +114,31 @@ mod tests {
         let tie = default_tie()?;
         assert!(native_tools_for(DetectedLanguage::Other, &tie).is_empty());
         Ok(())
+    }
+
+    #[test]
+    fn scan_family_projection_reuses_only_existing_native_tool_mappings() {
+        assert_eq!(
+            native_tool_for_scan_family(LanguageFamily::Rust),
+            Some(enforcer_domain::config_types::NativeTool::Cargo)
+        );
+        assert_eq!(
+            native_tool_for_scan_family(LanguageFamily::TypeScript),
+            Some(enforcer_domain::config_types::NativeTool::Tsc)
+        );
+        assert_eq!(
+            native_tool_for_scan_family(LanguageFamily::Python),
+            Some(enforcer_domain::config_types::NativeTool::Ruff)
+        );
+        assert_eq!(
+            native_tool_for_scan_family(LanguageFamily::Dart),
+            Some(enforcer_domain::config_types::NativeTool::Dart)
+        );
+        assert_eq!(native_tool_for_scan_family(LanguageFamily::Terraform), None);
+        assert_eq!(
+            native_tool_for_scan_family(LanguageFamily::YamlOrConfig),
+            None
+        );
+        assert_eq!(native_tool_for_scan_family(LanguageFamily::Unknown), None);
     }
 }

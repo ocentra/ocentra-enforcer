@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "auditJsonl": "{\"verb\":\"create\",\"resource\":\"pods/exec\",\"namespace\":\"prod\",\"user\":\"debugger\",\"requestUri\":\"/api/v1/namespaces/prod/pods/api/exec\"}\n{\"verb\":\"get\",\"resource\":\"secrets\",\"namespace\":\"prod\",\"user\":\"workload\"}\n",
+  "approvedContainers": [
+    {
+      "name": "api",
+      "imageDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "executables": ["/app/server"],
+      "packages": ["openssl-3"],
+      "filesystem": ["/app/server"]
+    }
+  ],
+  "observedContainers": [
+    {
+      "name": "api",
+      "imageDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "executables": ["/app/server", "/tmp/debugger"],
+      "packages": ["openssl-3", "curl"],
+      "filesystem": ["/app/server", "/etc/ld.so.preload"]
+    }
+  ],
+  "podSnapshots": [
+    {
+      "name": "api",
+      "privileged": true,
+      "hostPID": true,
+      "hostNetwork": false,
+      "hostIPC": false,
+      "hostPaths": ["/var/run/containerd.sock"],
+      "capabilities": ["SYS_ADMIN"],
+      "allowPrivilegeEscalation": true
+    }
+  ]
+}

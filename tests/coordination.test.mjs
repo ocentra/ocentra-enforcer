@@ -111,6 +111,46 @@ test("coordination API initializes generic external state and guards exact claim
   );
 });
 
+test("commit guard accepts the exact claim context and rejects another lane", async () => {
+  const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-claim-commit-"));
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-claim-repo-"));
+  const executionRoot = path.join(repoRoot, "packages", "coordination");
+  fs.mkdirSync(executionRoot, { recursive: true });
+  fs.writeFileSync(path.join(executionRoot, "owned.mjs"), "export const owned = true;\n");
+  await coordinationInit({ stateRoot, hub: "claim-commit-hub", lane: "codex-a" });
+
+  const context = {
+    stateRoot,
+    root: executionRoot,
+    repoRoot,
+    worktreeRoot: repoRoot,
+    cwd: executionRoot,
+    branch: "rust-build",
+    paths: ["owned.mjs"],
+  };
+  const claim = await coordinationClaim({
+    ...context,
+    lane: "codex-a",
+    reason: "own the exact coordination packet",
+  });
+  assert.equal(claim.ok, true);
+
+  const ownerCommit = await coordinationGuard({
+    ...context,
+    lane: "codex-a",
+    operation: "commit",
+  });
+  assert.equal(ownerCommit.ok, true, ownerCommit.result.findings.join("\n"));
+
+  const otherLaneCommit = await coordinationGuard({
+    ...context,
+    lane: "codex-b",
+    operation: "commit",
+  });
+  assert.equal(otherLaneCommit.ok, false);
+  assert.match(otherLaneCommit.result.findings.join("\n"), /write-lock-conflict/u);
+});
+
 test("focused coordination guard only blocks requested path conflicts", async () => {
   const stateRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-focused-"));
   const targetRoot = fs.mkdtempSync(path.join(os.tmpdir(), "enforcer-focused-target-"));

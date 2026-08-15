@@ -11,7 +11,7 @@ use enforcer_domain::coordination_types::{
 use enforcer_domain::ids::LaneId;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use super::{CallerContext, Hub};
 use crate::domain::HubConfig;
@@ -19,6 +19,220 @@ use crate::error::{CoordinationError, Result};
 use crate::events::boundary::HubEventResponse;
 use crate::lock::ClaimContext;
 use crate::sync::stream::{append_completed_event, stream_tip};
+
+// SERIALIZATION-DOC: notifier DTOs are the transport-only projection of
+// canonical stream events. The append-only ledger remains authoritative.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WakeRequest {
+    pub key: String,
+    pub target_lane: String,
+    pub source_lane: String,
+    pub reason: String,
+    pub severity: String,
+    pub summary: String,
+    pub event_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct NotifyResponseDto {
+    pub target_lane: String,
+    pub wake_requests: Vec<WakeRequest>,
+    pub peek: bool,
+}
+
+/// Transport-decoded notification options. `state_file` is a caller-selected
+/// cursor sink; absent values use the hub-local notifier directory.
+#[derive(Debug, Clone)]
+pub struct NotifyRequest {
+    pub peek: bool,
+    pub state_file: Option<PathBuf>,
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+struct NotifierCursor {
+    // DEFAULT-JUSTIFICATION: a missing cursor is the durable first-read state.
+    #[serde(default)]
+    seen: std::collections::BTreeMap<String, String>,
+}
+
+pub(super) fn notify(
+    hub: &Hub,
+    lane: &LaneId,
+    request: NotifyRequest,
+) -> Result<NotifyResponseDto> {
+    let NotifyRequest { peek, state_file } = request;
+    let snapshot = crate::ledger::materialize(hub.root.as_path())?;
+    let cursor_path = notifier_cursor_path(hub, lane, state_file.as_deref())?;
+    let mut cursor = read_notifier_cursor(&cursor_path)?;
+    let mut wake_requests = Vec::new();
+    if let Some(inbox) = snapshot.inbox.get(lane.as_str()) {
+        for item in inbox {
+            if item.acknowledged_by.is_empty() {
+                let event = &item.event;
+                wake_requests.push(WakeRequest {
+                    key: format!("inbox:{}:{}", lane.as_str(), event.id),
+                    target_lane: lane.as_str().to_owned(),
+                    source_lane: lane_from_writer(&event.writer),
+                    reason: "inbox".to_owned(),
+                    severity: "normal".to_owned(),
+                    summary: first_line(event.body.as_deref().unwrap_or("Ledger message")),
+                    event_id: event.id.clone(),
+                });
+            }
+        }
+    }
+    if lane.as_str() == "primary" {
+        for event in &snapshot.reports {
+            if event.lane == "primary" {
+                continue;
+            }
+            let Some(summary) = event.summary.as_deref() else {
+                continue;
+            };
+            let Some(reason) = report_reason(summary) else {
+                continue;
+            };
+            wake_requests.push(WakeRequest {
+                key: format!(
+                    "report:{}:{}:{}",
+                    event.writer,
+                    event.ts,
+                    first_line(summary)
+                ),
+                target_lane: "primary".to_owned(),
+                source_lane: event.lane.clone(),
+                severity: if reason == "blocked" {
+                    "high".to_owned()
+                } else {
+                    "normal".to_owned()
+                },
+                reason: reason.to_owned(),
+                summary: first_line(summary),
+                event_id: event.id.clone(),
+            });
+        }
+    }
+    wake_requests.sort_by(|left, right| left.key.cmp(&right.key));
+    wake_requests.retain(|request| !cursor.seen.contains_key(&request.key));
+    if !peek && !wake_requests.is_empty() {
+        let now = now_iso()?.into_string();
+        for wake in &wake_requests {
+            cursor.seen.insert(wake.key.clone(), now.clone());
+        }
+        write_notifier_cursor(&cursor_path, &cursor)?;
+    }
+    Ok(NotifyResponseDto {
+        target_lane: lane.as_str().to_owned(),
+        wake_requests,
+        peek,
+    })
+}
+
+fn notifier_cursor_path(hub: &Hub, lane: &LaneId, requested: Option<&Path>) -> Result<PathBuf> {
+    let notifier_root = hub.root.as_path().join("notifier");
+    let relative = requested
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from(format!("{}.json", lane.as_str())));
+    if relative.is_absolute()
+        || relative.components().any(|component| {
+            matches!(
+                component,
+                std::path::Component::ParentDir
+                    | std::path::Component::RootDir
+                    | std::path::Component::Prefix(_)
+            )
+        })
+    {
+        return Err(CoordinationError::rejected(
+            enforcer_domain::coordination_types::CoordinationRejection::from_static(
+                "notifier state file must stay inside the ledger notifier directory",
+            )?,
+        ));
+    }
+    let target = notifier_root.join(relative);
+    let mut current = notifier_root;
+    if let Ok(metadata) = std::fs::symlink_metadata(&current) {
+        if metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
+            return Err(CoordinationError::rejected(
+                enforcer_domain::coordination_types::CoordinationRejection::from_static(
+                    "notifier directory must not be a symlink",
+                )?,
+            ));
+        }
+    }
+    let Ok(relative_target) = target.strip_prefix(&current) else {
+        return Err(CoordinationError::rejected(
+            enforcer_domain::coordination_types::CoordinationRejection::from_static(
+                "notifier state file escapes the ledger",
+            )?,
+        ));
+    };
+    for component in relative_target.components() {
+        current.push(component);
+        if let Ok(metadata) = std::fs::symlink_metadata(&current) {
+            if metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
+                return Err(CoordinationError::rejected(
+                    enforcer_domain::coordination_types::CoordinationRejection::from_static(
+                        "notifier state path must not contain symlinks",
+                    )?,
+                ));
+            }
+        }
+    }
+    Ok(target)
+}
+
+#[cfg(windows)]
+fn is_reparse_point(metadata: &std::fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    metadata.file_attributes() & 0x400 != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_metadata: &std::fs::Metadata) -> bool {
+    false
+}
+
+fn read_notifier_cursor(path: &Path) -> Result<NotifierCursor> {
+    match std::fs::read_to_string(path) {
+        Ok(raw) => Ok(serde_json::from_str(&raw)?),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(NotifierCursor::default()),
+        Err(error) => Err(error.into()),
+    }
+}
+fn write_notifier_cursor(path: &Path, cursor: &NotifierCursor) -> Result<()> {
+    let Some(parent) = path.parent() else {
+        return Err(CoordinationError::rejected(
+            enforcer_domain::coordination_types::CoordinationRejection::from_static(
+                "notifier state file must have a parent directory",
+            )?,
+        ));
+    };
+    std::fs::create_dir_all(parent)?;
+    std::fs::write(path, serde_json::to_vec_pretty(cursor)?)?;
+    Ok(())
+}
+fn first_line(value: &str) -> String {
+    value.lines().next().unwrap_or("").trim().to_owned()
+}
+fn lane_from_writer(writer: &str) -> String {
+    writer.rsplit('.').next().unwrap_or("unknown").to_owned()
+}
+fn report_reason(summary: &str) -> Option<&'static str> {
+    let upper = summary.trim_start().to_ascii_uppercase();
+    if upper.starts_with("PR READY")
+        || upper.starts_with("PR_READY")
+        || upper.starts_with("PR-READY")
+    {
+        Some("pr-ready")
+    } else if upper.starts_with("DONE") {
+        Some("done")
+    } else if upper.starts_with("BLOCKED") {
+        Some("blocked")
+    } else {
+        None
+    }
+}
 
 // SERIALIZATION-DOC: camelCase fields preserve the persisted hub identity contract.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -189,6 +403,9 @@ pub(super) struct EventMetadata {
     pub to: Option<LaneId>,
     pub body: Option<CoordinationMessageBody>,
     pub message_id: Option<ClaimEventId>,
+    pub title: Option<enforcer_domain::coordination_types::CoordinationReportTitle>,
+    pub summary: Option<enforcer_domain::coordination_types::CoordinationReportSummary>,
+    pub owners: Option<Vec<String>>,
 }
 
 pub(super) fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEventResponse> {
@@ -219,14 +436,14 @@ pub(super) fn append_event(hub: &Hub, args: AppendEventArgs<'_>) -> Result<HubEv
             .map(|paths| paths.into_iter().map(ClaimPath::into_string).collect()),
         reason: args.reason.map(ClaimReason::into_string),
         owner: None,
-        owners: None,
+        owners: args.metadata.owners,
         state: None,
         worker_state: None,
         task_id: None,
         task_state: None,
-        title: None,
+        title: args.metadata.title.map(|title| title.into_string()),
         pr_url: None,
-        summary: None,
+        summary: args.metadata.summary.map(|summary| summary.into_string()),
         ttl_seconds: None,
         session_id: None,
         context: args

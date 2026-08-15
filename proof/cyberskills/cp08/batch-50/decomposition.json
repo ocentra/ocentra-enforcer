@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-50",
+  "baselineCommit": "89ed00186addb8bc2f496abadd8fe1697056cf78",
+  "family": "Web application authorization, input validation, JWT, injection, DAST, scanning, and vulnerability triage",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "testing-for-broken-access-control",
+      "testing-for-business-logic-vulnerabilities",
+      "testing-for-email-header-injection",
+      "testing-for-json-web-token-vulnerabilities",
+      "testing-for-xml-injection-vulnerabilities",
+      "testing-for-xss-vulnerabilities-with-burpsuite",
+      "testing-jwt-token-security",
+      "performing-web-application-vulnerability-triage",
+      "performing-web-application-scanning-with-nikto",
+      "integrating-dast-with-owasp-zap-in-pipeline"
+    ],
+    "reason": "Ten disjoint web-application security skills covering authorization and business logic, email/XML/XSS input handling, JWT security, DAST and scanning, and vulnerability triage. Native checks are limited to static typed supplied manifests; live application behavior, testing engines, payload execution, findings, and security outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "testing-for-broken-access-control",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-broken-access-control/SKILL.md",
+        "sha256": "486ebc33f1f5290577bf788f8daf1647822390cf39f32f79befc2e9a7f1a2140",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for Broken Access Control:L31"]
+      },
+      "components": [
+        {"componentId": "testing-for-broken-access-control::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied route, request, response, identity, role, entitlement, authorization-policy, owner, scope, and evidence manifests.", "notProved": ["No live access decision, endpoint behavior, identity, role, BOLA/BOPLA result, bypass, or security outcome is proved."]},
+        {"componentId": "testing-for-broken-access-control::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live endpoints, servers, browsers, sessions, authentication or authorization engines, Burp Suite, ZAP, scanners, WAFs, or production systems.", "notProved": ["No live request, session, policy engine, browser, server, scanner, bypass, finding, or normalized access-control result."]},
+        {"componentId": "testing-for-broken-access-control::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive authorization, least-privilege, object-scope, test-design, validation, and remediation guidance.", "notProved": ["Guidance is not enforcement and does not prove authorization correctness or access control."]},
+        {"componentId": "testing-for-broken-access-control::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, data and credential handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human authorization, test, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-business-logic-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-business-logic-vulnerabilities/SKILL.md",
+        "sha256": "c4fec837c8be4e0a4937d9d29efe09ab54c48bb0c03241be5766ccfe77f406f3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for Business Logic Vulnerabilities:L31"]
+      },
+      "components": [
+        {"componentId": "testing-for-business-logic-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied workflow, state-transition, transaction, authorization, invariant, owner, scope, expected-evidence, and finding manifests.", "notProved": ["No live workflow, transaction, state transition, business rule, abuse case, exploitability, or security outcome is proved."]},
+        {"componentId": "testing-for-business-logic-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live endpoints, servers, browsers, sessions, application runtimes, Burp Suite, ZAP, fuzzers, payloads, or production business systems.", "notProved": ["No live workflow, transaction, runtime, browser, payload, bypass, finding, or normalized business-logic result."]},
+        {"componentId": "testing-for-business-logic-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive business-rule, workflow, state, transaction, authorization, test-design, and remediation guidance.", "notProved": ["Guidance is not execution and does not prove business-logic correctness or exploitability."]},
+        {"componentId": "testing-for-business-logic-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, test boundaries, data and credential handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human test, business decision, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-email-header-injection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-email-header-injection/SKILL.md",
+        "sha256": "9b5508aad815d23279dc0cca724d0506798f2b332cda415d44133a384b3133be",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for Email Header Injection:L32"]
+      },
+      "components": [
+        {"componentId": "testing-for-email-header-injection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied email request, header, field, encoding, delimiter, parser, route, owner, scope, and evidence manifests.", "notProved": ["No live mail delivery, parser behavior, header injection, message alteration, exploitability, or security outcome is proved."]},
+        {"componentId": "testing-for-email-header-injection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live endpoints, mail servers, clients, SMTP authorities, browsers, Burp Suite, ZAP, fuzzers, payload execution, or production messaging systems.", "notProved": ["No live request, mail server, SMTP transaction, parser, payload, delivered message, finding, or normalized injection result."]},
+        {"componentId": "testing-for-email-header-injection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive email input-validation, canonicalization, header-handling, test-design, and remediation guidance.", "notProved": ["Guidance is not execution and does not prove mail validation or injection resistance."]},
+        {"componentId": "testing-for-email-header-injection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and mail-owner approval, legal/safety/privacy review, recipient and data boundaries, credential handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human mail test, delivery, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-json-web-token-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-json-web-token-vulnerabilities/SKILL.md",
+        "sha256": "e942035c3433cbb9161a6b288bacd3bcee090068d108cb6fd8e78240399be3f4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for JSON Web Token Vulnerabilities:L32"]
+      },
+      "components": [
+        {"componentId": "testing-for-json-web-token-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied JWT header, claim, algorithm, key, issuer, audience, expiry, route, policy, owner, and evidence manifests.", "notProved": ["No live token acceptance, signature validation, algorithm confusion, claim bypass, authentication, exploitability, or security outcome is proved."]},
+        {"componentId": "testing-for-json-web-token-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live endpoints, identity providers, authentication or authorization engines, token services, browsers, Burp Suite, ZAP, fuzzers, payload execution, or production sessions.", "notProved": ["No live token, key, identity provider, session, endpoint, parser, payload, bypass, finding, or normalized JWT result."]},
+        {"componentId": "testing-for-json-web-token-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive JWT claims, algorithms, key management, issuer/audience, expiry, validation, test-design, and remediation guidance.", "notProved": ["Guidance is not authentication and does not prove JWT validity or token security."]},
+        {"componentId": "testing-for-json-web-token-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and identity-owner approval, legal/safety/privacy review, key and credential handling, data boundaries, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human token, key, authentication, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-xml-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-xml-injection-vulnerabilities/SKILL.md",
+        "sha256": "7eb75bc6499dab8d1aea8e52d00dd8760acd53fafc4942b185fbba7f2bec6b4b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for XML Injection Vulnerabilities:L32"]
+      },
+      "components": [
+        {"componentId": "testing-for-xml-injection-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied XML document, element, attribute, parser, schema, endpoint, encoding, policy, owner, scope, and evidence manifests.", "notProved": ["No live XML parser, entity expansion, injection, data access, endpoint behavior, exploitability, or security outcome is proved."]},
+        {"componentId": "testing-for-xml-injection-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live endpoints, servers, XML runtimes and parsers, browsers, Burp Suite, ZAP, fuzzers, payload execution, or production systems.", "notProved": ["No live parser, request, server, entity, payload, data exposure, bypass, finding, or normalized XML-injection result."]},
+        {"componentId": "testing-for-xml-injection-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive XML parsing, schema validation, encoding, entity handling, test-design, and remediation guidance.", "notProved": ["Guidance is not parser enforcement and does not prove XML safety or injection resistance."]},
+        {"componentId": "testing-for-xml-injection-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, parser and data boundaries, credential handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human XML test, parser, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-xss-vulnerabilities-with-burpsuite",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-xss-vulnerabilities-with-burpsuite/SKILL.md",
+        "sha256": "58815cbe46601c7587cd2f071858cd26f2ef0094f17003532d9303d71d679781",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for XSS Vulnerabilities with Burp Suite:L29"]
+      },
+      "components": [
+        {"componentId": "testing-for-xss-vulnerabilities-with-burpsuite::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied route, parameter, input, output, context, encoding, policy, browser-boundary, owner, scope, and evidence manifests.", "notProved": ["No live browser rendering, script execution, XSS exploitability, payload effect, endpoint behavior, or security outcome is proved."]},
+        {"componentId": "testing-for-xss-vulnerabilities-with-burpsuite::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Burp Suite, live endpoints, servers, browsers, JavaScript runtimes, scanners, fuzzers, payload execution, WAFs, or production systems.", "notProved": ["No live browser, JavaScript, request, payload, scanner, WAF, finding, exploitability, or normalized XSS result."]},
+        {"componentId": "testing-for-xss-vulnerabilities-with-burpsuite::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive XSS context, output encoding, input validation, browser policy, test-design, and remediation guidance.", "notProved": ["Guidance is not browser execution and does not prove XSS resistance or exploitability."]},
+        {"componentId": "testing-for-xss-vulnerabilities-with-burpsuite::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, browser and payload boundaries, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human browser test, payload, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "testing-jwt-token-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-jwt-token-security/SKILL.md",
+        "sha256": "d7b6b10a9ea2538b0b3cdb2bc4e608ecf84c27d188cbfcb5d2854579653319f9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing JWT Token Security:L31"]
+      },
+      "components": [
+        {"componentId": "testing-jwt-token-security::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied JWT token, claim, key, algorithm, issuer, audience, expiry, session, policy, owner, and evidence manifests.", "notProved": ["No live token verification, session, authentication, authorization, claim bypass, exploitability, or security outcome is proved."]},
+        {"componentId": "testing-jwt-token-security::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live token and identity services, endpoints, authentication or authorization engines, browsers, Burp Suite, ZAP, fuzzers, payload execution, or production sessions.", "notProved": ["No live token, key, identity provider, session, endpoint, parser, payload, bypass, finding, or normalized JWT-security result."]},
+        {"componentId": "testing-jwt-token-security::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive JWT token lifecycle, key, claims, issuer/audience, expiry, validation, test-design, and remediation guidance.", "notProved": ["Guidance is not authentication and does not prove token validity, session security, or authorization."]},
+        {"componentId": "testing-jwt-token-security::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and identity-owner approval, legal/safety/privacy review, key and credential handling, data boundaries, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human token, key, session, authentication, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-web-application-vulnerability-triage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-application-vulnerability-triage/SKILL.md",
+        "sha256": "49b4406adb6ff8f2e88fd2b27718ae5dcdf462c3f081371e2d0b6e3e24347fe2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Web Application Vulnerability Triage:L32"]
+      },
+      "components": [
+        {"componentId": "performing-web-application-vulnerability-triage::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied web asset, route, request, response, finding, evidence, severity, confidence, owner, exception, remediation, and notification manifests.", "notProved": ["No live vulnerability, exploitability, severity truth, ownership, remediation, SLA, notification, or security outcome is proved."]},
+        {"componentId": "performing-web-application-vulnerability-triage::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live applications, endpoints, servers, browsers, Burp Suite, ZAP, Nikto, DAST, scanners, SIEM, ticketing, WAFs, or production authorities.", "notProved": ["No live asset, scanner, request, finding, severity, ticket, owner, remediation, notification, or normalized triage result."]},
+        {"componentId": "performing-web-application-vulnerability-triage::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive vulnerability validation, severity, confidence, prioritization, communication, and remediation guidance.", "notProved": ["Guidance is not finding truth and does not prove exploitability, priority, ownership, or remediation."]},
+        {"componentId": "performing-web-application-vulnerability-triage::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, data handling, analyst validation, severity and exception decisions, remediation, notification, rollback, and disclosure decisions.", "notProved": ["No human triage, severity, ownership, approval, remediation, notification, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-web-application-scanning-with-nikto",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-application-scanning-with-nikto/SKILL.md",
+        "sha256": "6d599f0dae5cdb40d887915e50f388f723bab0ec4b469ebd409ddf7e728b73f0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Web Application Scanning with Nikto:L28"]
+      },
+      "components": [
+        {"componentId": "performing-web-application-scanning-with-nikto::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied web asset, route, request, response, scanner-profile, finding, severity, owner, scope, and evidence manifests.", "notProved": ["No live web scan, endpoint, server, finding, exposure, exploitability, remediation, or security outcome is proved."]},
+        {"componentId": "performing-web-application-scanning-with-nikto::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Nikto, live endpoints, web servers, browsers, Burp Suite, ZAP, DAST, fuzzers, payload execution, WAFs, or production systems.", "notProved": ["No live scanner, endpoint, server, request, finding, payload, WAF, remediation, or normalized scan result."]},
+        {"componentId": "performing-web-application-scanning-with-nikto::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive web scanning, scope control, evidence review, finding validation, severity, and remediation guidance.", "notProved": ["Guidance is not scanning and does not prove a finding, exposure, exploitability, or web posture."]},
+        {"componentId": "performing-web-application-scanning-with-nikto::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, scan boundaries, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human scan, finding, severity, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "integrating-dast-with-owasp-zap-in-pipeline",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/integrating-dast-with-owasp-zap-in-pipeline/SKILL.md",
+        "sha256": "60d7a1b8714d01ab8c1a93e46447b8ae17265f59fb14f5f19b56153c91154961",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Integrating DAST with OWASP ZAP in Pipeline:L33"]
+      },
+      "components": [
+        {"componentId": "integrating-dast-with-owasp-zap-in-pipeline::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied DAST pipeline, route, request, response, scan-profile, finding, threshold, artifact, owner, and evidence manifests.", "notProved": ["No live OWASP ZAP scan, pipeline run, endpoint, finding, threshold result, remediation, or security outcome is proved."]},
+        {"componentId": "integrating-dast-with-owasp-zap-in-pipeline::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use OWASP ZAP, CI runners, live endpoints, servers, browsers, DAST engines, fuzzers, payload execution, WAFs, ticketing, or production deployment systems.", "notProved": ["No live pipeline, runner, ZAP, endpoint, server, browser, finding, artifact, gate, remediation, or normalized DAST result."]},
+        {"componentId": "integrating-dast-with-owasp-zap-in-pipeline::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive DAST pipeline, scope, scan-profile, evidence, threshold, review, release, and remediation guidance.", "notProved": ["Guidance is not pipeline execution and does not prove DAST findings, thresholds, or release safety."]},
+        {"componentId": "integrating-dast-with-owasp-zap-in-pipeline::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, CI and data boundaries, analyst validation, severity, release, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human pipeline, release, finding, severity, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals validate only supplied static typed manifests and have no live executor, fixtures, endpoint calls, browser proof, scanner proof, DAST proof, CLI proof, MCP proof, or CI proof in this packet.",
+    "Live web endpoints, servers, browsers, sessions, authentication and authorization engines, parsers, Burp Suite, OWASP ZAP, Nikto, DAST, scanners, fuzzers, payload runtimes, WAFs, ticketing, and production application authorities remain blocked external engines.",
+    "No live enumeration, request, response, parser behavior, access-control decision, business-logic result, JWT validity, email/XML/XSS exploitability, DAST or scanner finding, triage truth, severity, ownership, remediation, release, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content; written authorization, scope, owner validation, legal/safety/privacy review, data and credential handling, analyst interpretation, containment, remediation, rollback, and disclosure decisions remain required."
+  ]
+}

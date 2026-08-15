@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-14",
+  "family": "IF/compliance-governance",
+  "baselineCommit": "0565734c842e2f2544d88c87ce4972b51e523499",
+  "scope": "Retain advisory and manual content for the deterministic compliance-governance packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "achieving-cmmc-level-2-compliance",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/achieving-cmmc-level-2-compliance/SKILL.md",
+        "sha256": "f5124addbf044b13ff6332872087d93062bfbbdd5283aac96bd76d4c9ddd7a67",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Achieving CMMC Level 2 Compliance:L46"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive CMMC control mapping, scope, evidence, assessment, POA&M, governance, and compliance-planning guidance.",
+        "notProved": ["Guidance is not CMMC, an assessor, GRC platform, scanner, control authority, ticketing system, or production evidence and does not prove compliance, assessment, control operation, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact organization, boundary, system, asset, control, evidence, assessor, contract, data, and regulatory scope; owner validation, legal/privacy review, evidence custody, exception, POA&M, approval, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, organization, boundary, system, asset, control, evidence, assessor, compliance, exception, POA&M, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-cyber-risk-assessment-with-nist-800-30",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-cyber-risk-assessment-with-nist-800-30/SKILL.md",
+        "sha256": "2cf6a3a884c4fba73fafd45afad1d5fdd7e34ec6eef25039948ed26fd605c756",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting a Cyber Risk Assessment with NIST SP 800-30:L44"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive risk-scope, threat, vulnerability, likelihood, impact, uncertainty, evidence, and risk-treatment planning guidance.",
+        "notProved": ["Guidance is not NIST, a risk engine, asset inventory, threat-intelligence source, scanner, assessor, or business authority and does not prove likelihood, impact, priority, risk, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact organization, system, asset, threat, vulnerability, control, business, data, and assessment scope; owner validation, legal/privacy review, analyst interpretation, uncertainty, severity, acceptance, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, system, asset, threat, vulnerability, control, likelihood, impact, risk, acceptance, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "executing-nist-rmf-authorization-to-operate",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/executing-nist-rmf-authorization-to-operate/SKILL.md",
+        "sha256": "48c8e110fd95a5cbf653f50eefe75b1f1f2cdfc40b70ba842dbe035b6519a732",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Executing the NIST RMF to an Authorization to Operate (ATO):L46"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive RMF categorization, control selection, implementation, assessment, authorization, monitoring, evidence, and governance guidance.",
+        "notProved": ["Guidance is not NIST RMF, an authorizing official, assessor, GRC platform, control authority, scanner, or production authorization and does not prove risk acceptance, control operation, ATO, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact system, boundary, mission, control, assessor, authorizing official, evidence, risk, exception, and data scope; owner validation, legal review, independent assessment, approval, continuous monitoring, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, system, boundary, control, assessor, official, risk, exception, ATO, monitoring, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-gdpr-data-protection-controls",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-gdpr-data-protection-controls/SKILL.md",
+        "sha256": "0c74694af7cd5c322ca00c43857741e7116e50947011063adcc2387a930b0a9f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing GDPR Data Protection Controls:L39"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive privacy-by-design, data inventory, lawful-basis, retention, subject-rights, breach, evidence, and data-protection planning guidance.",
+        "notProved": ["Guidance is not GDPR legal advice, a DPO, privacy platform, data inventory, scanner, regulator, or production control and does not prove lawful basis, consent, rights handling, breach status, or compliance outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact controller, processor, subject, data, purpose, geography, retention, transfer, incident, and legal scope; privacy counsel, owner/DPO validation, data handling, notification, exception, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, controller, processor, subject, data, lawful basis, transfer, retention, breach, notification, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-hipaa-security-rule-safeguards",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-hipaa-security-rule-safeguards/SKILL.md",
+        "sha256": "eec382e0dabb7b2f970982ea65259db1ce9964e14d964ed8e31ce93c5c58b8df",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing HIPAA Security Rule Safeguards:L49"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive HIPAA administrative, physical, technical, access, audit, integrity, transmission, evidence, and healthcare-security planning guidance.",
+        "notProved": ["Guidance is not HIPAA legal advice, a covered entity, privacy officer, EHR, scanner, GRC platform, or production control and does not prove safeguard operation, privacy, breach, or compliance outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact covered entity, business associate, workforce, system, PHI, safeguard, incident, notification, and legal scope; owner/privacy validation, data handling, counsel review, exception, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, covered entity, business associate, workforce, system, PHI, safeguard, incident, notification, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-iso-27001-information-security-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-iso-27001-information-security-management/SKILL.md",
+        "sha256": "7bc15b6db6b0940bd609d825836436ce521b5722f1fa15307c8a9845a5e2a38d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing ISO 27001 Information Security Management:L29"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive ISMS scope, context, risk, control selection, evidence, internal audit, management review, and continual-improvement guidance.",
+        "notProved": ["Guidance is not ISO certification, an auditor, ISMS platform, control authority, scanner, or production management system and does not prove certification, control effectiveness, audit result, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact organization, ISMS boundary, asset, risk, control, auditor, evidence, supplier, and management scope; owner validation, legal review, independence, audit, exception, acceptance, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, organization, boundary, asset, risk, control, auditor, evidence, certification, exception, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-pci-dss-compliance-controls",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-pci-dss-compliance-controls/SKILL.md",
+        "sha256": "d80071cc15d5a603bb98a3d53b714259ad62389a78bb6687d168e133929851cf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing PCI DSS Compliance Controls:L28"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive PCI DSS scope, cardholder-data inventory, segmentation, access, logging, vulnerability, evidence, assessor, and remediation planning guidance.",
+        "notProved": ["Guidance is not PCI DSS legal advice, a QSA, payment system, scanner, SIEM, ticketing system, or production control and does not prove cardholder-data scope, compliance, control operation, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact merchant, service provider, CDE, account, cardholder data, control, assessor, evidence, and contractual scope; owner validation, legal/privacy review, data handling, exception, acceptance, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, merchant, service provider, CDE, cardholder data, control, assessor, scope, compliance, exception, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "managing-third-party-vendor-risk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/managing-third-party-vendor-risk/SKILL.md",
+        "sha256": "6a0cd12c697e162c9b85128710058cdc2310e13cf387c947ea196af07bcdc0ba",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Managing Third-Party Vendor Risk:L47"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-71/decomposition.json",
+        "artifactSha256": "67f903bd350f095a032b24e8457d7cf7a5d3a6f929da13ceb0d9797f94f8fc4b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive third-party inventory, due diligence, contract, assurance, data-flow, risk-rating, evidence, monitoring, and remediation planning guidance.",
+        "notProved": ["Guidance is not a vendor-risk platform, supplier, assessor, contract authority, evidence authority, scanner, or production decision and does not prove vendor trust, assurance, risk, compliance, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact vendor, service, data, geography, contract, control, assurance, owner, subprocessor, incident, and legal scope; procurement, privacy, legal, security, business-owner validation, acceptance, remediation, termination, and disclosure decisions.",
+        "notProved": ["No human authorization, vendor, service, data flow, contract, assurance, risk rating, acceptance, remediation, termination, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-nist-csf-maturity-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-nist-csf-maturity-assessment/SKILL.md",
+        "sha256": "04fbd28f19716816f02ce52ab1f8ac067dc029f2821eab73e1407e347372fc23",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing NIST CSF Maturity Assessment:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-48/decomposition.json",
+        "artifactSha256": "40ba7a512ad8c4a2ebdd6bf154152172b37ac090f2b5e9f7159f0def72eb8b58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive NIST CSF profile, current/target state, gap, maturity, evidence, prioritization, and improvement planning guidance.",
+        "notProved": ["Guidance is not NIST, a maturity assessor, GRC platform, evidence authority, scanner, or management decision and does not prove maturity, gap, priority, risk, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact organization, function, category, profile, asset, evidence, assessor, business, and improvement scope; owner validation, analyst interpretation, uncertainty, acceptance, prioritization, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, organization, profile, asset, evidence, maturity, gap, priority, acceptance, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-soc2-type2-audit-preparation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-soc2-type2-audit-preparation/SKILL.md",
+        "sha256": "8d94fe1449f575b41c7d0ffe8784555a897640a0b1203179d748209a9526fa64",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing SOC 2 Type II Audit Preparation:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-78/decomposition.json",
+        "artifactSha256": "c7dcfb9b43ceb0de51cbc7c4db5ead2dc8ca1cafe3b636689ad4c0e5f4cb126f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC 2 scope, trust-service criteria, control evidence, testing, exceptions, auditor coordination, and remediation planning guidance.",
+        "notProved": ["Guidance is not SOC 2 attestation, a CPA auditor, GRC platform, evidence authority, scanner, or production control and does not prove control design, operation, audit result, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact service, system, trust-service criteria, control, period, evidence, auditor, exception, customer, and legal scope; owner validation, independent audit, evidence custody, acceptance, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, service, system, criterion, control, period, evidence, auditor, exception, attestation, remediation, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live assessor, regulator, auditor, GRC, scanner, ticketing, cloud, host, endpoint, system, data, evidence, vendor, legal, privacy, or production execution is proved.",
+    "No compliance, certification, authorization, risk, maturity, control operation, audit, attestation, legal conclusion, remediation, approval, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

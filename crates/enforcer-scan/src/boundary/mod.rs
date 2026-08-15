@@ -9,5 +9,6 @@
 pub mod baseline;
 pub mod coverage;
 pub mod modes;
+pub mod native_scan;
 pub mod onboard;
 pub mod router;

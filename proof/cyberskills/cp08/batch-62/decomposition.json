@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-62",
+  "baselineCommit": "1401f637b84a6ddf1084f8809b8692e0aeb17380",
+  "family": "Canonical-order defensive vulnerability and authorized-assessment evidence",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "exploiting-kerberoasting-with-impacket",
+      "exploiting-ms17-010-eternalblue-vulnerability",
+      "exploiting-nopac-cve-2021-42278-42287",
+      "exploiting-race-condition-vulnerabilities",
+      "exploiting-smb-vulnerabilities-with-metasploit",
+      "exploiting-sql-injection-vulnerabilities",
+      "exploiting-sql-injection-with-sqlmap",
+      "exploiting-type-juggling-vulnerabilities",
+      "exploiting-vulnerabilities-with-metasploit-framework",
+      "exploiting-zerologon-vulnerability-cve-2020-1472"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-61."
+  },
+  "accounting": {
+    "acceptedPrior": 610,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 620,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "exploiting-kerberoasting-with-impacket",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-kerberoasting-with-impacket/SKILL.md",
+        "sha256": "5039c8940e6d3bad0a3761f8e18f28ed39015528e7c96d39e9e948b121d61d31",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Kerberoasting with Impacket:L36"]
+      },
+      "components": [
+        {
+          "id": "exploiting-kerberoasting-with-impacket::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed principal, service, SPN, ticket, domain, timestamp, scope, authorization, and evidence-manifest fields without requesting tickets or contacting directory systems.",
+          "notProved": ["Kerberoasting", "ticket cracking", "credential access"]
+        },
+        {
+          "id": "exploiting-kerberoasting-with-impacket::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Impacket, Kerberos, Active Directory, KDCs, domain controllers, credentials, endpoints, sessions, and production identity systems external.",
+          "notProved": ["live ticket request", "password recovery", "directory compromise"]
+        },
+        {
+          "id": "exploiting-kerberoasting-with-impacket::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain SPN governance, service-account hardening, Kerberos monitoring, credential hygiene, and defensive remediation guidance as advisory.",
+          "notProved": ["identity protection", "control efficacy", "remediation completion"]
+        },
+        {
+          "id": "exploiting-kerberoasting-with-impacket::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, directory and service ownership, credential and evidence handling, legal/privacy/ethics/safety review, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-ms17-010-eternalblue-vulnerability",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-ms17-010-eternalblue-vulnerability/SKILL.md",
+        "sha256": "b8ccd2d155b305ad2ce41499956e8947efa7156e3c575623e17e38debbcc9a08",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting MS17-010 EternalBlue Vulnerability:L36"]
+      },
+      "components": [
+        {
+          "id": "exploiting-ms17-010-eternalblue-vulnerability::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed host, SMB, patch, version, service, vulnerability, scope, authorization, and evidence-manifest fields without scanning or sending exploit traffic.",
+          "notProved": ["MS17-010 vulnerability", "EternalBlue execution", "host compromise"]
+        },
+        {
+          "id": "exploiting-ms17-010-eternalblue-vulnerability::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep SMB hosts, networks, scanners, exploit frameworks, payloads, endpoints, credentials, and production infrastructure external.",
+          "notProved": ["live exploitability", "payload execution", "lateral movement"]
+        },
+        {
+          "id": "exploiting-ms17-010-eternalblue-vulnerability::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain patching, SMB hardening, segmentation, monitoring, vulnerability management, and incident-response guidance as advisory.",
+          "notProved": ["patch efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "exploiting-ms17-010-eternalblue-vulnerability::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, host and network ownership, legal/privacy/ethics/safety review, scope, stop conditions, evidence handling, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-nopac-cve-2021-42278-42287",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-nopac-cve-2021-42278-42287/SKILL.md",
+        "sha256": "c89d7e3c97bf7bf5d5c1664aef819346a20cefd87d5bb1ae213cf29232b28047",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting noPac (CVE-2021-42278 / CVE-2021-42287):L36"]
+      },
+      "components": [
+        {
+          "id": "exploiting-nopac-cve-2021-42278-42287::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed AD principal, account, domain, naming, patch, delegation, scope, authorization, and evidence-manifest fields without contacting or modifying directory services.",
+          "notProved": ["noPac vulnerability", "privilege escalation", "domain compromise"]
+        },
+        {
+          "id": "exploiting-nopac-cve-2021-42278-42287::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Active Directory, domain controllers, Kerberos, credentials, exploit tools, endpoints, sessions, and production identity infrastructure external.",
+          "notProved": ["live enumeration", "exploit execution", "authentication compromise"]
+        },
+        {
+          "id": "exploiting-nopac-cve-2021-42278-42287::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain patching, directory hardening, naming governance, privileged-access review, monitoring, and response guidance as advisory.",
+          "notProved": ["patch efficacy", "identity protection", "remediation completion"]
+        },
+        {
+          "id": "exploiting-nopac-cve-2021-42278-42287::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, directory and identity ownership, credential and evidence handling, legal/privacy/ethics/safety review, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-race-condition-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-race-condition-vulnerabilities/SKILL.md",
+        "sha256": "57eb58d719fc173a865d5238ab3c55289d9544c4284a22f495eb8999ef999ae7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Race Condition Vulnerabilities:L32"]
+      },
+      "components": [
+        {
+          "id": "exploiting-race-condition-vulnerabilities::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed operation, resource, request, ordering, timestamp, concurrency, authorization, scope, and evidence-manifest fields without scheduling competing operations or calling services.",
+          "notProved": ["race condition", "concurrent outcome", "data corruption"]
+        },
+        {
+          "id": "exploiting-race-condition-vulnerabilities::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep live applications, APIs, databases, filesystems, browsers, fuzzers, payloads, scanners, endpoints, and production services external.",
+          "notProved": ["timing behavior", "authorization bypass", "service compromise"]
+        },
+        {
+          "id": "exploiting-race-condition-vulnerabilities::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain concurrency design, locking, idempotency, transaction review, defensive testing, monitoring, and remediation guidance as advisory.",
+          "notProved": ["control efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "exploiting-race-condition-vulnerabilities::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, application and data ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-smb-vulnerabilities-with-metasploit",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-smb-vulnerabilities-with-metasploit/SKILL.md",
+        "sha256": "fc9d22b69e8f6b910073ad0bfd2c4d52e66b6abb80bfcfda43965164ad8413ed",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting SMB Vulnerabilities with Metasploit:L30"]
+      },
+      "components": [
+        {
+          "id": "exploiting-smb-vulnerabilities-with-metasploit::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed SMB host, service, version, patch, protocol, scope, authorization, and evidence-manifest fields without scanning or delivering payloads.",
+          "notProved": ["SMB vulnerability", "exploit execution", "host compromise"]
+        },
+        {
+          "id": "exploiting-smb-vulnerabilities-with-metasploit::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Metasploit, SMB servers, endpoints, networks, scanners, exploit modules, credentials, sessions, and production infrastructure external.",
+          "notProved": ["live exploitability", "payload execution", "lateral movement"]
+        },
+        {
+          "id": "exploiting-smb-vulnerabilities-with-metasploit::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain SMB hardening, patching, segmentation, service inventory, monitoring, vulnerability review, and remediation guidance as advisory.",
+          "notProved": ["control efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "exploiting-smb-vulnerabilities-with-metasploit::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, host and network ownership, legal/privacy/ethics/safety review, scope, stop conditions, evidence handling, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-sql-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-sql-injection-vulnerabilities/SKILL.md",
+        "sha256": "7f8b8d773ef413c2af08d8993be9fc8e2fafbb98ca45701638ad303c5b370ad6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting SQL Injection Vulnerabilities:L36"]
+      },
+      "components": [
+        {
+          "id": "exploiting-sql-injection-vulnerabilities::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed route, request, parameter, response, query, database, authorization, scope, and evidence-manifest fields without sending requests or executing SQL payloads.",
+          "notProved": ["SQL injection", "database access", "data exposure"]
+        },
+        {
+          "id": "exploiting-sql-injection-vulnerabilities::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep web endpoints, servers, databases, browsers, Burp, ZAP, fuzzers, scanners, sqlmap, payloads, sessions, and production applications external.",
+          "notProved": ["live exploitability", "query execution", "data extraction"]
+        },
+        {
+          "id": "exploiting-sql-injection-vulnerabilities::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain parameterization, input validation, secure development, WAF/log review, defensive testing, and remediation guidance as advisory.",
+          "notProved": ["vulnerability absence", "control efficacy", "remediation completion"]
+        },
+        {
+          "id": "exploiting-sql-injection-vulnerabilities::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, application and data ownership, legal/privacy/ethics/safety review, scope, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-sql-injection-with-sqlmap",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-sql-injection-with-sqlmap/SKILL.md",
+        "sha256": "f28f3bd0e2a0394cd51613186175cbe0aa6bfab0ac3df00fbcd90a1c28144243",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting SQL Injection with sqlmap:L30"]
+      },
+      "components": [
+        {
+          "id": "exploiting-sql-injection-with-sqlmap::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed endpoint, route, parameter, request, response, database, authorization, scope, and evidence-manifest fields without running sqlmap or sending payloads.",
+          "notProved": ["SQL injection", "payload behavior", "data access"]
+        },
+        {
+          "id": "exploiting-sql-injection-with-sqlmap::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep sqlmap, databases, web servers, endpoints, browsers, scanners, payloads, sessions, credentials, and production applications external.",
+          "notProved": ["live query execution", "database compromise", "data extraction"]
+        },
+        {
+          "id": "exploiting-sql-injection-with-sqlmap::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain secure query construction, input validation, defensive testing, WAF monitoring, triage, and remediation guidance as advisory.",
+          "notProved": ["control efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "exploiting-sql-injection-with-sqlmap::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, application and database ownership, legal/privacy/ethics/safety review, scope, stop conditions, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-type-juggling-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-type-juggling-vulnerabilities/SKILL.md",
+        "sha256": "e2a5f701c3b3a40b481c4642e2e7e7705834440f0655e2ee48e14fe6e502b016",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Type Juggling Vulnerabilities:L32"]
+      },
+      "components": [
+        {
+          "id": "exploiting-type-juggling-vulnerabilities::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed parameter, parser, comparison, route, request, response, policy, authorization, scope, and evidence-manifest fields without executing application code or payloads.",
+          "notProved": ["type juggling", "authentication bypass", "application compromise"]
+        },
+        {
+          "id": "exploiting-type-juggling-vulnerabilities::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep web applications, interpreters, runtimes, endpoints, browsers, servers, fuzzers, payloads, scanners, sessions, and production systems external.",
+          "notProved": ["live parser behavior", "payload execution", "data exposure"]
+        },
+        {
+          "id": "exploiting-type-juggling-vulnerabilities::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain strict typing, input validation, secure comparison, API testing, monitoring, and remediation guidance as advisory.",
+          "notProved": ["control efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "exploiting-type-juggling-vulnerabilities::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, application and data ownership, legal/privacy/ethics/safety review, scope, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-vulnerabilities-with-metasploit-framework",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-vulnerabilities-with-metasploit-framework/SKILL.md",
+        "sha256": "0eb225298ad32c90a48aee3b27461013f27b56e7a809392f5d49d13a99e02e55",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Vulnerabilities with Metasploit Framework:L28"]
+      },
+      "components": [
+        {
+          "id": "exploiting-vulnerabilities-with-metasploit-framework::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed asset, service, vulnerability, version, patch, scope, authorization, stop-condition, and evidence-manifest fields without selecting modules or delivering payloads.",
+          "notProved": ["vulnerability", "exploitability", "compromise"]
+        },
+        {
+          "id": "exploiting-vulnerabilities-with-metasploit-framework::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Metasploit, exploit modules, payloads, targets, networks, hosts, credentials, sessions, scanners, endpoints, and production infrastructure external.",
+          "notProved": ["live exploitation", "payload execution", "lateral movement"]
+        },
+        {
+          "id": "exploiting-vulnerabilities-with-metasploit-framework::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain vulnerability management, patching, hardening, authorized testing, monitoring, triage, and remediation guidance as advisory.",
+          "notProved": ["control efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "exploiting-vulnerabilities-with-metasploit-framework::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, asset and network ownership, legal/privacy/ethics/safety review, scope, stop conditions, evidence handling, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "exploiting-zerologon-vulnerability-cve-2020-1472",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-zerologon-vulnerability-cve-2020-1472/SKILL.md",
+        "sha256": "fedc2ce82f43b2d85f17575e351fe1ebf45337a6eb11c43337994764e68a6ac2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting Zerologon Vulnerability (CVE-2020-1472):L37"]
+      },
+      "components": [
+        {
+          "id": "exploiting-zerologon-vulnerability-cve-2020-1472::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed domain-controller, Netlogon, patch, host, account, scope, authorization, and evidence-manifest fields without authenticating or sending protocol traffic.",
+          "notProved": ["Zerologon vulnerability", "authentication bypass", "domain compromise"]
+        },
+        {
+          "id": "exploiting-zerologon-vulnerability-cve-2020-1472::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Netlogon, domain controllers, Active Directory, credentials, exploit tools, endpoints, sessions, networks, and production identity systems external.",
+          "notProved": ["live protocol behavior", "password reset", "directory compromise"]
+        },
+        {
+          "id": "exploiting-zerologon-vulnerability-cve-2020-1472::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain patching, domain-controller hardening, privileged identity governance, monitoring, recovery, and incident-response guidance as advisory.",
+          "notProved": ["patch efficacy", "identity protection", "recovery completion"]
+        },
+        {
+          "id": "exploiting-zerologon-vulnerability-cve-2020-1472::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, domain and asset ownership, credential and evidence handling, legal/privacy/ethics/safety review, analyst validation, severity, containment, reset/revocation, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live identity, SMB, API, web, database, network, endpoint, directory, token, credential, or production activity is proved.",
+    "No Kerberoasting, EternalBlue, noPac, race condition, SMB exploit, SQL injection, type confusion, Metasploit exploit, Zerologon, compromise, or execution is proved.",
+    "No payload delivery, authentication bypass, credential access, data exposure, detection efficacy, attribution, containment, remediation, or recovery is proved.",
+    "No authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, disclosure decision, or security outcome is proved."
+  ]
+}

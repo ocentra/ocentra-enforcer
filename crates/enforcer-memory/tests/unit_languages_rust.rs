@@ -1,5 +1,5 @@
-use enforcer_memory::languages::rust::parse;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::rust::parse;
+use enforcer_syntax::parsers::SymbolKind;
 
 #[test]
 fn extracts_function_and_test_symbols() {

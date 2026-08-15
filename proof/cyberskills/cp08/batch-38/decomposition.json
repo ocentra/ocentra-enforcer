@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-38",
+  "baselineCommit": "63ac258c4da64de0b7efe7d0318bf1b8c03e6bc5",
+  "family": "Web application/server request-processing vulnerabilities and defensive security testing",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["exploiting-broken-function-level-authorization", "exploiting-http-request-smuggling", "exploiting-insecure-deserialization", "exploiting-nosql-injection-vulnerabilities", "exploiting-prototype-pollution-in-javascript", "exploiting-server-side-request-forgery", "exploiting-template-injection-vulnerabilities", "exploiting-websocket-vulnerabilities", "testing-cors-misconfiguration", "testing-websocket-api-security"],
+    "reason": "Ten disjoint web application/server request-processing skills covering authorization, parsing, serialization, injection, SSRF, WebSocket, CORS, and defensive testing. Native checks are limited to static typed supplied manifests; live engines and outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "exploiting-broken-function-level-authorization",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-broken-function-level-authorization/SKILL.md", "sha256": "6fc7545d0b78d2864a9ce9318f8bb1bc0f35a78a4ae349121f7773c6feec9596", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting Broken Function Level Authorization:L36"]},
+      "components": [
+        {"componentId": "exploiting-broken-function-level-authorization::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied route, function, subject, role, authorization, scope, and evidence manifests.", "notProved": ["No live authorization bypass, endpoint call, privilege change, exploitation, or security outcome proof."]},
+        {"componentId": "exploiting-broken-function-level-authorization::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live endpoints, servers, browsers, identity/session, Burp/ZAP, fuzzers, scanners, and production authorities.", "notProved": ["No pinned adapter, runtime, credential/session, or normalized evidence."]},
+        {"componentId": "exploiting-broken-function-level-authorization::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive function-authorization testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-broken-function-level-authorization::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live authorization testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-http-request-smuggling",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-http-request-smuggling/SKILL.md", "sha256": "5d472444c812a52d504d56bec0791bd547b427dddf600fd22780b58c34c1a0c4", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting HTTP Request Smuggling:L30"]},
+      "components": [
+        {"componentId": "exploiting-http-request-smuggling::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied request, parser, proxy, route, framing, configuration, scope, and evidence fields.", "notProved": ["No live request smuggling, parser differential, endpoint call, exploitation, or security outcome proof."]},
+        {"componentId": "exploiting-http-request-smuggling::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live servers, proxies, browsers, endpoints, Burp/ZAP, fuzzers, scanners, payload execution, and production authorities.", "notProved": ["No pinned adapter, parser runtime, payload delivery, or normalized evidence."]},
+        {"componentId": "exploiting-http-request-smuggling::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive HTTP parsing and proxy-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-http-request-smuggling::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, service-owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live parser testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-insecure-deserialization",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-insecure-deserialization/SKILL.md", "sha256": "69d0e4c55310acca292fedfec514d40cee564574e8aa03db74cd49b103e9ab28", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting Insecure Deserialization:L30"]},
+      "components": [
+        {"componentId": "exploiting-insecure-deserialization::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied serialization format, parser, object, route, configuration, payload, scope, and evidence manifests.", "notProved": ["No live deserialization, code execution, endpoint call, exploitation, data exposure, or security outcome proof."]},
+        {"componentId": "exploiting-insecure-deserialization::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use application runtimes, servers, endpoints, browsers, Burp/ZAP, fuzzers, scanners, payload execution, and production authorities.", "notProved": ["No pinned adapter, runtime, payload delivery, credential/session, or normalized evidence."]},
+        {"componentId": "exploiting-insecure-deserialization::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive serialization and parser-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-insecure-deserialization::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live deserialization testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-nosql-injection-vulnerabilities",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-nosql-injection-vulnerabilities/SKILL.md", "sha256": "1d3c9cc04615bab8e4bac5731f23ffbb3f41c46dbf42906c9deb9c1d84559445", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting NoSQL Injection Vulnerabilities:L32"]},
+      "components": [
+        {"componentId": "exploiting-nosql-injection-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied query, schema, operator, route, input, authorization, scope, and evidence manifests.", "notProved": ["No live NoSQL injection, query execution, data exposure, endpoint call, exploitation, or security outcome proof."]},
+        {"componentId": "exploiting-nosql-injection-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use databases, application runtimes, endpoints, Burp/ZAP, fuzzers, scanners, payload execution, credentials/sessions, and production authorities.", "notProved": ["No pinned adapter, query runtime, payload delivery, or normalized evidence."]},
+        {"componentId": "exploiting-nosql-injection-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive NoSQL injection-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-nosql-injection-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, data-owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live query testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-prototype-pollution-in-javascript",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-prototype-pollution-in-javascript/SKILL.md", "sha256": "06ac39615ca1ca7b5ad4081d8c5ed8203a1673b0f01d30a2198569561e3564b5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting Prototype Pollution in JavaScript:L33"]},
+      "components": [
+        {"componentId": "exploiting-prototype-pollution-in-javascript::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied JavaScript object, dependency, input, route, configuration, payload, scope, and evidence manifests.", "notProved": ["No live prototype pollution, code execution, endpoint call, exploitation, data exposure, or security outcome proof."]},
+        {"componentId": "exploiting-prototype-pollution-in-javascript::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use JavaScript runtimes, servers, browsers, package registries, Burp/ZAP, fuzzers, scanners, payload execution, and production authorities.", "notProved": ["No pinned adapter, runtime, payload delivery, or normalized evidence."]},
+        {"componentId": "exploiting-prototype-pollution-in-javascript::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive JavaScript and dependency-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-prototype-pollution-in-javascript::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, code/owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live prototype-pollution testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-server-side-request-forgery",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-server-side-request-forgery/SKILL.md", "sha256": "1121a34f7daff9e2eb82ea53f528a5b4a2b84b7f05cf29f6d2a3009312e3d966", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting Server-Side Request Forgery:L30"]},
+      "components": [
+        {"componentId": "exploiting-server-side-request-forgery::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied URL, route, proxy, allowlist, identity, network scope, payload, and evidence manifests.", "notProved": ["No live SSRF, endpoint call, internal access, data exposure, exploitation, or security outcome proof."]},
+        {"componentId": "exploiting-server-side-request-forgery::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live endpoints, servers, browsers, network/cloud services, Burp/ZAP, fuzzers, scanners, payload execution, and production authorities.", "notProved": ["No pinned adapter, network runtime, target access, credential/session, or normalized evidence."]},
+        {"componentId": "exploiting-server-side-request-forgery::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SSRF testing and egress-control guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-server-side-request-forgery::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, network/data-owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live SSRF testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-template-injection-vulnerabilities",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-template-injection-vulnerabilities/SKILL.md", "sha256": "0ac2c69f239f602de658cf9bccb431207685397d29f80ea437eb6e7407f9b98f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting Template Injection Vulnerabilities:L31"]},
+      "components": [
+        {"componentId": "exploiting-template-injection-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied template, input, parser, route, context, payload, configuration, scope, and evidence fields.", "notProved": ["No live template injection, code execution, endpoint call, exploitation, data exposure, or security outcome proof."]},
+        {"componentId": "exploiting-template-injection-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use application runtimes, servers, browsers, Burp/ZAP, fuzzers, scanners, payload execution, credentials/sessions, and production authorities.", "notProved": ["No pinned adapter, runtime, payload delivery, or normalized evidence."]},
+        {"componentId": "exploiting-template-injection-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive template and input-validation testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-template-injection-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application-owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live template testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-websocket-vulnerabilities",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-websocket-vulnerabilities/SKILL.md", "sha256": "b2504661bb4ff59fcea800c426293b02a3ec129de9d4e16ae75d443614ecd948", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting WebSocket Vulnerabilities:L31"]},
+      "components": [
+        {"componentId": "exploiting-websocket-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied WebSocket route, handshake, origin, message, authorization, session, payload, scope, and evidence manifests.", "notProved": ["No live WebSocket connection, message injection, session compromise, data exposure, exploitation, or security outcome proof."]},
+        {"componentId": "exploiting-websocket-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live servers, browsers, endpoints, WebSocket runtimes, Burp/ZAP, fuzzers, scanners, payload execution, and production authorities.", "notProved": ["No pinned adapter, socket runtime, credential/session, payload delivery, or normalized evidence."]},
+        {"componentId": "exploiting-websocket-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive WebSocket security-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-websocket-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application-owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live WebSocket testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "testing-cors-misconfiguration",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-cors-misconfiguration/SKILL.md", "sha256": "f00f0bdea8ad16da64cf736c6925458bc1c32d84aa8bc8cd0ad69572fddff8bd", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing CORS Misconfiguration:L31"]},
+      "components": [
+        {"componentId": "testing-cors-misconfiguration::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied origin, route, method, header, credential, policy, response, scope, and evidence manifests.", "notProved": ["No live CORS behavior, browser enforcement, credential/session access, data exposure, or security outcome proof."]},
+        {"componentId": "testing-cors-misconfiguration::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use browsers, servers, endpoints, identity/session, Burp/ZAP, fuzzers, scanners, payload execution, and production authorities.", "notProved": ["No pinned adapter, browser runtime, credential/session, request delivery, or normalized evidence."]},
+        {"componentId": "testing-cors-misconfiguration::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive CORS policy-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "testing-cors-misconfiguration::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application/data-owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live CORS testing proof."]}
+      ]
+    },
+    {
+      "catalogId": "testing-websocket-api-security",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-websocket-api-security/SKILL.md", "sha256": "cba115f065e0d6b9170909e97ccb3b216da6b5605377b40d1fba667641724aaf", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing WebSocket API Security:L37"]},
+      "components": [
+        {"componentId": "testing-websocket-api-security::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied WebSocket API route, schema, message, origin, identity, authorization, rate, scope, and evidence manifests.", "notProved": ["No live WebSocket API call, fuzzing, session compromise, data exposure, exploitability, or security outcome proof."]},
+        {"componentId": "testing-websocket-api-security::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use endpoints, servers, browsers, WebSocket runtimes, Burp/ZAP, fuzzers, scanners, credentials/sessions, and production authorities.", "notProved": ["No pinned adapter, socket runtime, payload delivery, credential/session, or normalized evidence."]},
+        {"componentId": "testing-websocket-api-security::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive WebSocket API testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "testing-websocket-api-security::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application-owner validation, legal/data handling, safety, severity, analysis, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live WebSocket API testing proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Endpoints, servers, browsers, Burp/ZAP, fuzzers, scanners, payload execution, application runtimes, credentials/sessions, and production exploit-delivery authorities remain blocked external engines.",
+    "No live exploitability, authorization bypass, request smuggling, deserialization, injection, SSRF, prototype pollution, template execution, WebSocket compromise, CORS weakness, data exposure, remediation, rollback, disclosure, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}

@@ -454,6 +454,138 @@ pub struct SourceShapePolicy {
     pub max_function_lines: Option<std::num::NonZeroUsize>,
     pub max_lines: Option<std::num::NonZeroUsize>,
     pub max_types: Option<std::num::NonZeroUsize>,
+    pub max_nesting_depth: Option<std::num::NonZeroUsize>,
+    pub max_branches: Option<std::num::NonZeroUsize>,
+}
+
+/// A path-selected, explicit source-shape budget adjustment.  This is typed
+/// policy data, not a waiver: it can only change the same numeric dimensions
+/// a base [`SourceShapePolicy`] exposes.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[doc = "Canonical domain representation for SourceShapeOverride."]
+pub struct SourceShapeOverride {
+    pub path: Option<RelPath>,
+    pub paths: Vec<RelPath>,
+    pub glob: Option<Glob>,
+    pub globs: Vec<Glob>,
+    pub max_classes: Option<std::num::NonZeroUsize>,
+    pub max_exports: Option<std::num::NonZeroUsize>,
+    pub max_functions: Option<std::num::NonZeroUsize>,
+    pub max_function_lines: Option<std::num::NonZeroUsize>,
+    pub max_lines: Option<std::num::NonZeroUsize>,
+    pub max_types: Option<std::num::NonZeroUsize>,
+    pub max_nesting_depth: Option<std::num::NonZeroUsize>,
+    pub max_branches: Option<std::num::NonZeroUsize>,
+}
+
+/// One configured member of the architecture-policy aggregate.  The string is
+/// validated at the configuration boundary; aliases are normalized by the
+/// aggregate executor so configuration order remains meaningful for display
+/// while duplicate work is never run twice.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[doc = "Canonical configured architecture-policy check name."]
+pub struct ArchitecturePolicyCheck(String);
+impl ArchitecturePolicyCheck {
+    pub fn try_new(value: String) -> Result<Self, DecodeError> {
+        if value.trim().is_empty() || value.chars().any(char::is_control) {
+            return Err(DecodeError::new(
+                "architecturePolicyChecks",
+                "entries must be non-empty printable text",
+            ));
+        }
+        Ok(Self(value))
+    }
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PrivateRustTestModuleAllowlistEntry {
+    owner_file: crate::paths::RelPath,
+    module_file: crate::paths::RelPath,
+    // BRAND-INVARIANT: `try_new` accepts only a Rust identifier ending in
+    // `_private_tests` that exactly matches the module file basename.
+    module_name: String,
+}
+
+impl PrivateRustTestModuleAllowlistEntry {
+    pub fn try_new(
+        owner_file: crate::paths::RelPath,
+        module_file: crate::paths::RelPath,
+        module_name: String,
+    ) -> Result<Self, DecodeError> {
+        let valid_name = module_name.ends_with("_private_tests")
+            && module_name
+                .chars()
+                .next()
+                .is_some_and(|character| character == '_' || character.is_ascii_alphabetic())
+            && module_name
+                .chars()
+                .all(|character| character == '_' || character.is_ascii_alphanumeric());
+        let same_directory = owner_file
+            .as_str()
+            .rsplit_once('/')
+            .map(|(directory, _)| directory)
+            == module_file
+                .as_str()
+                .rsplit_once('/')
+                .map(|(directory, _)| directory);
+        let expected_file = format!("{module_name}.rs");
+        if !valid_name || !same_directory || !module_file.as_str().ends_with(&expected_file) {
+            return Err(DecodeError::new("privateRustTestModuleAllowlist", "entries require same-directory Rust owner/module paths and a *_private_tests module name"));
+        }
+        Ok(Self {
+            owner_file,
+            module_file,
+            module_name,
+        })
+    }
+    pub fn owner_file(&self) -> &crate::paths::RelPath {
+        &self.owner_file
+    }
+    pub fn module_file(&self) -> &crate::paths::RelPath {
+        &self.module_file
+    }
+    pub fn module_name(&self) -> &str {
+        &self.module_name
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum GeneratedArtifactsMode {
+    #[default]
+    Scope,
+    Tracked,
+}
+
+/// Whether empty or placeholder-only test trees are a configuration error.
+/// This domain value prevents a raw transport boolean from leaking into scan
+/// policy decisions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[doc = "Canonical domain representation for StrictEmptyTestTrees."]
+pub enum StrictEmptyTestTrees {
+    #[default]
+    Permissive,
+    Required,
+}
+impl StrictEmptyTestTrees {
+    #[must_use]
+    pub const fn requires_nonempty(self) -> bool {
+        matches!(self, Self::Required)
+    }
+    #[must_use]
+    pub const fn from_wire(value: bool) -> Self {
+        if value {
+            Self::Required
+        } else {
+            Self::Permissive
+        }
+    }
+    #[must_use]
+    pub const fn into_wire(self) -> bool {
+        self.requires_nonempty()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -468,9 +600,41 @@ pub struct EffectiveConfig {
     pub cargo_dependency_policy: CargoDependencyPolicy,
     pub rust_scan_scope: RustScanScope,
     pub source_shape_policies: Vec<SourceShapePolicy>,
+    pub source_shape_overrides: Vec<SourceShapeOverride>,
+    /// `None` means the field was absent and therefore selects the frozen
+    /// default aggregate; `Some(vec![])` deliberately disables it.
+    pub architecture_policy_checks: Option<Vec<ArchitecturePolicyCheck>>,
+    pub import_boundary_policies: Vec<ImportBoundaryPolicy>,
+    pub agent_rule_max_lines: AgentRuleLineBudget,
+    pub strict_empty_test_trees: StrictEmptyTestTrees,
+    pub private_rust_test_module_allowlist: Vec<PrivateRustTestModuleAllowlistEntry>,
+    pub generated_artifacts_mode: GeneratedArtifactsMode,
+    pub generated_artifacts_allowlist: Vec<Glob>,
     pub ignore_dirs: Vec<IgnoreDirectorySegment>,
     pub ignore_file_globs: Vec<Glob>,
     pub boundary_owner_note: Option<PolicyOwner>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[doc = "Configured TypeScript/JavaScript import-boundary policy."]
+pub struct ImportBoundaryPolicy {
+    pub roots: Vec<crate::paths::RelPath>,
+    pub forbidden_imports: Vec<Glob>,
+    pub allowed_imports: Vec<Glob>,
+    pub message: Option<ConfigField>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[doc = "Canonical configured line budget for AI rule files; zero is meaningful."]
+pub struct AgentRuleLineBudget(usize);
+impl AgentRuleLineBudget {
+    pub const fn from_config(value: usize) -> Self {
+        Self(value)
+    }
+    #[must_use]
+    pub const fn get(self) -> usize {
+        self.0
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]

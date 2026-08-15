@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "exploiting-websocket-vulnerabilities",
+  "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/exploiting-websocket-vulnerabilities/SKILL.md",
+  "sourceSha256": "b2504661bb4ff59fcea800c426293b02a3ec129de9d4e16ae75d443614ecd948",
+  "sourceAnchors": ["Cross-Site WebSocket Hijacking", "Origin validation", "Origin not validated"],
+  "nativeRuleId": "CYBER-WEBSOCKET.1",
+  "nativeValidatorPath": "crates/enforcer-lang-security/src/rules/cyberskills/websocket_security.rs",
+  "failFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.websocket-security/bad/vuln.js",
+  "passFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.websocket-security/good/safe.js",
+  "coverage": "narrowed-predicate",
+  "predicate": "Static server-configuration detection of permissive WebSocket Origin validation that enables CSWSH.",
+  "notProved": "Live WebSocket handshake, authentication, message injection, TLS, and runtime exploit testing."
+}

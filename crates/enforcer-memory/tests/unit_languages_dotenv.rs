@@ -1,11 +1,11 @@
 //! Hard tests for DotEnv, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_dotenv`]). Tier-0 (see
-//! [`enforcer_memory::languages::spec::LangSpec::dotenv`]'s own doc
+//! ([`enforcer_syntax::languages::generic::parse_dotenv`]). Tier-0 (see
+//! [`enforcer_syntax::languages::spec::LangSpec::dotenv`]'s own doc
 //! comment): only its own real root node kind (`document`, NOT
 //! baseline's stale `source_file`) is asserted.
 
-use enforcer_memory::languages::generic::parse_dotenv;
+use enforcer_syntax::languages::generic::parse_dotenv;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

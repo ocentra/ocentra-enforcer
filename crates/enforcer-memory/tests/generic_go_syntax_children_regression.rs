@@ -1,4 +1,4 @@
-use enforcer_memory::parsers::{parse_file, Language, SymbolKind};
+use enforcer_syntax::parsers::{parse_file, Language, SymbolKind};
 
 #[test]
 fn syntax_child_iteration_preserves_go_members_and_grouped_import_order() -> Result<(), String> {

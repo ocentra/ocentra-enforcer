@@ -1,0 +1,152 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-90",
+  "family": "IF/vulnerability-management",
+  "baselineCommit": "8f5a0a6f6ccfcba27c283d5307e6b8f5466cedd7",
+  "scope": "Retain the final vulnerability-management packet covering web scanning and triage, CVSS and SSVC prioritization, infrastructure scanning, and vulnerability decision guidance from immutable CP08 evidence; native predicates are limited to static supplied asset, route, request, response, scan-plan, finding, severity, confidence, score, decision, owner, scope, exception, remediation, and evidence manifests; live Nikto, web applications, Nessus, CVSS/SSVC authorities, scanners, endpoints, networks, ticketing, and production systems remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-web-application-scanning-with-nikto",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-application-scanning-with-nikto/SKILL.md",
+        "sha256": "6d599f0dae5cdb40d887915e50f388f723bab0ec4b469ebd409ddf7e728b73f0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Web Application Scanning with Nikto:L28"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-50/decomposition.json",
+        "artifactSha256": "2091d873aac0c60153c9c0fd8bda86df8bd37e4053f3de47484430363edc1b90"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive web scanning, scope control, evidence review, finding validation, severity, and remediation guidance as advisory.",
+        "notProved": ["No finding, exposure, exploitability, scanner coverage, web posture, or remediation outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, scan boundaries, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human scan, finding, severity, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-web-application-vulnerability-triage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-application-vulnerability-triage/SKILL.md",
+        "sha256": "49b4406adb6ff8f2e88fd2b27718ae5dcdf462c3f081371e2d0b6e3e24347fe2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Web Application Vulnerability Triage:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-50/decomposition.json",
+        "artifactSha256": "2091d873aac0c60153c9c0fd8bda86df8bd37e4053f3de47484430363edc1b90"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive vulnerability validation, severity, confidence, prioritization, communication, and remediation guidance as advisory.",
+        "notProved": ["No finding truth, exploitability, priority, ownership, remediation, SLA, notification, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, application and owner approval, legal/safety/privacy review, data handling, analyst validation, severity and exception decisions, remediation, notification, rollback, and disclosure decisions.",
+        "notProved": ["No human triage, severity, ownership, approval, remediation, notification, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "prioritizing-vulnerabilities-with-cvss-scoring",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/prioritizing-vulnerabilities-with-cvss-scoring/SKILL.md",
+        "sha256": "8848eab745f6cd850425a0bec1e14d7da9864790d034cca2b20a96131dc625c8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Prioritizing Vulnerabilities with CVSS Scoring:L28"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CVSS-informed vulnerability prioritization, risk review, ownership, severity, exception, and remediation guidance as advisory.",
+        "notProved": ["No authoritative CVSS calculation, vulnerability, exploitability, priority, remediation, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require analyst validation of supplied scores, scope, ownership, severity, remediation, authorization, and legal/data handling.",
+        "notProved": ["No authoritative prioritization decision, score authority, or remediation proof is proved."]
+      }
+    },
+    {
+      "catalogId": "scanning-infrastructure-with-nessus",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-infrastructure-with-nessus/SKILL.md",
+        "sha256": "43bc1850fe299c0ba0012cec8b1aca4be602b148cc636e6f51de10d0d78620d7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Scanning Infrastructure with Nessus:L29"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-81/decomposition.json",
+        "artifactSha256": "ff701913c6bad304bcf96c60eba0865b71d51e80f9a6f446fa7105839a4072cc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain infrastructure scanning, asset inventory, severity review, patching, maintenance, and defensive assessment guidance as advisory.",
+        "notProved": ["No finding validity, CVE/CVSS truth, scan coverage, exploitability, or remediation effectiveness is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, infrastructure ownership, legal and maintenance-window review, bounded scope, stop conditions, severity validation, and remediation decisions.",
+        "notProved": ["No authorization, live scan, asset exposure, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "triaging-vulnerabilities-with-ssvc-framework",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/triaging-vulnerabilities-with-ssvc-framework/SKILL.md",
+        "sha256": "e341161bd136c7ecb8ea11d90aa10046a8128e9daecce8092e5caca544034c64",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Triaging Vulnerabilities with SSVC Framework:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-82/decomposition.json",
+        "artifactSha256": "629bc5a4eea52edf1a187ed53f59100b8a7c142370047d60908e097f33755d94"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain SSVC decision factors, vulnerability triage, mission impact, exploitation context, owner review, and defensive prioritization guidance as advisory.",
+        "notProved": ["No decision validity, vulnerability truth, risk truth, priority, remediation effectiveness, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset ownership, legal/data review, analyst and owner validation, risk acceptance, exception, severity, remediation, and disclosure decisions.",
+        "notProved": ["No authorization, live prioritization, risk acceptance, remediation, or security outcome is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 5,
+    "advisoryRetained": 5,
+    "manualRetained": 5,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live Nikto, web application, Nessus, CVSS, SSVC, scanner, endpoint, network, ticketing, credential, or production execution is proved.",
+    "No vulnerability truth, exploitability, priority, remediation, SLA, delivery, approval, assessment, notification, or security outcome is proved.",
+    "This packet completes the vulnerability-management retention family only; it does not complete native implementation, executable proof, or the overall CyberSkills plan.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, scanners, platforms, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

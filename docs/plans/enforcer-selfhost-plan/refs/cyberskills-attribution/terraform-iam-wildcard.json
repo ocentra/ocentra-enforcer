@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "auditing-terraform-infrastructure-for-security",
+  "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/auditing-terraform-infrastructure-for-security/SKILL.md",
+  "sourceSha256": "0ccb9490f13f53099ac90917cffb98e103efb080409c280c85184e0610c4e95a",
+  "sourceAnchors": ["statement.Action == \"*\"", "statement.Effect == \"Allow\""],
+  "nativeRuleId": "CYBER-IAC-IAM-WILDCARD.1",
+  "nativeValidatorPath": "crates/enforcer-lang-security/src/rules/cyberskills/iac_terraform.rs",
+  "failFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/bad/wildcard.tf",
+  "passFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/iac.tf.iam-no-wildcard-action/good/scoped.tf",
+  "coverage": "narrowed-predicate",
+  "predicate": "Terraform Allow statements must not use wildcard actions.",
+  "notProved": "The vendor skill's broader external Checkov/tfsec/Terrascan workflow and all Terraform predicates."
+}

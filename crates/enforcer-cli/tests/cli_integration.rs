@@ -66,6 +66,88 @@ fn write_inline_test_policy(root: &std::path::Path, policy: &str) -> std::io::Re
     )
 }
 
+fn write_dependency_policy_fixture(
+    root: &std::path::Path,
+    external_path: bool,
+) -> std::io::Result<()> {
+    std::fs::create_dir_all(root.join("crates").join("core"))?;
+    std::fs::create_dir_all(root.join("crates").join("app"))?;
+    std::fs::write(
+        root.join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/core\", \"crates/app\"]\nresolver = \"2\"\n",
+    )?;
+    std::fs::write(
+        root.join("crates").join("core").join("Cargo.toml"),
+        "[package]\nname = \"core\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )?;
+    let dependency_path = if external_path {
+        "../outside"
+    } else {
+        "../core"
+    };
+    std::fs::write(
+        root.join("crates").join("app").join("Cargo.toml"),
+        format!(
+            "[package]\nname = \"app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n\n[dependencies]\ncore = {{ path = \"{dependency_path}\" }}\n"
+        ),
+    )?;
+    Ok(())
+}
+
+fn write_secret_policy_fixture(
+    root: &std::path::Path,
+    contains_secret: bool,
+) -> std::io::Result<()> {
+    let dir = root.join("src");
+    std::fs::create_dir_all(&dir)?;
+    let source = if contains_secret {
+        inline_secret_source()
+    } else {
+        String::from("const api_key = std::env::var(\"API_KEY\")?;\n")
+    };
+    std::fs::write(dir.join("config.ts"), source)
+}
+
+/// Assemble the detector fixture at test execution time. The compiled CLI must
+/// detect this input; the integration-test source itself must not look like a
+/// committed credential to the native dogfood scan.
+fn inline_secret_source() -> String {
+    format!(
+        "const api_key = \"{}{}\";\n",
+        "sk-proj-", "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"
+    )
+}
+
+fn write_secret_policy_scope_config(root: &std::path::Path) -> std::io::Result<()> {
+    std::fs::write(
+        root.join("ocentra-enforcer.config.json"),
+        r#"{"schemaVersion":2,"profileName":"default","ignoreFileGlobs":["**/fixtures/**","vendor/**"]}"#,
+    )
+}
+
+fn write_ignored_secret_policy_sources(root: &std::path::Path) -> std::io::Result<()> {
+    let fixture = root.join("crates/sample/fixtures/fail.ts");
+    let vendor = root.join("vendor/example/SKILL.md");
+    let test = root.join("tests/fixtures/native-policy-secret-fixture.ts");
+    std::fs::create_dir_all(
+        fixture
+            .parent()
+            .ok_or_else(|| std::io::Error::other("fixture has no parent"))?,
+    )?;
+    std::fs::create_dir_all(
+        vendor
+            .parent()
+            .ok_or_else(|| std::io::Error::other("vendor file has no parent"))?,
+    )?;
+    std::fs::create_dir_all(
+        test.parent()
+            .ok_or_else(|| std::io::Error::other("test file has no parent"))?,
+    )?;
+    std::fs::write(fixture, inline_secret_source())?;
+    std::fs::write(vendor, inline_secret_source())?;
+    std::fs::write(test, inline_secret_source())
+}
+
 fn run_check(
     root: &std::path::Path,
     extra_args: &[&str],
@@ -74,6 +156,72 @@ fn run_check(
     let mut cmd = Command::new(binary);
     cmd.current_dir(root).arg("check").args(extra_args);
     Ok(cmd.status()?)
+}
+
+fn run_required_tests(
+    root: &std::path::Path,
+    extra_args: &[&str],
+) -> Result<std::process::ExitStatus, Box<dyn std::error::Error>> {
+    Ok(Command::new(binary_path()?)
+        .current_dir(root)
+        .args(["policy", "required-tests"])
+        .args(extra_args)
+        .status()?)
+}
+
+#[test]
+fn architecture_check_honors_config_and_json_output_end_to_end(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_pass_fixture(temp.path())?;
+    std::fs::write(
+        temp.path().join("architecture.json"),
+        r#"{"schemaVersion":2,"profileName":"default","architecturePolicyChecks":[]}"#,
+    )?;
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args([
+            "architecture",
+            "check",
+            "--language",
+            "rust",
+            "--config",
+            "architecture.json",
+            "--json",
+            "--all",
+        ])
+        .output()?;
+    assert!(output.status.success());
+    let report: serde_json::Value = serde_json::from_slice(&output.stdout)?;
+    assert_eq!(report["ok"], serde_json::json!(true));
+    assert_eq!(report["findings"], serde_json::json!([]));
+    Ok(())
+}
+
+#[test]
+fn required_tests_policy_honors_explicit_file_scope() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::create_dir_all(temp.path().join("crates/covered/tests"))?;
+    std::fs::create_dir_all(temp.path().join("crates/missing/src"))?;
+    std::fs::write(
+        temp.path().join("crates/covered/Cargo.toml"),
+        "[package]\nname=\"covered\"\nversion=\"0.1.0\"\n",
+    )?;
+    std::fs::write(
+        temp.path().join("crates/covered/tests/integration.rs"),
+        "#[test]\nfn ok() {}\n",
+    )?;
+    std::fs::write(
+        temp.path().join("crates/missing/Cargo.toml"),
+        "[package]\nname=\"missing\"\nversion=\"0.1.0\"\n",
+    )?;
+    std::fs::write(
+        temp.path().join("crates/missing/src/lib.rs"),
+        "pub fn missing() {}\n",
+    )?;
+    assert!(run_required_tests(temp.path(), &["crates/covered/tests/integration.rs"])?.success());
+    assert_eq!(run_required_tests(temp.path(), &["--all"])?.code(), Some(1));
+    Ok(())
 }
 
 #[test]
@@ -96,6 +244,175 @@ fn fail_fixture_paths_mode_exits_non_zero_with_violations_class(
         Some(1),
         "a rule violation must exit with the Violations class (1), not a generic non-zero"
     );
+    Ok(())
+}
+
+#[test]
+fn native_dependency_policy_rejects_external_local_cargo_path(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_dependency_policy_fixture(temp.path(), true)?;
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "dependency-policy"])
+        .status()?;
+    assert_eq!(status.code(), Some(1));
+    Ok(())
+}
+
+#[test]
+fn native_dependency_policy_accepts_declared_workspace_member_path(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_dependency_policy_fixture(temp.path(), false)?;
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "dependency-policy"])
+        .status()?;
+    assert!(status.success());
+    Ok(())
+}
+
+#[test]
+fn native_secrets_policy_rejects_and_redacts_inline_credentials(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_secret_policy_fixture(temp.path(), true)?;
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "secrets"])
+        .output()?;
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("SEC-1.1"));
+    assert!(stdout.contains("Inline secrets are forbidden"));
+    assert!(!stdout.contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"));
+    Ok(())
+}
+
+#[test]
+fn native_secrets_policy_accepts_runtime_configuration_reference(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_secret_policy_fixture(temp.path(), false)?;
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "secrets"])
+        .status()?;
+    assert!(status.success());
+    Ok(())
+}
+
+#[test]
+fn native_secrets_policy_excludes_configured_fixture_and_vendor_sources(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_secret_policy_scope_config(temp.path())?;
+    write_ignored_secret_policy_sources(temp.path())?;
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "secrets"])
+        .output()?;
+    assert!(
+        output.status.success(),
+        "configured non-product sources must not fail secret policy: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    Ok(())
+}
+
+#[test]
+fn native_secrets_policy_still_rejects_product_source_with_configured_exclusions(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_secret_policy_scope_config(temp.path())?;
+    write_ignored_secret_policy_sources(temp.path())?;
+    write_secret_policy_fixture(temp.path(), true)?;
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "secrets"])
+        .output()?;
+    let stdout = String::from_utf8(output.stdout)?;
+    assert_eq!(output.status.code(), Some(1));
+    assert!(stdout.contains("src/config.ts:1 SEC-1.1"));
+    assert!(!stdout.contains("crates/sample/fixtures/fail.ts"));
+    assert!(!stdout.contains("vendor/example/SKILL.md"));
+    assert!(!stdout.contains("tests/fixtures/native-policy-secret-fixture.ts"));
+    Ok(())
+}
+
+#[test]
+fn native_secrets_policy_scans_non_fixture_test_sources() -> Result<(), Box<dyn std::error::Error>>
+{
+    let temp = tempfile::tempdir()?;
+    write_secret_policy_scope_config(temp.path())?;
+    let source = temp.path().join("tests/integration/config.ts");
+    std::fs::create_dir_all(
+        source
+            .parent()
+            .ok_or_else(|| std::io::Error::other("test source has no parent"))?,
+    )?;
+    std::fs::write(&source, inline_secret_source())?;
+
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "secrets"])
+        .output()?;
+    let stdout = String::from_utf8(output.stdout)?;
+    assert_eq!(output.status.code(), Some(1));
+    let mut fields = stdout
+        .lines()
+        .find(|line| {
+            line.trim_start()
+                .starts_with("[error] tests/integration/config.ts:1 ")
+        })
+        .ok_or("missing test-source secret finding")?
+        .split_whitespace();
+    assert_eq!(fields.next(), Some("[error]"));
+    assert_eq!(fields.next(), Some("tests/integration/config.ts:1"));
+    assert_eq!(fields.next(), Some("SEC-1.1"));
+    Ok(())
+}
+
+#[test]
+fn native_sbom_policy_writes_a_deterministic_schema_validated_artifact(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::write(
+        temp.path().join("Cargo.toml"),
+        "[workspace]\nmembers = [\"crates/app\"]\nresolver = \"2\"\n",
+    )?;
+    std::fs::create_dir_all(temp.path().join("crates/app/src"))?;
+    std::fs::write(
+        temp.path().join("crates/app/Cargo.toml"),
+        "[package]\nname = \"fixture-app\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+    )?;
+    std::fs::write(
+        temp.path().join("crates/app/src/lib.rs"),
+        "pub fn answer() -> u8 { 42 }\n",
+    )?;
+    std::fs::write(
+        temp.path().join("Cargo.lock"),
+        "version = 4\n\n[[package]]\nname = \"fixture-app\"\nversion = \"0.1.0\"\n",
+    )?;
+    let output = temp.path().join("sbom-output");
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "sbom", "--output"])
+        .arg(&output)
+        .status()?;
+    assert!(status.success());
+    let artifact = output.join("cargo-sbom.json");
+    let first = std::fs::read_to_string(&artifact)?;
+    let decoded: enforcer_scan::sbom_policy::CargoSbomDto = serde_json::from_str(&first)?;
+    enforcer_scan::sbom_policy::validate(&decoded).map_err(std::io::Error::other)?;
+    let status = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["policy", "sbom", "--output"])
+        .arg(&output)
+        .status()?;
+    assert!(status.success());
+    assert_eq!(first, std::fs::read_to_string(artifact)?);
     Ok(())
 }
 
@@ -150,6 +467,46 @@ fn base_head_mode_parses_and_routes() -> Result<(), Box<dyn std::error::Error>> 
     // gap, not this skeleton's.
     let temp = tempfile::tempdir()?;
     write_pass_fixture(temp.path())?;
+    let init = Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(temp.path())
+        .status()?;
+    assert!(
+        init.success(),
+        "diff scope fixture must initialize a Git repository"
+    );
+    let commit = Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "add",
+            ".",
+        ])
+        .current_dir(temp.path())
+        .status()?;
+    assert!(
+        commit.success(),
+        "diff scope fixture must stage its baseline"
+    );
+    let commit = Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "baseline",
+        ])
+        .current_dir(temp.path())
+        .status()?;
+    assert!(
+        commit.success(),
+        "diff scope fixture must have a valid HEAD"
+    );
     let status = run_check(temp.path(), &["--base", "HEAD", "--head", "HEAD"])?;
     let code = status.code().ok_or("process terminated by signal")?;
     assert!(
@@ -172,6 +529,169 @@ fn base_head_and_paths_collision_is_a_usage_error() -> Result<(), Box<dyn std::e
         Some(2),
         "a --base/--head + <paths...> collision must be the UsageError class (2)"
     );
+    Ok(())
+}
+
+#[test]
+fn option_shaped_commit_ref_is_rejected_before_git_execution(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    write_pass_fixture(temp.path())?;
+    let output_path = temp.path().join("escaped.txt");
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args(["check", "--base=--output=escaped.txt", "--head", "HEAD"])
+        .output()?;
+    assert_eq!(output.status.code(), Some(2));
+    assert!(!output_path.exists());
+    Ok(())
+}
+
+#[test]
+fn mutation_risk_diff_keeps_deleted_policy_paths() -> Result<(), Box<dyn std::error::Error>> {
+    let temp = tempfile::tempdir()?;
+    std::fs::create_dir_all(temp.path().join("rules"))?;
+    std::fs::write(temp.path().join("rules/deleted.json"), "{}")?;
+    assert!(Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args(["add", "."])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "baseline",
+        ])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    std::fs::remove_file(temp.path().join("rules/deleted.json"))?;
+    assert!(Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "delete policy",
+        ])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args([
+            "check",
+            "mutation-risk",
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+        ])
+        .output()?;
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout)?;
+    let mut fields = stdout
+        .lines()
+        .find(|line| {
+            line.trim_start()
+                .starts_with("[error] rules/deleted.json:1 ")
+        })
+        .ok_or("deleted policy finding is missing")?
+        .split_whitespace();
+    assert_eq!(fields.next(), Some("[error]"));
+    assert_eq!(fields.next(), Some("rules/deleted.json:1"));
+    Ok(())
+}
+
+#[test]
+fn mutation_risk_diff_keeps_both_sides_of_a_policy_rename() -> Result<(), Box<dyn std::error::Error>>
+{
+    let temp = tempfile::tempdir()?;
+    std::fs::create_dir_all(temp.path().join("rules"))?;
+    std::fs::write(temp.path().join("rules/renamed.json"), "{}")?;
+    assert!(Command::new("git")
+        .args(["init", "--quiet"])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args(["add", "."])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "baseline"
+        ])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    std::fs::create_dir_all(temp.path().join("docs"))?;
+    std::fs::rename(
+        temp.path().join("rules/renamed.json"),
+        temp.path().join("docs/renamed.json"),
+    )?;
+    assert!(Command::new("git")
+        .args(["add", "-A"])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+    assert!(Command::new("git")
+        .args([
+            "-c",
+            "user.name=Enforcer Test",
+            "-c",
+            "user.email=enforcer-test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "rename policy"
+        ])
+        .current_dir(temp.path())
+        .status()?
+        .success());
+
+    let output = Command::new(binary_path()?)
+        .current_dir(temp.path())
+        .args([
+            "check",
+            "mutation-risk",
+            "--base",
+            "HEAD~1",
+            "--head",
+            "HEAD",
+        ])
+        .output()?;
+    assert_eq!(output.status.code(), Some(1));
+    let stdout = String::from_utf8(output.stdout)?;
+    assert!(stdout.contains("rules/renamed.json:1"), "{stdout}");
     Ok(())
 }
 
@@ -235,6 +755,21 @@ fn install_command(binary: &std::path::Path, fixture: &std::path::Path) -> std::
     command
 }
 
+fn doctor_command(binary: &std::path::Path, fixture: &std::path::Path) -> std::process::Command {
+    let home = fixture.join("home");
+    let app_data = fixture.join("config");
+    let mut command = Command::new(binary);
+    command
+        .current_dir(fixture)
+        .arg("doctor")
+        .env("HOME", &home)
+        .env("USERPROFILE", &home)
+        .env("APPDATA", &app_data)
+        .env("XDG_CONFIG_HOME", &app_data)
+        .env("CODEX_HOME", home.join(".codex"));
+    command
+}
+
 fn expected_config_root(_home: &std::path::Path, _app_data: &std::path::Path) -> PathBuf {
     #[cfg(target_os = "macos")]
     {
@@ -260,6 +795,11 @@ fn install_registers_every_native_harness_and_is_idempotent(
 
     let home = fixture.path().join("home");
     let config_root = expected_config_root(&home, &fixture.path().join("config"));
+    let zed_directory = if cfg!(all(unix, not(target_os = "macos"))) {
+        "zed"
+    } else {
+        "Zed"
+    };
     let json_paths = [
         home.join(".claude.json"),
         home.join(".gemini").join("settings.json"),
@@ -276,7 +816,7 @@ fn install_registers_every_native_harness_and_is_idempotent(
             .join("kilocode.kilo-code")
             .join("settings")
             .join("mcp_settings.json"),
-        config_root.join("Zed").join("settings.json"),
+        config_root.join(zed_directory).join("settings.json"),
     ];
     for path in &json_paths {
         assert!(
@@ -321,6 +861,29 @@ fn install_registers_every_native_harness_and_is_idempotent(
         .map(std::fs::read)
         .collect::<Result<Vec<_>, _>>()?;
     assert_eq!(json_after, json_before);
+    Ok(())
+}
+
+#[test]
+fn doctor_verifies_the_native_install_without_mutating_it() -> Result<(), Box<dyn std::error::Error>>
+{
+    let fixture = tempfile::tempdir()?;
+    let binary = binary_path()?;
+    assert!(install_command(&binary, fixture.path()).status()?.success());
+
+    let codex_config = fixture
+        .path()
+        .join("home")
+        .join(".codex")
+        .join("config.toml");
+    let before = std::fs::read(&codex_config)?;
+    let status = doctor_command(&binary, fixture.path()).status()?;
+    assert!(status.success(), "doctor must pass after a native install");
+    assert_eq!(
+        std::fs::read(&codex_config)?,
+        before,
+        "doctor must be read-only"
+    );
     Ok(())
 }
 

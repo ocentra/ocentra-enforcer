@@ -1,15 +1,15 @@
 //! Hard tests for INI, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_ini`]) -- grammar:
+//! ([`enforcer_syntax::languages::generic::parse_ini`]) -- grammar:
 //! `tree-sitter-ini` 1.4.0. Asserts against the grammar-shape ground
 //! truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::ini`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::ini`]'s own doc
 //! comment: `section`'s fieldless `section_name` claimed by
-//! [`enforcer_memory::languages::generic::ini_quirk`], plus each
+//! [`enforcer_syntax::languages::generic::ini_quirk`], plus each
 //! `setting` promoted to a DEFINES edge under its own section.
 
-use enforcer_memory::languages::generic::parse_ini;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_ini;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_ini";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

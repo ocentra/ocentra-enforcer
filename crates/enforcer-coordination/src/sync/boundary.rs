@@ -46,6 +46,10 @@ pub fn list_stream_files(root: &Path) -> Result<Vec<CoordinationStreamName>> {
     let mut names = Vec::new();
     for entry in entries {
         let entry = entry?;
+        let metadata = fs::symlink_metadata(entry.path())?;
+        if !metadata.is_file() || metadata.file_type().is_symlink() || is_reparse_point(&metadata) {
+            continue;
+        }
         let Ok(name) = entry.file_name().into_string() else {
             continue;
         };
@@ -55,6 +59,17 @@ pub fn list_stream_files(root: &Path) -> Result<Vec<CoordinationStreamName>> {
     }
     names.sort();
     Ok(names)
+}
+
+#[cfg(windows)]
+fn is_reparse_point(metadata: &fs::Metadata) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    metadata.file_attributes() & 0x400 != 0
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_metadata: &fs::Metadata) -> bool {
+    false
 }
 
 /// Archived-then-live segments for one logical stream name. Ported from
@@ -224,11 +239,25 @@ fn with_stream_lock<T>(
     lane: &LaneId,
     run: impl FnOnce() -> Result<T>,
 ) -> Result<T> {
-    let path = lock_path(root, node_id, lane);
+    with_lock_path(&lock_path(root, node_id, lane), root, run)
+}
+
+/// Hold the canonical per-stream lock while a peer compares and appends a
+/// suffix. This shares the exact lock file used by ordinary event appends.
+pub(crate) fn with_named_stream_lock<T>(
+    root: &Path,
+    stream_name: &str,
+    run: impl FnOnce() -> Result<T>,
+) -> Result<T> {
+    let path = streams_dir(root).join(stream_name).with_extension("lock");
+    with_lock_path(&path, root, run)
+}
+
+fn with_lock_path<T>(path: &Path, root: &Path, run: impl FnOnce() -> Result<T>) -> Result<T> {
     fs::create_dir_all(streams_dir(root))?;
     let deadline = Instant::now() + Duration::from_secs(5);
     loop {
-        match OpenOptions::new().write(true).create_new(true).open(&path) {
+        match OpenOptions::new().write(true).create_new(true).open(path) {
             Ok(mut handle) => {
                 let _ = write!(handle, "{}", std::process::id());
                 break;
@@ -236,7 +265,7 @@ fn with_stream_lock<T>(
             Err(err) if err.kind() == std::io::ErrorKind::AlreadyExists => {
                 if Instant::now() >= deadline {
                     return Err(CoordinationError::LockTimeout {
-                        path: CoordinationLedgerPath::parse(&path)?,
+                        path: CoordinationLedgerPath::parse(path)?,
                     });
                 }
                 std::thread::sleep(Duration::from_millis(25));
@@ -245,7 +274,7 @@ fn with_stream_lock<T>(
         }
     }
     let result = run();
-    let _ = fs::remove_file(&path);
+    let _ = fs::remove_file(path);
     result
 }
 
@@ -304,8 +333,8 @@ pub fn read_lines(path: &Path) -> Result<Vec<String>> {
 #[cfg(test)]
 mod tests {
     use super::{
-        append_completed_event, read_all_streams, read_lines, stream_path, streams_dir,
-        HubEventResponse, LaneId, NodeId,
+        append_completed_event, list_stream_files, read_all_streams, read_lines, stream_path,
+        streams_dir, HubEventResponse, LaneId, NodeId,
     };
     use crate::error::Result;
     use crate::events::hash_for_event_value;
@@ -390,6 +419,38 @@ mod tests {
         let all = read_all_streams(root)?;
         assert_eq!(all.events.len(), 0);
         assert_eq!(all.warnings.len(), 1);
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn stream_inventory_rejects_symlinked_stream_files() -> Result<()> {
+        use std::os::unix::fs::symlink;
+        let dir = tempdir()?;
+        let outside = dir.path().join("outside.ndjson");
+        std::fs::write(&outside, "external\n")?;
+        std::fs::create_dir_all(streams_dir(dir.path()))?;
+        symlink(
+            &outside,
+            streams_dir(dir.path()).join("node_test.arc-16.ndjson"),
+        )?;
+        assert!(list_stream_files(dir.path())?.is_empty());
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn stream_inventory_rejects_symlinked_stream_files() -> Result<()> {
+        use std::os::windows::fs::symlink_file;
+        let dir = tempdir()?;
+        let outside = dir.path().join("outside.ndjson");
+        std::fs::write(&outside, "external\n")?;
+        std::fs::create_dir_all(streams_dir(dir.path()))?;
+        let link = streams_dir(dir.path()).join("node_test.arc-16.ndjson");
+        if symlink_file(&outside, &link).is_err() {
+            return Ok(());
+        }
+        assert!(list_stream_files(dir.path())?.is_empty());
         Ok(())
     }
 }

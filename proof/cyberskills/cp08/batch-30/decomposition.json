@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-30",
+  "baselineCommit": "4a4b143a311be59248991598e0130e13bc50bbde",
+  "family": "Malware analysis, deobfuscation, IOC extraction, triage, and persistence investigation",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["analyzing-macro-malware-in-office-documents", "deobfuscating-javascript-malware", "deobfuscating-powershell-obfuscated-malware", "extracting-iocs-from-malware-samples", "performing-automated-malware-analysis-with-cape", "performing-malware-hash-enrichment-with-virustotal", "performing-malware-ioc-extraction", "performing-malware-persistence-investigation", "performing-malware-triage-with-yara", "performing-static-malware-analysis-with-pe-studio"],
+    "reason": "Ten disjoint malware-analysis, deobfuscation, IOC, triage, and persistence skills. Native checks are limited to static typed document/script/sample/IOC/evidence manifests and deterministic fixture fields; execution and live authorities remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-macro-malware-in-office-documents",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-macro-malware-in-office-documents/SKILL.md", "sha256": "f63202e005d9b10280c6a8517a073322945a70454a617ff6ef37bcb48506e51a", "availability": "available", "license": "Apache-2.0", "anchors": ["# Analyzing Macro Malware in Office Documents:L42"]},
+      "components": [
+        {"componentId": "analyzing-macro-malware-in-office-documents::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed document, macro, metadata, and evidence manifest fields.", "notProved": ["No Office execution, detonation, sandbox, attribution, or security outcome proof."]},
+        {"componentId": "analyzing-macro-malware-in-office-documents::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Office, macro, sandbox, endpoint, and EDR authorities.", "notProved": ["No pinned adapter, execution runtime, or normalized evidence."]},
+        {"componentId": "analyzing-macro-malware-in-office-documents::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain macro-malware analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "analyzing-macro-malware-in-office-documents::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst, legal, chain-of-custody, and escalation decisions.", "notProved": ["No live investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "deobfuscating-javascript-malware",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/deobfuscating-javascript-malware/SKILL.md", "sha256": "c398220aa65995ae0dac16fed620d103679da6333c7807b2e276fcdc82452045", "availability": "available", "license": "Apache-2.0", "anchors": ["# Deobfuscating JavaScript Malware:L34"]},
+      "components": [
+        {"componentId": "deobfuscating-javascript-malware::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed script, token, encoded-data, and evidence manifest fields.", "notProved": ["No JavaScript execution, detonation, sandbox, attribution, or outcome proof."]},
+        {"componentId": "deobfuscating-javascript-malware::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use JavaScript runtimes, sandbox, browser, endpoint, and EDR authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "deobfuscating-javascript-malware::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain JavaScript deobfuscation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "deobfuscating-javascript-malware::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst authorization, chain-of-custody, and escalation decisions.", "notProved": ["No live analysis proof."]}
+      ]
+    },
+    {
+      "catalogId": "deobfuscating-powershell-obfuscated-malware",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/deobfuscating-powershell-obfuscated-malware/SKILL.md", "sha256": "68584b7ed6f68fddfa1822113c152772169b6669641ae108f5f975a80d2a8bec", "availability": "available", "license": "Apache-2.0", "anchors": ["# Deobfuscating PowerShell Obfuscated Malware:L37"]},
+      "components": [
+        {"componentId": "deobfuscating-powershell-obfuscated-malware::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed PowerShell script, token, encoded-data, and evidence manifest fields.", "notProved": ["No PowerShell execution, AMSI, detonation, attribution, or outcome proof."]},
+        {"componentId": "deobfuscating-powershell-obfuscated-malware::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use PowerShell, AMSI, EDR, endpoint, and sandbox authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "deobfuscating-powershell-obfuscated-malware::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain PowerShell deobfuscation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "deobfuscating-powershell-obfuscated-malware::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst, legal, chain-of-custody, and escalation decisions.", "notProved": ["No live analysis proof."]}
+      ]
+    },
+    {
+      "catalogId": "extracting-iocs-from-malware-samples",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/extracting-iocs-from-malware-samples/SKILL.md", "sha256": "41eec5442e403f5f249a5d5bdd93f40b8ced5f06b54df9508a92fbd312f14fc5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Extracting IOCs from Malware Samples:L34"]},
+      "components": [
+        {"componentId": "extracting-iocs-from-malware-samples::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed IOC, sample, provenance, confidence, and evidence manifest fields.", "notProved": ["No sample execution, enrichment, attribution, or detection outcome proof."]},
+        {"componentId": "extracting-iocs-from-malware-samples::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use malware sandboxes, endpoint, intelligence, and external enrichment authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "extracting-iocs-from-malware-samples::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain IOC extraction and handling guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "extracting-iocs-from-malware-samples::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst validation, chain-of-custody, disclosure, and sharing decisions.", "notProved": ["No live extraction proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-automated-malware-analysis-with-cape",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-automated-malware-analysis-with-cape/SKILL.md", "sha256": "9306134d73836ac3a4d93fd224fe1cb8bba167d4a527d645e39db3f8bb704200", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Automated Malware Analysis with CAPE:L31"]},
+      "components": [
+        {"componentId": "performing-automated-malware-analysis-with-cape::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed analysis-job, sample, result, and evidence manifest fields.", "notProved": ["No CAPE sandbox, sample detonation, attribution, or security outcome proof."]},
+        {"componentId": "performing-automated-malware-analysis-with-cape::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CAPE, sandbox, virtualization, endpoint, and network authorities.", "notProved": ["No pinned adapter, execution runtime, or normalized evidence."]},
+        {"componentId": "performing-automated-malware-analysis-with-cape::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain automated malware-analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-automated-malware-analysis-with-cape::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized sample handling, legal, analyst, and escalation decisions.", "notProved": ["No live detonation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-malware-hash-enrichment-with-virustotal",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-malware-hash-enrichment-with-virustotal/SKILL.md", "sha256": "300f84ca87bccfa3ec6b10f63a22f0bd8ad41f9c213aca9c405a7059ea6134ea", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Malware Hash Enrichment with VirusTotal:L32"]},
+      "components": [
+        {"componentId": "performing-malware-hash-enrichment-with-virustotal::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed hash, source, timestamp, confidence, and enrichment-result manifest fields.", "notProved": ["No VirusTotal query, external enrichment, attribution, or verdict outcome proof."]},
+        {"componentId": "performing-malware-hash-enrichment-with-virustotal::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use VirusTotal and other external malware-intelligence authorities.", "notProved": ["No pinned adapter, credentials, live query, or normalized evidence."]},
+        {"componentId": "performing-malware-hash-enrichment-with-virustotal::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain hash enrichment and confidence guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-malware-hash-enrichment-with-virustotal::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst confidence, disclosure, privacy, and sharing decisions.", "notProved": ["No live enrichment proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-malware-ioc-extraction",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-malware-ioc-extraction/SKILL.md", "sha256": "1b9cc00c2c73ebb7913717a695901f93487d2fe39230558b5525026cd9369f9c", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Malware IOC Extraction:L32"]},
+      "components": [
+        {"componentId": "performing-malware-ioc-extraction::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed IOC, extraction, normalization, provenance, and evidence manifest fields.", "notProved": ["No sample execution, external enrichment, attribution, or detection outcome proof."]},
+        {"componentId": "performing-malware-ioc-extraction::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use malware analysis, sandbox, endpoint, and external intelligence authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "performing-malware-ioc-extraction::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain IOC extraction and normalization guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-malware-ioc-extraction::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst validation, chain-of-custody, disclosure, and escalation decisions.", "notProved": ["No live extraction proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-malware-persistence-investigation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-malware-persistence-investigation/SKILL.md", "sha256": "bae652fda0d2ad79247c09b26a56f7b3df3b8d65e9e2c60c093cd18fbe6cbf3d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Malware Persistence Investigation:L31"]},
+      "components": [
+        {"componentId": "performing-malware-persistence-investigation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed persistence-location, autorun, service, task, evidence, and provenance fields.", "notProved": ["No endpoint, registry, process, EDR, live persistence, or attribution proof."]},
+        {"componentId": "performing-malware-persistence-investigation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use endpoint, registry, process, EDR, forensic, and directory authorities.", "notProved": ["No pinned adapter, collection runtime, or normalized evidence."]},
+        {"componentId": "performing-malware-persistence-investigation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain malware-persistence investigation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-malware-persistence-investigation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst, legal, chain-of-custody, remediation, and escalation decisions.", "notProved": ["No live persistence investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-malware-triage-with-yara",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-malware-triage-with-yara/SKILL.md", "sha256": "f30e2157d784a8bb171037242e588145366914c53a3f707842344959fc4216c1", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Malware Triage with YARA:L35"]},
+      "components": [
+        {"componentId": "performing-malware-triage-with-yara::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed YARA rule, result, sample, confidence, and evidence manifest fields.", "notProved": ["No YARA execution, sample scan, attribution, or detection outcome proof."]},
+        {"componentId": "performing-malware-triage-with-yara::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use YARA, endpoint, EDR, sandbox, and external intelligence authorities.", "notProved": ["No pinned adapter, scan runtime, or normalized evidence."]},
+        {"componentId": "performing-malware-triage-with-yara::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain YARA triage and rule-use guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-malware-triage-with-yara::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst confidence, escalation, chain-of-custody, and remediation decisions.", "notProved": ["No live triage proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-static-malware-analysis-with-pe-studio",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-static-malware-analysis-with-pe-studio/SKILL.md", "sha256": "35815f8a271d449b3710d4cb7fd45be90556cc8dff95ae71810fd3b7fbc5736e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Static Malware Analysis with PEStudio:L35"]},
+      "components": [
+        {"componentId": "performing-static-malware-analysis-with-pe-studio::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed PE metadata, imports, sections, hashes, and evidence manifest fields.", "notProved": ["No PEStudio execution, runtime behavior, attribution, or security outcome proof."]},
+        {"componentId": "performing-static-malware-analysis-with-pe-studio::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use PEStudio, PE parsers, endpoint, sandbox, and external intelligence authorities.", "notProved": ["No pinned adapter, analysis runtime, or normalized evidence."]},
+        {"componentId": "performing-static-malware-analysis-with-pe-studio::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain static PE analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-static-malware-analysis-with-pe-studio::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require analyst, legal, chain-of-custody, disclosure, and remediation decisions.", "notProved": ["No live static-analysis proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Office, PowerShell, JavaScript, CAPE, YARA, PEStudio, VirusTotal, sandbox, EDR, endpoint, registry, process, and external enrichment authorities remain blocked external engines.",
+    "No execution, detonation, attribution, live persistence, detection, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}
