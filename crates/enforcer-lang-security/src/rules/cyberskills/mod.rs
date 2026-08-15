@@ -25,6 +25,7 @@ pub mod fileless_malware;
 pub mod github_actions;
 pub mod iac_terraform;
 pub mod insecure_deser;
+pub mod k8s_container_security;
 pub mod k8s_pod_security;
 pub mod k8s_rbac;
 pub mod mass_assignment;

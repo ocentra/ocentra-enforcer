@@ -12,6 +12,7 @@ pub(crate) mod finding;
 #[cfg(test)]
 pub(crate) mod fixture;
 pub(crate) mod json;
+pub(crate) mod k8s_container_security_manifest;
 pub(crate) mod k8s_pod;
 pub(crate) mod k8s_rbac;
 pub(crate) mod pattern;

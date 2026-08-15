@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "auditJsonl": "",
+  "approvedContainers": [],
+  "observedContainers": [],
+  "podSnapshots": [],
+  "externalAuthority": "kubernetes-api-not-called",
+  "manualAuthorizationRequired": true,
+  "notProved": [
+    "live cluster state",
+    "runtime syscall observation",
+    "Falco or registry execution",
+    "escape occurrence or security outcome"
+  ]
+}
