@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b13-fail",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" }
+  ],
+  "records": [
+    {
+      "kind": "aws-iam-permissions",
+      "skillId": "securing-aws-iam-permissions",
+      "refs": ["account:fixture", "principal:fixture"]
+    }
+  ]
+}
