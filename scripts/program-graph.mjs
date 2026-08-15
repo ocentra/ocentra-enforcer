@@ -64,6 +64,46 @@ function declaredLifecycle(status, policies) {
   return "planned";
 }
 
+const REQUIRED_CI_STOP_STATES = new Set([
+  "in_progress",
+  "failure",
+  "cancelled",
+  "timed_out",
+  "action_required",
+  "stale",
+  "unstable",
+  "unknown"
+]);
+
+const REQUIRED_CI_POST_MERGE_STEPS = new Set([
+  "verify-pr-merge-commit",
+  "fetch-canonical-rust-build",
+  "record-graph-lifecycle-evidence",
+  "release-claims"
+]);
+
+function validateCiLifecyclePolicy(policies = {}) {
+  const policy = policies.ciLifecycle;
+  if (policy === undefined) return null;
+  const stopOn = [].concat(policy.stopOn ?? []);
+  const postMerge = [].concat(policy.postMerge ?? []);
+  const doesNotProve = [].concat(policy.doesNotProve ?? []);
+  const requirements = [
+    [policy.watchRequired === true, "watchRequired must be true"],
+    [policy.headPinning === "exact-pr-head", "headPinning must be exact-pr-head"],
+    [policy.mergeGate === "all-required-checks-success", "mergeGate must be all-required-checks-success"],
+    [policy.mergeAction === "merge", "mergeAction must be merge"],
+    [policy.deleteBranch === false, "deleteBranch must be false"],
+    [policy.failureAction === "report-exact-check-and-stop", "failureAction must be report-exact-check-and-stop"],
+    [[...REQUIRED_CI_STOP_STATES].every((state) => stopOn.includes(state)), "stopOn must include every non-success CI state"],
+    [[...REQUIRED_CI_POST_MERGE_STEPS].every((step) => postMerge.includes(step)), "postMerge must include canonical verification, graph evidence, and claim closeout"],
+    [Array.isArray(policy.doesNotProve) && doesNotProve.length > 0, "doesNotProve must state the boundary of green CI evidence"]
+  ];
+  const errors = requirements.filter(([valid]) => !valid).map(([, message]) => message);
+  if (errors.length > 0) throw new Error(`invalid CI lifecycle policy: ${errors.join("; ")}`);
+  return policy;
+}
+
 function rowIdFromCell(value) {
   const id = String(value ?? "").trim();
   return id.replaceAll("`", "");
@@ -377,6 +417,7 @@ function graphPathExists(root, path) {
 }
 
 function buildGraphFromConfig(root, config) {
+  validateCiLifecyclePolicy(config.policies);
   const plans = discoverPlanDirectories(root, config.planRoot ?? "docs/plans")
     .map((planKey) => loadPlan(root, planKey, config));
   const knownMap = allKnownShortIds(plans);
@@ -662,6 +703,7 @@ function graphStatus(graph) {
     schemaVersion: graph.schemaVersion,
     graphId: graph.graphId,
     root: graph.root,
+    ciLifecycle: graph.config.policies?.ciLifecycle ?? null,
     plans: graph.plans.map((plan) => ({ key: plan.key, title: plan.title, indexPath: plan.indexPath, indexExists: plan.indexExists, workpackCount: plan.rows.length })),
     counts,
     byKind,
@@ -721,7 +763,7 @@ function parseArgs(argv) {
   return { root, plan, command: argv[index] ?? "status", id: argv[index + 1] ?? null };
 }
 
-export { buildGraphFromConfig, deriveState, graphStatus, listBlocked, listReady, loadGraph, nodeById, selectNext, validateGraph };
+export { buildGraphFromConfig, deriveState, graphStatus, listBlocked, listReady, loadGraph, nodeById, selectNext, validateCiLifecyclePolicy, validateGraph };
 
 /** Execute the read-only graph CLI and return a process-style exit code. */
 export function main(argv = process.argv.slice(2)) {
@@ -766,7 +808,7 @@ export function main(argv = process.argv.slice(2)) {
         print({ id: node.id, state: deriveState(graph, node), reasons: reasonsFor(graph, node) });
         return 0;
       }
-      case "next": print({ selected: selectNext(graph, args), ready: listReady(graph, args), blocked: listBlocked(graph, args) }); return 0;
+      case "next": print({ ciLifecycle: graph.config.policies?.ciLifecycle ?? null, selected: selectNext(graph, args), ready: listReady(graph, args), blocked: listBlocked(graph, args) }); return 0;
       default: throw new Error(`unknown graph command: ${args.command}`);
     }
   } catch (error) {
