@@ -36,26 +36,26 @@ fn fixture_path(name: &str) -> Result<RelPath, Box<dyn std::error::Error>> {
 
 fn validate_container(
     source: &str,
-    path: RelPath,
+    path: &RelPath,
 ) -> Result<Vec<enforcer_domain::findings::Finding>, Box<dyn std::error::Error>> {
     let validator = K8sContainerSecurityValidator::new()?;
     Ok(validator.validate(ValidationInput {
         source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
-        file: &path,
+        file: path,
         scope: ScanScope::Files,
     }))
 }
 
 #[test]
 fn hardened_supplied_container_evidence_is_accepted() -> Result<(), Box<dyn std::error::Error>> {
-    let findings = validate_container(&fixture("pass.json")?, fixture_path("pass.json")?)?;
+    let findings = validate_container(&fixture("pass.json")?, &fixture_path("pass.json")?)?;
     assert!(findings.is_empty(), "unexpected findings: {findings:?}");
     Ok(())
 }
 
 #[test]
 fn static_audit_drift_and_escape_facts_are_reported() -> Result<(), Box<dyn std::error::Error>> {
-    let findings = validate_container(&fixture("fail.json")?, fixture_path("fail.json")?)?;
+    let findings = validate_container(&fixture("fail.json")?, &fixture_path("fail.json")?)?;
     assert_eq!(findings.len(), 4, "unexpected findings: {findings:?}");
     assert!(findings
         .iter()
@@ -74,8 +74,10 @@ fn static_audit_drift_and_escape_facts_are_reported() -> Result<(), Box<dyn std:
 #[test]
 fn malformed_envelope_is_rejected_without_external_fallback(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let findings =
-        validate_container(&fixture("malformed.json")?, fixture_path("malformed.json")?)?;
+    let findings = validate_container(
+        &fixture("malformed.json")?,
+        &fixture_path("malformed.json")?,
+    )?;
     assert_eq!(findings.len(), 1);
     assert!(findings[0].detail.as_str().contains("could not be decoded"));
     Ok(())
@@ -84,7 +86,7 @@ fn malformed_envelope_is_rejected_without_external_fallback(
 #[test]
 fn authorization_boundary_fixture_has_no_live_authority_effect(
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let findings = validate_container(&fixture("boundary.json")?, fixture_path("boundary.json")?)?;
+    let findings = validate_container(&fixture("boundary.json")?, &fixture_path("boundary.json")?)?;
     assert!(findings.is_empty(), "unexpected findings: {findings:?}");
     Ok(())
 }
