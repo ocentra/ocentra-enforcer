@@ -3,8 +3,9 @@ import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-import { buildGraphFromConfig, deriveState, graphStatus, listBlocked, listReady, selectNext, validateGraph } from "../scripts/program-graph.mjs";
+import { buildGraphFromConfig, deriveState, graphStatus, listBlocked, listReady, loadGraph, selectNext, validateGraph } from "../scripts/program-graph.mjs";
 
 function fixture(rows, extra = {}) {
   const root = mkdtempSync(join(tmpdir(), "enforcer-program-graph-"));
@@ -197,4 +198,28 @@ test("intent matrix rejects protected skills and duplicate assignments", () => {
   }));
   config.intentMatrices = [{ planKey: "fixture-plan", path: "docs/plans/fixture-plan/intent.json", containerWorkpacks: ["CP09", "CP11"] }];
   assert.throws(() => buildGraphFromConfig(root, config), /protected skill|more than one family/);
+});
+
+test("canonical graph routes the next cloud-security packet after policy integration", () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const graph = loadGraph(root);
+  const selected = selectNext(graph, { plan: "cyberskills-parity-plan" });
+
+  assert.equal(validateGraph(graph).valid, true);
+  assert.equal(selected.id, "WP/CP09/IF-cloud-security/B13");
+  assert.equal(selected.lifecycle, "planned");
+  assert.equal(deriveState(graph, selected), "ready");
+  assert.equal(deriveState(graph, graph.nodes.get("WP/cyberskills-parity-plan/CP09")), "ready");
+  assert.equal(deriveState(graph, graph.nodes.get("WP/cyberskills-parity-plan/CP11")), "done");
+
+  for (let number = 1; number <= 12; number += 1) {
+    const batch = graph.nodes.get(`WP/CP09/IF-cloud-security/B${String(number).padStart(2, "0")}`);
+    assert.equal(deriveState(graph, batch), "validation");
+  }
+
+  assert.deepEqual(selected.dependsOn.map((dependency) => dependency.id), [
+    "WP/cyberskills-parity-plan/CP05",
+    "WP/cyberskills-parity-plan/CP08"
+  ]);
+  assert.deepEqual(selected.dependsOn.map((dependency) => dependency.state), ["done", "done"]);
 });
