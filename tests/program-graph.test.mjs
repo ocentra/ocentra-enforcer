@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import test from "node:test";
 
-import { buildGraphFromConfig, deriveState, listBlocked, listReady, selectNext, validateGraph } from "../scripts/program-graph.mjs";
+import { buildGraphFromConfig, deriveState, graphStatus, listBlocked, listReady, selectNext, validateGraph } from "../scripts/program-graph.mjs";
 
 function fixture(rows, extra = {}) {
   const root = mkdtempSync(join(tmpdir(), "enforcer-program-graph-"));
@@ -81,6 +81,27 @@ test("missing dependency references are actionable", () => {
   const result = validateGraph(buildGraphFromConfig(root, config));
   assert.equal(result.valid, false);
   assert.ok(result.issues.some((issue) => issue.code === "missing-edge-target"));
+});
+
+test("CI lifecycle policy is exposed and rejects unsafe merge behavior", () => {
+  const { root, config } = fixture(["CP00"]);
+  config.policies.ciLifecycle = {
+    watchRequired: true,
+    headPinning: "exact-pr-head",
+    mergeGate: "all-required-checks-success",
+    mergeAction: "merge",
+    deleteBranch: false,
+    failureAction: "report-exact-check-and-stop",
+    stopOn: ["in_progress", "failure", "cancelled", "timed_out", "action_required", "stale", "unstable", "unknown"],
+    postMerge: ["verify-pr-merge-commit", "fetch-canonical-rust-build", "record-graph-lifecycle-evidence", "release-claims"],
+    doesNotProve: ["green CI is packet evidence only"]
+  };
+  const graph = buildGraphFromConfig(root, config);
+  assert.equal(graphStatus(graph).ciLifecycle.mergeGate, "all-required-checks-success");
+  assert.throws(
+    () => buildGraphFromConfig(root, { ...config, policies: { ...config.policies, ciLifecycle: { ...config.policies.ciLifecycle, deleteBranch: true } } }),
+    /invalid CI lifecycle policy.*deleteBranch must be false/
+  );
 });
 
 test("configured lifecycle overrides and control-plane nodes are explicit", () => {

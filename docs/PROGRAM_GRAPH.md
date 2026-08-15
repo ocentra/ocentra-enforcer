@@ -84,6 +84,21 @@ progress look complete by editing a status field. Acquisition, execution,
 proof, and completion transitions remain governed by coordination, the
 workpack, tests, and the boss acceptance gate.
 
+## CI and merge lifecycle
+
+The machine-readable `policies.ciLifecycle` record is part of this graph's
+control plane. A PR packet is watched against its exact head and may be merged
+only when every required CI check reports `success`. `in_progress`, failed,
+cancelled, timed-out, action-required, stale, unstable, or unknown states are
+stop states; the exact check and result must be reported instead of bypassed.
+The configured action is an ordinary merge with branch deletion disabled.
+
+After a green merge, the manager verifies the PR merge commit, fetches the
+canonical `rust-build` head, records graph lifecycle evidence, and releases
+the packet's claims. Green CI proves only the tested commit and packet gates;
+it does not promote CyberSkills decomposition to native implementation,
+executable proof, overall parity, or a security outcome.
+
 ## Adding a plan or workpack
 
 Add the plan's normal documents and `WORKPACK_INDEX.md` under `docs/plans`.

@@ -181,6 +181,34 @@
     "declaredReady": ["READY", "READY-AUDIT", "DESIGN-READY", "DECISION-READY"],
     "hardEdgeKinds": ["depends-on"],
     "pathMustBeRelative": true,
-    "unknownImportedStatusIsNotDone": true
+    "unknownImportedStatusIsNotDone": true,
+    "ciLifecycle": {
+      "watchRequired": true,
+      "headPinning": "exact-pr-head",
+      "mergeGate": "all-required-checks-success",
+      "mergeAction": "merge",
+      "deleteBranch": false,
+      "failureAction": "report-exact-check-and-stop",
+      "stopOn": [
+        "in_progress",
+        "failure",
+        "cancelled",
+        "timed_out",
+        "action_required",
+        "stale",
+        "unstable",
+        "unknown"
+      ],
+      "postMerge": [
+        "verify-pr-merge-commit",
+        "fetch-canonical-rust-build",
+        "record-graph-lifecycle-evidence",
+        "release-claims"
+      ],
+      "doesNotProve": [
+        "green CI proves only the tested commit and changed packet gates",
+        "green CI does not prove native CyberSkills implementation, overall parity, or security outcomes"
+      ]
+    }
   }
 }
