@@ -1,0 +1,17 @@
+d15 Readme Research Grounding — retained proof
+
+Status: GREEN (documentation-only cross-link integrity)
+Commit: 68c9624ec95f3a2850a11dc4a6fdf67a38404f25
+Branch: codex/d15-research-grounding-20260811
+Scope: docs/research-grounding.md and README.md#research-grounding only; no crate, validator, runtime, or product gate.
+
+Checks:
+- docs/research-grounding.md exists.
+- README.md contains the exact `## Research Grounding` section and links to docs/research-grounding.md.
+- Every numbered source reference used by the README section is defined in docs/research-grounding.md.
+- All local links in the new section resolve.
+- The grounding document defines [S1] through [S7], and all references resolve.
+- The section explicitly states that the workpack is documentation-only and ships no validator.
+
+Result: SOURCE_REFS=1,2,3,4,5,6,7; D15_CROSSLINK=PASS
+No cargo or runtime gate is claimed for this workpack.
