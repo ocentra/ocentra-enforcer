@@ -41,7 +41,7 @@ struct SourceValue<'a>(&'a str);
 #[derive(Clone, Copy)]
 struct Predicate(bool);
 
-fn expected_skill(kind: KindValue<'_>) -> Option<ExpectedSkill> {
+fn expected_skill(kind: &KindValue<'_>) -> Option<ExpectedSkill> {
     [
         ("aws-iam-permissions", ExpectedSkill(AWS_IAM_SKILL)),
         ("aws-lambda-execution-role", ExpectedSkill(AWS_LAMBDA_SKILL)),
@@ -59,7 +59,7 @@ fn expected_skill(kind: KindValue<'_>) -> Option<ExpectedSkill> {
     .find_map(|(candidate, skill)| (candidate == kind.0).then_some(skill))
 }
 
-fn valid_ref(value: ReferenceValue<'_>) -> Predicate {
+fn valid_ref(value: &ReferenceValue<'_>) -> Predicate {
     let Some((kind, identifier)) = value.0.split_once(':') else {
         return Predicate(false);
     };
@@ -75,21 +75,21 @@ fn valid_record(record: &RecordWire) -> Predicate {
     let mut refs: BTreeSet<&str> = BTreeSet::new();
     Predicate(
         record.skill_id.as_deref().is_some_and(|skill| {
-            expected_skill(KindValue(&record.kind)).is_some_and(|expected| skill == expected.0)
+            expected_skill(&KindValue(&record.kind)).is_some_and(|expected| skill == expected.0)
         }) && record.refs.len() == 9
             && record
                 .refs
                 .iter()
-                .all(|value| valid_ref(ReferenceValue(value)).0 && refs.insert(value.as_str())),
+                .all(|value| valid_ref(&ReferenceValue(value)).0 && refs.insert(value.as_str())),
     )
 }
 
-fn valid_evidence(evidence: EvidenceValues<'_>) -> Predicate {
+fn valid_evidence(evidence: &EvidenceValues<'_>) -> Predicate {
     let mut seen = BTreeSet::new();
     Predicate(
         !evidence.0.is_empty()
             && evidence.0.iter().all(|entry| {
-                valid_ref(ReferenceValue(&entry.reference)).0
+                valid_ref(&ReferenceValue(&entry.reference)).0
                     && !entry.kind.trim().is_empty()
                     && seen.insert(format!("{}:{}", entry.kind, entry.reference))
             }),
@@ -103,7 +103,7 @@ fn valid_manifest(manifest: &ManifestWire) -> Predicate {
             && !manifest.bundle_id.trim().is_empty()
             && !manifest.owner.trim().is_empty()
             && manifest.scope == "scope:offline-authorized-static-only"
-            && valid_evidence(EvidenceValues(&manifest.evidence)).0
+            && valid_evidence(&EvidenceValues(&manifest.evidence)).0
             && manifest.records.len() == 5
             && manifest
                 .records
@@ -112,7 +112,7 @@ fn valid_manifest(manifest: &ManifestWire) -> Predicate {
     )
 }
 
-fn manifest_is_valid(source: SourceValue<'_>) -> Predicate {
+fn manifest_is_valid(source: &SourceValue<'_>) -> Predicate {
     Predicate(parse(source.0).is_ok_and(|manifest| valid_manifest(&manifest).0))
 }
 
@@ -139,7 +139,7 @@ impl Validator for CloudSecurityManifestB13Validator {
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        if manifest_is_valid(SourceValue(input.source.as_str())).0 {
+        if manifest_is_valid(&SourceValue(input.source.as_str())).0 {
             return Vec::new();
         }
         crate::boundary::finding::from_source(
