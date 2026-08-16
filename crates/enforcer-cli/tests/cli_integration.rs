@@ -284,9 +284,23 @@ fn native_secrets_policy_rejects_and_redacts_inline_credentials(
         .output()?;
     assert_eq!(output.status.code(), Some(1));
     let stdout = String::from_utf8(output.stdout)?;
-    assert!(stdout.contains("SEC-1.1"));
-    assert!(stdout.contains("Inline secrets are forbidden"));
-    assert!(!stdout.contains("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"));
+    let fields = stdout
+        .lines()
+        .map(|line| line.split_whitespace().collect::<Vec<_>>())
+        .find(|fields| {
+            fields.first() == Some(&"[error]")
+                && fields.get(2) == Some(&"SEC-1.1")
+                && fields.get(4) == Some(&"Inline")
+        })
+        .ok_or("missing inline-secret finding")?;
+    assert_eq!(
+        fields.get(4..8),
+        Some(["Inline", "secrets", "are", "forbidden"].as_slice())
+    );
+    assert!(!stdout
+        .as_bytes()
+        .windows("ABCDEFGHIJKLMNOPQRSTUVWXYZ123456".len())
+        .any(|window| window == b"ABCDEFGHIJKLMNOPQRSTUVWXYZ123456"));
     Ok(())
 }
 
@@ -334,10 +348,32 @@ fn native_secrets_policy_still_rejects_product_source_with_configured_exclusions
         .output()?;
     let stdout = String::from_utf8(output.stdout)?;
     assert_eq!(output.status.code(), Some(1));
-    assert!(stdout.contains("src/config.ts:1 SEC-1.1"));
-    assert!(!stdout.contains("crates/sample/fixtures/fail.ts"));
-    assert!(!stdout.contains("vendor/example/SKILL.md"));
-    assert!(!stdout.contains("tests/fixtures/native-policy-secret-fixture.ts"));
+    let finding = stdout
+        .lines()
+        .map(|line| line.split_whitespace().collect::<Vec<_>>())
+        .find(|fields| {
+            fields.first() == Some(&"[error]")
+                && fields.get(1) == Some(&"src/config.ts:1")
+                && fields.get(2) == Some(&"SEC-1.1")
+        })
+        .ok_or("missing product-source secret finding")?;
+    assert_eq!(
+        finding.get(1..3),
+        Some(["src/config.ts:1", "SEC-1.1"].as_slice())
+    );
+    for excluded_path in [
+        "crates/sample/fixtures/fail.ts",
+        "vendor/example/SKILL.md",
+        "tests/fixtures/native-policy-secret-fixture.ts",
+    ] {
+        assert!(!stdout.lines().any(|line| {
+            line.split_whitespace().any(|field| {
+                field
+                    .strip_prefix(excluded_path)
+                    .is_some_and(|suffix| suffix.starts_with(':'))
+            })
+        }));
+    }
     Ok(())
 }
 
@@ -835,12 +871,12 @@ fn install_registers_every_native_harness_and_is_idempotent(
     let gemini: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&json_paths[1])?)?;
     assert_eq!(
-        gemini["mcpServers"][enforcer_mcp::name::SERVER_NAME]["command"],
+        gemini["mcpServers"][enforcer_domain::mcp_types::SERVER_NAME]["command"],
         serde_json::json!(binary.display().to_string())
     );
     let zed: serde_json::Value = serde_json::from_str(&std::fs::read_to_string(&json_paths[7])?)?;
     assert_eq!(
-        zed["context_servers"][enforcer_mcp::name::SERVER_NAME]["command"],
+        zed["context_servers"][enforcer_domain::mcp_types::SERVER_NAME]["command"],
         serde_json::json!(binary.display().to_string())
     );
     let codex_before = std::fs::read(&codex_config)?;
