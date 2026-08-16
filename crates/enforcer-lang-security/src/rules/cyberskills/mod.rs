@@ -17,6 +17,7 @@ pub mod auth_jwt;
 pub mod cloud_aws;
 pub mod cloud_azure;
 pub mod cloud_gcp;
+pub mod cloud_security_b13;
 pub mod cmd_injection;
 pub mod dependency_confusion;
 pub mod docker_daemon;
