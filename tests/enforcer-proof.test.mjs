@@ -24,8 +24,14 @@ const PACK_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const CLI = path.join(PACK_ROOT, "scripts", "rust-rules.mjs");
 const TEST_CLI_MAX_BUFFER = 32 * 1024 * 1024;
 
-function makeProject() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), "ocentra-enforcer-proof-"));
+function makeProject(files = {}) {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), "ocentra-enforcer-proof-"));
+  for (const [relativePath, content] of Object.entries(files)) {
+    const fullPath = path.join(project, relativePath);
+    fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+    fs.writeFileSync(fullPath, content, "utf8");
+  }
+  return project;
 }
 
 test("proof registry routes by file, capability, and explicit proof id", () => {
@@ -259,6 +265,66 @@ test("proof migrate-legacy generates runnable profile proofs after project scrip
   assert.equal(run.ok, true);
   assert.equal(fs.existsSync(path.join(project, "scripts", "test", "tiny-proof.mjs")), false);
   assert.equal(fs.existsSync(path.join(project, "test-results", "tiny-proof", "proof.json")), true);
+});
+
+test("parent mobile profile proof preserves the child iOS default and parent workflow override", () => {
+  const project = makeProject({
+    "platforms/android/parent/settings.gradle": "",
+    "platforms/android/parent/gradlew": "",
+    "platforms/android/parent/gradle/wrapper/gradle-wrapper.jar": "",
+    "platforms/android/parent/app/src/main/AndroidManifest.xml":
+      "android.intent.action.MAIN android.intent.category.LAUNCHER",
+    "platforms/android/parent/app/build.gradle":
+      "namespace = 'ca.ocentra.parent.mobile' applicationId = 'ca.ocentra.parent.mobile'",
+    "platforms/android/parent/app/src/main/java/ca/ocentra/parent/mobile/MainActivity.java":
+      "package ca.ocentra.parent.mobile;",
+    "platforms/android/parent/app/src/main/res/values/strings.xml":
+      "Ocentra Parent Mobile Android scaffold",
+    "platforms/ios/OcentraParentMobile.xcodeproj/project.pbxproj":
+      "PRODUCT_BUNDLE_IDENTIFIER = ca.ocentra.parent.mobile; PRODUCT_NAME = OcentraParentMobile;",
+    "platforms/ios/OcentraParentMobile.xcodeproj/xcshareddata/xcschemes/OcentraParentMobile.xcscheme":
+      "OcentraParentMobile.app",
+    "platforms/ios/OcentraParentMobile/ParentMobileStatusViewController.swift":
+      "Ocentra Parent Mobile iOS scaffold child-agent-parity=not-claimed",
+    "platforms/ios/OcentraParentMobile/Info.plist": "CFBundleIdentifier",
+    "scripts/release/parent-android/build-parent-mobile-package.mjs":
+      "platforms', 'android', 'parent' ocentra-parent-mobile-android-debug-latest.apk",
+    "scripts/release/parent-ios/build-parent-mobile-simulator-app.sh":
+      "OcentraParentMobile.xcodeproj ocentra-parent-mobile-ios-simulator-latest.zip",
+    "scripts/smoke/android-apk-smoke.sh": "bundle_id=\"${2:-ca.ocentra.parent.agent}\"",
+    "scripts/smoke/ios-simulator-smoke.sh": "bundle_id=\"${2:-ca.ocentra.child.agent}\"",
+    ".github/workflows/ci-package-parent-ios.yml":
+      "run: bash scripts/smoke/ios-simulator-smoke.sh target/parent-ios-derived-data/Build/Products/Debug-iphonesimulator/OcentraParentMobile.app ca.ocentra.parent.mobile\n",
+  });
+  const profileScript = path.join(
+    PACK_ROOT,
+    "profiles",
+    "ocentra-parent",
+    "legacy-scripts",
+    "scripts",
+    "test",
+    "parent-mobile-package-source-artifact-proof.mjs",
+  );
+  const childEnvironment = Object.fromEntries(
+    Object.entries(process.env).filter(([name]) => name !== "NODE_TEST_CONTEXT"),
+  );
+  const run = () =>
+    spawnSync(process.execPath, [profileScript], {
+      cwd: project,
+      env: childEnvironment,
+      encoding: "utf8",
+    });
+
+  const passed = run();
+  assert.equal(passed.status, 0, `${passed.stdout}\n${passed.stderr}`);
+
+  fs.writeFileSync(
+    path.join(project, ".github", "workflows", "ci-package-parent-ios.yml"),
+    "run: bash scripts/smoke/ios-simulator-smoke.sh target/parent-ios-derived-data/Build/Products/Debug-iphonesimulator/OcentraParentMobile.app\n",
+    "utf8",
+  );
+  const rejected = run();
+  assert.equal(rejected.status, 1, "parent workflow must pass its bundle id explicitly");
 });
 
 test("proof run stores canonical files, bounded artifacts, status, and claims", () => {

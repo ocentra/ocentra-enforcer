@@ -1,4 +1,4 @@
-import { escapeRegExp, maskRustCode } from "./rust-rules-path-core.mjs";
+import { maskRustCode } from "./rust-rules-path-core.mjs";
 import { withProofEvidenceIndex } from "./rust-rules-source-test-evidence-cache.mjs";
 import { collectTestFunctions } from "./rust-rules-source-test-structure-helpers.mjs";
 import {
@@ -9,6 +9,7 @@ import {
   closingBraceForDefinition,
   roundTripTargets,
 } from "./rust-rules-source-roundtrip-graph.mjs";
+import { testRoundTripsTarget } from "./rust-rules-source-roundtrip-evidence-helpers.mjs";
 
 function roundTripHelperNames(maskedSources) {
   const helpers = new Set();
@@ -33,38 +34,6 @@ function roundTripHelperNames(maskedSources) {
   }
   helpers.delete("");
   return helpers;
-}
-
-function callsRoundTripHelper(testBody, target, helperNames) {
-  const escapedTarget = escapeRegExp(target);
-  const targetValues = targetProjectionValues(testBody, target);
-  for (const helperName of helperNames) {
-    const escapedHelper = escapeRegExp(helperName);
-    const invocation = new RegExp(
-      `\\b${escapedHelper}\\s*::\\s*<\\s*${escapedTarget}\\s*>\\s*\\(`,
-      "u",
-    );
-    if (invocation.test(testBody)) return true;
-    const directProjectionInvocation = new RegExp(
-      `\\b${escapedHelper}\\s*\\(\\s*&?\\s*${escapedTarget}\\b`,
-      "u",
-    );
-    if (directProjectionInvocation.test(testBody)) return true;
-    for (const value of targetValues) {
-      const escapedValue = escapeRegExp(value);
-      const inferredInvocation = new RegExp(
-        `\\b${escapedHelper}\\s*\\(\\s*&?\\s*${escapedValue}\\b\\s*\\)`,
-        "u",
-      );
-      if (inferredInvocation.test(testBody)) return true;
-    }
-  }
-  return false;
-}
-
-function testRoundTripsTarget(testBody, target, helperNames) {
-  if (callsRoundTripHelper(testBody, target, helperNames)) return true;
-  return roundTripsTargetDataflow(testBody, target);
 }
 
 function roundTripEvidenceIndex(candidates) {

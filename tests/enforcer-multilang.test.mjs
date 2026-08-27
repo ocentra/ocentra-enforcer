@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
-import { spawnCli } from "./cli-spawn.mjs";
 import { scanRustDocumentationHints } from "../src/documentation-hints.mjs";
+import {
+  makeProject,
+  parseReport,
+  pythonDoubleCall,
+  pythonDoubleImport,
+  run,
+} from "./enforcer-multilang-test-support.mjs";
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const SCRIPT = path.join(ROOT, "scripts", "rust-rules.mjs");
 const assemble = (...parts) => parts.join("");
 const tsIgnoreComment = assemble("// @ts", "-ignore");
 const zodImport = assemble('import { z } from "zo', 'd";');
@@ -43,27 +45,6 @@ const googleServiceJson = assemble(
   'id":"abc"}',
 );
 const fixtureSecretLine = assemble('token = "', fakeSecretValue, '"\n');
-const pythonDoubleImport = assemble("from unittest.", "m", "ock import M", "ock");
-const pythonDoubleCall = assemble("M", "ock()");
-
-function makeProject(files) {
-  const dir = fs.mkdtempSync(
-    path.join(os.tmpdir(), "ocentra-enforcer-multilang-"),
-  );
-  for (const [rel, content] of Object.entries(files)) {
-    const full = path.join(dir, rel);
-    fs.mkdirSync(path.dirname(full), { recursive: true });
-    fs.writeFileSync(full, content.trimStart(), "utf8");
-  }
-  return dir;
-}
-
-function run(project, args) {
-  return spawnCli(process.execPath, [SCRIPT, ...args, "--root", project], {
-    encoding: "utf8",
-  });
-}
-
 test("BOUND-1.2 accepts a raw boundary type converted by an adjacent boundary module", () => {
   const project = makeProject({
     "src/boundary/report.ts": `
@@ -82,7 +63,7 @@ export function toDomain(value: BranchReportDto): { checked: true } { return { c
   fs.unlinkSync(path.join(project, "src", "boundary", "report-payload.ts"));
   const fail = run(project, ["scan", "--json", "--languages", "typescript,common", "--files", "src/boundary/report.ts"]);
   assert.notEqual(fail.status, 0, fail.stdout || fail.stderr);
-  assert.equal(JSON.parse(fail.stdout).violations.some((finding) => finding.ruleId === "BOUND-1.2"), true);
+  assert.equal(parseReport(fail).violations.some((finding) => finding.ruleId === "BOUND-1.2"), true);
 });
 
 test("BOUND-1.3 distinguishes raw JSON decoding from a domain decision", () => {
@@ -126,7 +107,7 @@ fn authorize(account: Account) {
     "src/boundary/authorize.rs",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const violations = JSON.parse(result.stdout).violations;
+  const violations = parseReport(result).violations;
   assert.equal(
     violations.some((violation) => violation.ruleId === "BOUND-1.3" && violation.file === "src/boundary/decode.rs"),
     false,
@@ -187,7 +168,7 @@ ${testSkipCall}("bad", () => {
     "tests",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
+  const report = parseReport(result);
   assert.deepEqual(report.languages, ["typescript", "common"]);
   const ids = report.violations.map((violation) => violation.ruleId).sort();
   assert.equal(ids.includes("TS-1.1"), true);
@@ -220,7 +201,7 @@ spawnSync("cmd", ["/c", "npm", "test"]);
     "scripts",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
+  const report = parseReport(result);
   const ids = report.violations.map((violation) => violation.ruleId).sort();
   assert.equal(ids.includes("SEC-1.2"), true);
   assert.equal(ids.includes("GEN-1.2"), true);
@@ -321,7 +302,7 @@ test("codec parses valid payload", () => {
     "tests/user-codec.test.ts",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  const ids = new Set(parseReport(result).violations.map((violation) => violation.ruleId));
   for (const ruleId of [
     "SEC-2.1",
     "SEC-2.2",
@@ -368,7 +349,7 @@ test("codec parses valid payload", () => {
   ]) {
     assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
   }
-  for (const violation of JSON.parse(result.stdout).violations.filter((finding) => finding.ruleId.startsWith("SEC-"))) {
+  for (const violation of parseReport(result).violations.filter((finding) => finding.ruleId.startsWith("SEC-"))) {
     assert.equal(/ghp_|AKIA|sk_live_|eyJ/.test(violation.source ?? ""), false, `${violation.ruleId} source is redacted`);
   }
 });
@@ -398,7 +379,7 @@ def test_app():
     "tests",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
+  const report = parseReport(result);
   const ids = report.violations.map((violation) => violation.ruleId).sort();
   assert.equal(ids.includes("PY-1.1"), true);
   assert.equal(ids.includes("PY-1.2"), true);
@@ -488,7 +469,7 @@ test("no assertion", () => {
     "tests/domain.test.ts",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  const ids = new Set(parseReport(result).violations.map((violation) => violation.ruleId));
   for (const ruleId of [
     "TS-6.1",
     "TS-6.2",
@@ -576,7 +557,7 @@ export function build() {
     "src/domain.ts",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const report = JSON.parse(result.stdout);
+  const report = parseReport(result);
   const uiViolations = report.violations.filter((violation) => violation.file === "src/ui/component.ts");
   assert.equal(uiViolations.some((violation) => violation.ruleId === "TS-6.28"), false);
   assert.equal(uiViolations.some((violation) => violation.ruleId === "TS-6.39"), false);
@@ -600,7 +581,7 @@ export { UserId } from "./user-id";
     "src/index.ts",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  const ids = new Set(parseReport(result).violations.map((violation) => violation.ruleId));
   assert.equal(ids.has("TS-6.14"), true);
 });
 
@@ -623,7 +604,7 @@ test("TypeScript scanner catches non-strict tsconfig", () => {
     "tsconfig.json",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  const ids = new Set(parseReport(result).violations.map((violation) => violation.ruleId));
   assert.equal(ids.has("TS-7.1"), true);
   for (const ruleId of ["TS-7.2", "TS-7.3", "TS-7.4", "TS-7.5", "TS-7.6", "TS-7.7", "TS-7.8", "TS-7.9"]) {
     assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
@@ -660,181 +641,10 @@ test("TypeScript scanner catches package toolchain policy", () => {
     "packages/no-lock/package.json",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  const ids = new Set(parseReport(result).violations.map((violation) => violation.ruleId));
   for (const ruleId of ["TS-7.10", "TS-7.11", "TS-7.14", "TS-7.15"]) {
     assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
   }
-});
-
-test("Python scanner catches strict source slop rules", () => {
-  const project = makeProject({
-    "src/service.py": `
-from typing import Any, Optional, TypedDict, NamedTuple
-from legacy import *
-from pydantic import BaseModel
-from dataclasses import dataclass
-from datetime import datetime
-from ..bad import value
-import importlib
-import os
-import pickle
-import requests
-import subprocess
-import time
-import yaml
-
-UserId = str
-CACHE = {}
-
-class UserShape(TypedDict):
-    name: Optional[str]
-
-class UserModel(BaseModel):
-    name: str | None
-
-@dataclass
-class Point:
-    x: int
-
-class Pair(NamedTuple):
-    left: str
-    right: str
-
-async def load(user_id: str, payload: dict[str, Any], headers={}):
-    try:
-        print(user_id)
-        assert user_id
-        now = datetime.now()
-        eval("1 + 1")
-        os.system("echo bad")
-        os.getenv("TOKEN")
-        pickle.loads(b"bad")
-        yaml.load("x: 1")
-        importlib.import_module("legacy")
-        subprocess.run("echo bad", shell=True)
-        time.sleep(1)
-        send_async()
-        asyncio.create_task(send_async())
-        return requests.get(user_id).json()
-    except Exception:
-        pass
-
-def load_bare(url: Any) -> dict[str, Any]:
-    try:
-        return {}
-    except:
-        return {}
-`,
-    "src/utils.py": "VALUE = 1\n",
-  });
-  const result = run(project, [
-    "scan",
-    "--json",
-    "--languages",
-    "python,common",
-    "--files",
-    "src/service.py",
-    "src/utils.py",
-  ]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
-  for (const ruleId of [
-    "PY-4.1",
-    "PY-4.2",
-    "PY-4.3",
-    "PY-4.4",
-    "PY-4.5",
-    "PY-4.6",
-    "PY-4.7",
-    "PY-4.8",
-    "PY-4.9",
-    "PY-4.10",
-    "PY-4.11",
-    "PY-4.12",
-    "PY-4.13",
-    "PY-4.14",
-    "PY-4.15",
-    "PY-4.16",
-    "PY-4.17",
-    "PY-4.18",
-    "PY-4.19",
-    "PY-4.20",
-    "PY-4.21",
-    "PY-4.22",
-    "PY-4.23",
-    "PY-4.24",
-    "PY-4.25",
-    "PY-4.26",
-    "PY-4.27",
-    "PY-4.28",
-    "PY-4.29",
-    "PY-4.30",
-    "PY-4.31",
-    "PY-4.32",
-    "PY-4.33",
-    "PY-4.34",
-    "PY-4.35",
-  ]) {
-    assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
-  }
-});
-
-test("Python scanner catches weak test assertions", () => {
-  const project = makeProject({
-    "tests/test_user.py": `
-import requests
-import time
-${pythonDoubleImport}
-
-import pytest
-
-@pytest.mark.xfail(reason="not deterministic")
-def test_expected_failure():
-    assert True
-
-def test_user(user):
-    assert user
-
-def test_empty():
-    pass
-
-def test_no_assert(monkeypatch):
-    monkeypatch.setattr("pkg.value", 1)
-    requests.get("https://example.test")
-    time.sleep(1)
-    ${pythonDoubleCall}
-`,
-    "tests/test_parser.py": `
-def test_parser_valid():
-    assert parse_user("1") == {"id": "1"}
-`,
-    "tests/test_exception.py": `
-def test_error_path():
-    assert validate_user("bad") is None
-`,
-  });
-  const result = run(project, [
-    "scan",
-    "--json",
-    "--languages",
-    "python,common",
-    "--files",
-    "tests/test_user.py",
-    "tests/test_parser.py",
-    "tests/test_exception.py",
-  ]);
-  assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
-  assert.equal(ids.has("PY-6.1"), true);
-  assert.equal(ids.has("PY-6.2"), true);
-  assert.equal(ids.has("PY-6.3"), true);
-  assert.equal(ids.has("PY-6.4"), true);
-  assert.equal(ids.has("PY-6.5"), true);
-  assert.equal(ids.has("PY-6.6"), true);
-  assert.equal(ids.has("PY-6.7"), true);
-  assert.equal(ids.has("PY-6.8"), true);
-  assert.equal(ids.has("PY-6.9"), true);
-  assert.equal(ids.has("PY-6.10"), true);
 });
 
 test("common scanner catches boundary and architecture violations", () => {
@@ -920,7 +730,7 @@ export const a11 = 11;
     "src/public-api.ts",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  const ids = new Set(parseReport(result).violations.map((violation) => violation.ruleId));
   for (const ruleId of [
     "BOUND-1.1",
     "BOUND-1.2",
@@ -985,7 +795,7 @@ export const note = "documentation only";
     "src/notes.ts",
   ]);
   assert.equal(commentOnly.status, 0, commentOnly.stdout || commentOnly.stderr);
-  const commentOnlyIds = new Set(JSON.parse(commentOnly.stdout).violations.map((violation) => violation.ruleId));
+  const commentOnlyIds = new Set(parseReport(commentOnly).violations.map((violation) => violation.ruleId));
   assert.equal(commentOnlyIds.has("ARCH-1.9"), false);
 
   const selfImportProject = makeProject({
@@ -1012,7 +822,7 @@ export const value = cycle;
     "src/cycle.ts",
   ]);
   assert.notEqual(selfImport.status, 0, selfImport.stdout || selfImport.stderr);
-  const selfImportIds = new Set(JSON.parse(selfImport.stdout).violations.map((violation) => violation.ruleId));
+  const selfImportIds = new Set(parseReport(selfImport).violations.map((violation) => violation.ruleId));
   assert.equal(selfImportIds.has("ARCH-1.9"), true);
 });
 
@@ -1045,7 +855,7 @@ git+https://github.com/example/bad.git
     "packages/no-pyproject/requirements.txt",
   ]);
   assert.notEqual(result.status, 0, result.stdout || result.stderr);
-  const ids = new Set(JSON.parse(result.stdout).violations.map((violation) => violation.ruleId));
+  const ids = new Set(parseReport(result).violations.map((violation) => violation.ruleId));
   for (const ruleId of ["PY-5.1", "PY-5.2", "PY-5.3", "PY-5.4", "PY-5.7", "PY-5.8", "PY-5.9", "PY-5.10"]) {
     assert.equal(ids.has(ruleId), true, `${ruleId} should fail`);
   }
