@@ -53,11 +53,16 @@ test('parent mobile release scripts and smoke inputs are separate from child age
   const iosRelease = readRepoFile('scripts/release/parent-ios/build-parent-mobile-simulator-app.sh');
   const androidSmoke = readRepoFile('scripts/smoke/android-apk-smoke.sh');
   const iosSmoke = readRepoFile('scripts/smoke/ios-simulator-smoke.sh');
+  const parentIosWorkflow = readRepoFile('.github/workflows/ci-package-parent-ios.yml');
 
   assert.match(androidRelease, /platforms',\s*'android',\s*'parent'/u);
   assert.match(androidRelease, /ocentra-parent-mobile-android-debug-latest\.apk/u);
   assert.match(iosRelease, /OcentraParentMobile\.xcodeproj/u);
   assert.match(iosRelease, /ocentra-parent-mobile-ios-simulator-latest\.zip/u);
   assert.match(androidSmoke, /\$\{2:-ca\.ocentra\.parent\.agent\}/u);
-  assert.match(iosSmoke, /\$\{2:-ca\.ocentra\.parent\.agent\}/u);
+  assert.match(iosSmoke, /\$\{2:-ca\.ocentra\.child\.agent\}/u);
+  assert.match(
+    parentIosWorkflow,
+    /run: bash scripts\/smoke\/ios-simulator-smoke\.sh\s+\S*OcentraParentMobile\.app\s+ca\.ocentra\.parent\.mobile(?:\s|$)/mu
+  );
 });
