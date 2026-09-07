@@ -1,0 +1,81 @@
+a01 Cargo workspace and toolchain proof packet
+===============================================
+
+PROOF STATUS: PARTIAL / PENDING (NOT GREEN)
+This packet records exact-SHA gate evidence and preserves the remaining
+acceptance gaps. It does not promote a01 or any downstream workpack.
+
+Exact source and environment
+----------------------------
+- Candidate/source SHA: 7d832c0487093487d8573b55142cbea541dbab33
+- Independent worktree: E:\a01-repair-20260811 (clean detached checkout)
+- Cargo home: E:\a01-repair-cargo-20260811
+- Target dir: E:\a01-repair-target-20260811
+- Temp/TMP: E:\a01-repair-tmp-20260811
+- CARGO_BUILD_JOBS=1; CARGO_INCREMENTAL=0
+- cargo: 1.95.0 (f2d3ce0bd 2026-03-21)
+- rustc: 1.95.0 (59807616 2026-04-14)
+- cargo-deny: 0.20.2
+- cargo-audit: 0.22.1
+- Cargo.lock SHA-256: 2392597A8E34EBC87B57DF4BCB4B0250A5CA4220B72DECB423C5255C401DB640
+- Cargo.toml SHA-256: FDB357D2E9595D537B1756ED9FDD88ECF4BED44CCA0C4D7D301D9B4475BBA686
+- rust-toolchain.toml SHA-256: 12DC5D64DBD96C1B07BE2943241D52D9F6127A79BA47A820455BA7B873FC896A
+- deny.toml SHA-256: E86DC1DCFBF66A5FBAF18F3271FCE7F1EB418B9C3A0882915D2F6E9791CBE44D
+- .github/workflows/ci.yml SHA-256: C7F0858FCE0950D4F538F8325D939F7CE07D0FA1F2EC33FC4234F84ED77ED503
+- package.json SHA-256: 17EB9708B3B2DEF53C6F4A63D6B14C16CCC744910777AB8890397302D321CCD0
+
+Current independent gates (2026-08-11)
+----------------------------------------
+- `node scripts/check-cargo-workspace-members.mjs --fmt-check`: exit 0;
+  30 product packages / 0 vendor packages. Log SHA-256
+  `6C2C4073A06ACB5C60FEB6EEE7B201D24C9A5C3C0F91D3BCAEECCB8F058CD638`.
+- `cargo metadata --locked --no-deps --format-version 1`: exit 0. Log SHA-256
+  `41AC6C050D3B736FBDBD69A632BF3EB7C36BA2B2283C30823AD5294D6B5BCE3F`.
+- `cargo deny check`: exit 0; advisories, bans, licenses, and sources are
+  accepted, with duplicate-version warnings retained. Log SHA-256
+  `8ED7D8F50782BD1231A8C03600442DEA749B1665A4E54CCAD6A942EE78A487CA`.
+- `cargo audit --deny warnings`: exit 0; 1,211 advisories loaded and 574
+  dependencies scanned. Log SHA-256
+  `37EE21C4FE9CBCF02C83495DDD625F6DAC1312BEEC44B2318EF61FB9A7153C57`.
+- `cargo test -p enforcer-rules --locked`: exit 0; 38 unit tests and all
+  registry/fixture/version-drift integration groups passed.
+- `node --test tests/cargo-workspace-members.test.mjs`: exit 0; 6 tests,
+  including the seeded product-manifest case with `[lints] workspace = true`
+  removed; that case fails closed. The same validation is now part of
+  `node scripts/check-cargo-workspace-members.mjs`, which exits 0 against all
+  30 current product packages and reports `0 vendor packages`.
+- `cargo clippy --locked --workspace --all-targets --all-features -- -D warnings`:
+  exit 0 after the full native check. Existing ts-rs attribute notes did not
+  change the exit class.
+- `cargo build --workspace --locked`: exit 0 after the full native build.
+
+The bounded workspace-test runner was started with 484 targets / 78 batches
+and stopped after the first three binary builds to avoid duplicating the
+authoritative full-workspace receipt below. That partial run is not a test
+verdict. The committed exact-SHA full-workspace receipt from the prior clean
+audit remains authoritative: `GITHUB_HEAD_REF=rust-build cargo test
+--workspace --locked` exit 0, raw log SHA-256
+`B123640C7B77FFFD2368BA1DAE263C5884B1437460032D92518ECA32B892FE52`.
+
+Historical deviation and acceptance gaps
+-----------------------------------------
+- Raw `cargo fmt --all --check` still exits with Windows OS error 206 while
+  traversing vendored tree-sitter sources. The checked-in CI gate now uses the
+  bounded package helper above; all 30 package-scoped formatter checks pass.
+- The package-level `[lints] workspace = true` schema gate is now measured by
+  the workspace-member boundary fixture/test above. The historical named
+  `enforcer-lang-rust` deny-wall fixture paths remain absent because the
+  consumer-repo T1 validator implementation is owned by downstream rule/
+  language packs, not this a01 root-manifest gate; no status promotion is
+  authorized until the remaining package cutover is complete.
+- package.json still carries the live legacy Node/MJS bins/runtime. Its
+  removal is explicitly deferred until the arc-21/arc-22/a10 cutover; this is
+  not silently counted as a01 completion.
+
+Scope and custody
+-----------------
+All repository/build changes in this packet are absent from the detached
+worktree; logs and targets are disposable E: evidence. No plan status,
+WORKPACK_INDEX status, graph node, frozen MJS authority, protected vendor
+state, or manager-owned checkout was changed. This packet proves only the
+listed exact-SHA gates and preserves the stated gaps.

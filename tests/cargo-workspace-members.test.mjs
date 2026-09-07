@@ -13,7 +13,10 @@ function fixture() {
   for (const manifest of manifests) {
     const absolute = path.join(root, manifest);
     mkdirSync(path.dirname(absolute), { recursive: true });
-    writeFileSync(absolute, "[package]\nname = \"fixture\"\nversion = \"0.0.0\"\n");
+    writeFileSync(
+      absolute,
+      "[package]\nname = \"fixture\"\nversion = \"0.0.0\"\n\n[lints]\nworkspace = true\n",
+    );
   }
   const packages = manifests.map((manifest, index) => ({
     id: `product-${index}`,
@@ -33,6 +36,24 @@ test("accepts all and only top-level product workspace packages", (t) => {
     workspace_default_members: ids,
   });
   assert.equal(result.ok, true, result.errors.join("\n"));
+});
+
+test("rejects a product package that drops the workspace lint opt-in", (t) => {
+  const { root, manifests, packages } = fixture();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(
+    path.join(root, manifests[1]),
+    "[package]\nname = \"fixture\"\nversion = \"0.0.0\"\n",
+  );
+  const ids = packages.map((pkg) => pkg.id);
+  const result = validateCargoWorkspaceMembers(root, {
+    packages,
+    workspace_members: ids,
+    workspace_default_members: ids,
+  });
+  assert.equal(result.ok, false);
+  assert.match(result.errors.join("\n"), /missing \[lints\] workspace = true/u);
+  assert.match(result.errors.join("\n"), /crates\/enforcer-b\/Cargo.toml/u);
 });
 
 test("rejects a missing product package", (t) => {
