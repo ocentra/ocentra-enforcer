@@ -12,7 +12,7 @@
 > Proof rule: Before DONE, select tests in TEST_PROOF_EXPECTATIONS.md and update proof rows.
 <!-- /agent-capsule -->
 
-- owns: `docs/research-grounding.md, README.md#research-grounding`
+- owns: `docs/research-grounding.md, README.md#research-grounding, docs/plans/enforcer-selfhost-plan/workpacks/d15-readme-research-grounding.md, docs/plans/enforcer-selfhost-plan/NEXT_ACTIONS.md`
 - deps: `none`
 - tier: `P0 contract/schema`
 
@@ -25,13 +25,13 @@ The current `README.md` asserts the enforcer's value without cited evidence. ADB
 Adopt the cited evidence in the README as a "Research Grounding" section backed by `docs/research-grounding.md`, so design claims trace to sources. Doc-only workpack — no crate, no `Validator`, no gate.
 
 ## Requirement Checklist
-- [ ] Create `docs/research-grounding.md` listing each borrowed idea (context budget, mechanical AST-over-prose enforcement, grandfather ratchet, deferred-work gate, rules-as-structured-data) with a citation.
-- [ ] Add a `## Research Grounding` section to `README.md` linking to it.
-- [ ] Each design claim in the new README section maps to a numbered source in the grounding doc.
-- [ ] Clearly scope this as documentation: it enforces nothing, defines no crate, and ships no `Validator`.
+- [x] Create `docs/research-grounding.md` listing each borrowed idea (context budget, mechanical AST-over-prose enforcement, grandfather ratchet, deferred-work gate, rules-as-structured-data) with a citation.
+- [x] Add a `## Research Grounding` section to `README.md` linking to it.
+- [x] Each design claim in the new README section maps to a numbered source in the grounding doc.
+- [x] Clearly scope this as documentation: it enforces nothing, defines no crate, and ships no `Validator`.
 
 ## Acceptance And Proof
-Tier: documentation, P0 contract/schema (content deliverable, no runtime tier). Proof is artifact existence and cross-link integrity: `docs/research-grounding.md` exists, the README section links to it, and every claim references a numbered source. No `cargo test` gate is claimed — this is explicitly a doc-only borrow, and that scoping is the honesty guardrail per doctrine (no prose masquerading as a check).
+Tier: documentation, P0 contract/schema (content deliverable, no runtime tier). Proof is artifact existence and cross-link integrity: `docs/research-grounding.md` exists, the README section links to it, and every claim references a numbered source. The retained result is `proof/plan/d15-research-grounding.txt` from exact commit `68c9624ec95f3a2850a11dc4a6fdf67a38404f25`. No `cargo test` gate is claimed — this is explicitly a doc-only borrow, and that scoping is the honesty guardrail per doctrine (no prose masquerading as a check).
 
 ## Parallel Ownership Notes
 `deps: none`. Owns `docs/research-grounding.md` and a README anchor section, disjoint from d09 (agent docs) and d14 (skills); fully concurrent. Does not gate any build and touches no crate.
