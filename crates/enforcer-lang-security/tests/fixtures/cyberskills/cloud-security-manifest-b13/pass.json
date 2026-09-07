@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "bundleId": "cp09-cloud-security-b13-pass",
+  "owner": "owner:security-engineering",
+  "scope": "scope:offline-authorized-static-only",
+  "evidence": [
+    { "kind": "authorization", "reference": "evidence:written-scope" },
+    { "kind": "source", "reference": "evidence:cp08-provenance" },
+    { "kind": "owner", "reference": "owner:security-engineering" }
+  ],
+  "records": [
+    {
+      "kind": "aws-iam-permissions",
+      "skillId": "securing-aws-iam-permissions",
+      "refs": ["account:fixture", "principal:declared", "policy:fixture", "action:declared", "resource:declared", "condition:declared", "boundary:declared", "owner:iam-security", "evidence:iam"]
+    },
+    {
+      "kind": "aws-lambda-execution-role",
+      "skillId": "securing-aws-lambda-execution-roles",
+      "refs": ["function:fixture", "role:declared", "policy:fixture", "trust:declared", "runtime:declared", "package:fixture", "permission:review-only", "owner:serverless-security", "evidence:lambda"]
+    },
+    {
+      "kind": "azure-defender-control",
+      "skillId": "securing-azure-with-microsoft-defender",
+      "refs": ["tenant:fixture", "subscription:declared", "defender:declared", "workspace:declared", "alert:fixture", "policy:declared", "resource:declared", "owner:cloud-security", "evidence:defender"]
+    },
+    {
+      "kind": "container-registry-image",
+      "skillId": "securing-container-registry-images",
+      "refs": ["registry:fixture", "repository:declared", "image:fixture", "digest:declared", "tag:declared", "scan:review-only", "provenance:declared", "owner:container-security", "evidence:registry"]
+    },
+    {
+      "kind": "kubernetes-cloud-hardening",
+      "skillId": "securing-kubernetes-on-cloud",
+      "refs": ["cluster:fixture", "namespace:declared", "pod:fixture", "rbac:declared", "network-policy:declared", "image:declared", "admission:review-only", "owner:cluster-security", "evidence:kubernetes"]
+    }
+  ]
+}
