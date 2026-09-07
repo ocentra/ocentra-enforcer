@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-27",
+  "family": "IF/digital-forensics",
+  "baselineCommit": "4e2970f011e77de7cc0aff0f83661dfd2cbabc1e",
+  "scope": "Retain advisory and manual content for the deterministic digital-forensics packet from immutable CP08 evidence; no native implementation, live acquisition, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "extracting-credentials-from-memory-dump",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/extracting-credentials-from-memory-dump/SKILL.md",
+        "sha256": "98f1c59cb5c0641612a46c62fb0ff5a95f75d22b4b881cb23cb1b3586291bb96",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Extracting Credentials from Memory Dump:L62"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-31/decomposition.json",
+        "artifactSha256": "5e9ca87a968fea1833a060b4be25b16c3bb08999719fc7a8f8863f415dd30138"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "extracting-windows-event-logs-artifacts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/extracting-windows-event-logs-artifacts/SKILL.md",
+        "sha256": "5a48d7196b8adbba0f4151e09ee2f827a1dfbd9ffeb13feba1f43da34be8e846",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Extracting Windows Event Logs Artifacts:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-11/decomposition.json",
+        "artifactSha256": "f1c267048d428ced544b01b54b6b3cf0e3d0e20af06b5901a0c88cf050aec63e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "generating-forensic-timelines-with-hayabusa",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/generating-forensic-timelines-with-hayabusa/SKILL.md",
+        "sha256": "db4a49213bc199be933d75b9e80c8ecfde4a9cb4839ca6e4b3dbc09848846645",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Generating Forensic Timelines with Hayabusa:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-23/decomposition.json",
+        "artifactSha256": "3421408d66a97bf6367c00b94c6a3a7cdfb2db21e24a1faa95cd533372679334"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "investigating-ransomware-attack-artifacts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/investigating-ransomware-attack-artifacts/SKILL.md",
+        "sha256": "69645e50cba741c61cc6e52316f5617224c44826bc1c699203d40cee81d25e1e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Investigating Ransomware Attack Artifacts:L57"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-29/decomposition.json",
+        "artifactSha256": "03301b6d982d52557e5afa50c49e8a63659344aa0d310f059a48f95e2c078903"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "parsing-artifacts-with-eric-zimmerman-tools",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/parsing-artifacts-with-eric-zimmerman-tools/SKILL.md",
+        "sha256": "a88e86bb9ab6eaf0edfce5c55d24497776f2ea4860885e1af03ff70435ca08ee",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Parsing Artifacts with Eric Zimmerman Tools:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-39/decomposition.json",
+        "artifactSha256": "d0b8a9fe21e9a30c35c3a8db24aa3cb75d994b477230b575adcf1af2dd63de1a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-cloud-forensics-investigation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-forensics-investigation/SKILL.md",
+        "sha256": "dfb35d2544c7c4f280212c817b8b7183d3e75b09a774d052204401dc60a65aa9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Cloud Forensics Investigation:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-23/decomposition.json",
+        "artifactSha256": "3421408d66a97bf6367c00b94c6a3a7cdfb2db21e24a1faa95cd533372679334"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-cloud-storage-forensic-acquisition",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-storage-forensic-acquisition/SKILL.md",
+        "sha256": "a551fb4257eff91f7b0a8dcf9e54b41c4da94b555fcd5abdf0cbef399aab65df",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Cloud Storage Forensic Acquisition:L43"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-31/decomposition.json",
+        "artifactSha256": "5e9ca87a968fea1833a060b4be25b16c3bb08999719fc7a8f8863f415dd30138"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-file-carving-with-foremost",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-file-carving-with-foremost/SKILL.md",
+        "sha256": "382687fc8fdd19c67ef0cf827476da9a2f1a330cb2735a84270d72a452fbf406",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing File Carving with Foremost:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-39/decomposition.json",
+        "artifactSha256": "d0b8a9fe21e9a30c35c3a8db24aa3cb75d994b477230b575adcf1af2dd63de1a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-linux-log-forensics-investigation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-linux-log-forensics-investigation/SKILL.md",
+        "sha256": "9aa9ba472c72695f4a23a35510e34a9b78329158c034aa1e470db4a1f2365b8e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Linux Log Forensics Investigation:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-12/decomposition.json",
+        "artifactSha256": "bb8dfde4dff8786b08a57541aa6542b96bcf3d739a1ad8ad488eb4b7ea596e05"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-log-analysis-for-forensic-investigation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-log-analysis-for-forensic-investigation/SKILL.md",
+        "sha256": "2fbbcad186911c72ce51ee68eb7042a4673e5cd8fd9d332fefe6f0ee40714f13",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Log Analysis for Forensic Investigation:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-23/decomposition.json",
+        "artifactSha256": "3421408d66a97bf6367c00b94c6a3a7cdfb2db21e24a1faa95cd533372679334"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain forensic artifact, metadata, hash, timeline, provenance, evidence-chain, acquisition-plan, and analyst guidance.",
+        "notProved": [
+          "Guidance is not forensic acquisition or validation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, legal scope, privacy, chain of custody, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.",
+        "notProved": [
+          "No live acquisition or evidentiary conclusion is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live disk imaging, browser, Autopsy, Docker, email, Linux host, kernel, file system, MFT, PST, memory, device, cloud, endpoint, network, packet, database, acquisition, imaging, or production execution is proved.",
+    "No credential extraction, file recovery, timeline truth, hash validity, chain-of-custody validity, evidentiary validity, attribution, remediation, recovery, privacy, legal, or security outcome is proved.",
+    "The remaining 11 digital-forensics skills are not included in this B03 packet and remain unretained until later graph-selected packets.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

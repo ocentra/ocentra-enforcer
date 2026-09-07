@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "ul01.current-reconciliation.v1",
+  "workpackId": "EXT/UL01",
+  "baseCommit": "2edd1aba40fc786da94cc8ac40eee4efe93d750b",
+  "generatedAtUtc": "2026-08-09T19:04:46.7149341Z",
+  "snapshotKind": "current shape-driven doctrine resolver audit with opaque verdict hardening",
+  "authority": {
+    "domainOwner": "crates/enforcer-domain/src/doctrine_profile_types.rs",
+    "configBoundary": "crates/enforcer-config/src/boundary/doctrine_profile.rs",
+    "focusedTest": "crates/enforcer-config/tests/doctrine_profile.rs",
+    "profileRoot": "crates/enforcer-config/profiles/doctrine",
+    "authorityReason": "Validated doctrine identities and verdict construction belong to the domain crate; JSON field names, profile loading, and embedded profile selection remain in the config boundary."
+  },
+  "sourceEvidence": [
+    {
+      "path": "crates/enforcer-domain/src/doctrine_profile_types.rs",
+      "sha256": "803bb02d5a345451215f8b0fff8da46cb16925f1fbbdfca9c48efc86b0fdf33f",
+      "bytes": 23432,
+      "role": "closed domain identities, profile resolution, and opaque verdict state"
+    },
+    {
+      "path": "crates/enforcer-config/src/boundary/doctrine_profile.rs",
+      "sha256": "387586f2839a0a80e36979794a628120be8e2c8f44ee392ec7b398919b393374",
+      "bytes": 10299,
+      "role": "serde boundary, typed conversion, duplicate rejection, embedded profile lookup"
+    },
+    {
+      "path": "crates/enforcer-config/tests/doctrine_profile.rs",
+      "sha256": "f4983c7aace70bfe736bc5af70461a596de6461f3a46ff412ace68b8fde0ed91",
+      "bytes": 4753,
+      "role": "positive resolution, negative decoding, disabled explanation, and round-trip evidence"
+    },
+    {
+      "path": "crates/enforcer-config/tests/fixtures/doctrine_profile/malformed-unknown-family.json",
+      "sha256": "e4fef48a8b7ca0947307aee56d422639b87f63eb489910493de352a9b8c40074",
+      "bytes": 414,
+      "role": "negative unknown-family fixture"
+    },
+    {
+      "path": "crates/enforcer-config/tests/fixtures/doctrine_profile/disabled-requirement.json",
+      "sha256": "f2143cc5ecb353f18464b74d3f8810e36ef1362c5999e5842698a893851f2ccd",
+      "bytes": 1379,
+      "role": "negative visible-disabled-requirement fixture"
+    }
+  ],
+  "profileEvidence": [
+    {
+      "path": "crates/enforcer-config/profiles/doctrine/effect-default.json",
+      "sha256": "9ed1aff7f5c47e62d8fd2800e9e0e77a1e33b712c14adec1da11fa499e7355dd",
+      "bytes": 1330,
+      "profileName": "effect-default",
+      "language": "typescript",
+      "schemaVersion": 1,
+      "requirementCount": 4,
+      "families": ["effect", "zod", "valibot"],
+      "compatibility": "Effect remains accepted for the existing FE-EFFECT-1.1 default toggle."
+    },
+    {
+      "path": "crates/enforcer-config/profiles/doctrine/zod.json",
+      "sha256": "af493dec0c646dcfdde5620d1c9a8aa2e4ff216e4ce272fcb996e45deb2b219d",
+      "bytes": 1319,
+      "profileName": "zod",
+      "language": "typescript",
+      "schemaVersion": 1,
+      "requirementCount": 4,
+      "families": ["effect", "zod", "valibot"],
+      "compatibility": "Zod is accepted only when the selected profile data enables it."
+    }
+  ],
+  "opaqueVerdict": {
+    "publicType": "DoctrineVerdict",
+    "construction": "private resolver constructors only",
+    "inspection": ["is_accepted", "is_rejected", "is_requirement_disabled"],
+    "ruleCodeConstruction": "blocked by private state and private constructors"
+  },
+  "resolutionMatrix": [
+    {
+      "profile": "effect-default",
+      "language": "typescript",
+      "requirement": "schema-required",
+      "family": "effect",
+      "verdict": "accepted"
+    },
+    {
+      "profile": "effect-default",
+      "language": "typescript",
+      "requirement": "schema-required",
+      "family": "zod",
+      "verdict": "rejected"
+    },
+    {
+      "profile": "zod",
+      "language": "typescript",
+      "requirement": "schema-required",
+      "family": "zod",
+      "verdict": "accepted"
+    },
+    {
+      "profile": "disabled-requirement",
+      "language": "typescript",
+      "requirement": "parse-at-boundary",
+      "family": "effect",
+      "verdict": "requirement-disabled",
+      "explanation": {
+        "owner": "platform-team",
+        "reason": "The repository is migrating legacy boundaries in a staged release."
+      }
+    }
+  ],
+  "negativeFixtures": [
+    {
+      "fixture": "malformed-unknown-family.json",
+      "status": "passed",
+      "proves": "unknown family fails with requirements[0].families[2].family field context"
+    },
+    {
+      "fixture": "inline incompatible language/family mutation",
+      "status": "passed",
+      "proves": "a TypeScript family cannot be silently accepted by a Python profile"
+    },
+    {
+      "fixture": "disabled-requirement.json",
+      "status": "passed",
+      "proves": "disabled requirements remain visible and require owner plus reason"
+    }
+  ],
+  "testEvidence": {
+    "runId": "20260809-ul01-doctrine-profile",
+    "command": "cargo test --locked -p enforcer-config --test doctrine_profile -- --nocapture",
+    "status": "passed",
+    "exitCode": 0,
+    "testsPassed": 5,
+    "testsFailed": 0,
+    "testedBaseCommit": "2edd1aba40fc786da94cc8ac40eee4efe93d750b",
+    "workingTreeSourceChange": "opaque DoctrineVerdict hardening was tested before this reconciliation artifact was created",
+    "proves": [
+      "typed doctrine profiles decode, resolve, and round-trip without losing profile data",
+      "the same TypeScript shape changes verdict only through selected profile data",
+      "unknown families and incompatible language/family pairs fail closed with field-aware errors",
+      "disabled requirements remain visible and require owner and reason",
+      "framework verdict construction is confined to the resolver"
+    ],
+    "doesNotProve": [
+      "framework detection accuracy",
+      "universal language coverage",
+      "existing language validator reachability",
+      "native CyberSkills implementation or executable proof",
+      "third-party tool execution, production behavior, or security outcomes"
+    ]
+  },
+  "proves": [
+    "UL01 has a typed language/framework/requirement profile contract with explicit profile-driven resolution",
+    "Effect remains the configured compatibility default and Zod is an explicit alternative profile",
+    "wire decoding rejects malformed identities and weakening without owner/reason",
+    "verdict state cannot be manufactured outside the domain resolver",
+    "the protected CyberSkills sourceUnavailable identity and all unrelated plan statuses remain untouched"
+  ],
+  "doesNotProve": [
+    "UL01 or later workpack lifecycle promotion by the Markdown plan",
+    "framework detection or universal parser/language coverage",
+    "native CyberSkills parity, executable proof, external adapters, or live security outcomes",
+    "overall CyberSkills plan completion"
+  ]
+}

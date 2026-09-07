@@ -6,14 +6,17 @@
 use std::path::Path;
 
 use enforcer_coordination::api::{
-    acknowledge_message, claim_all, closeout, init, load_identity, normalize_owns_paths, open,
-    release, send_message, CallerContext, ClaimRequestArgs, CloseoutFilters, Hub,
+    acknowledge_message, claim_all, closeout, init, load_identity, normalize_owns_paths, notify,
+    open, release, repair_stale_claims, report, send_message, CallerContext, ClaimRequestArgs,
+    CloseoutFilters, Hub,
 };
+use enforcer_coordination::domain::HubConfig;
 use enforcer_coordination::events::boundary::HubEventResponse;
 use enforcer_coordination::ledger::active_claims;
 use enforcer_domain::coordination_types::{
     ClaimEventId, ClaimPath, CoordinationBranch, CoordinationLedgerRoot, CoordinationMessageBody,
-    CoordinationProjectId, CoordinationRepoRoot, CoordinationWorktree,
+    CoordinationProjectId, CoordinationRepoRoot, CoordinationReportSummary,
+    CoordinationReportTitle, CoordinationWorktree, NodeId, NodeName,
 };
 use enforcer_domain::ids::{HubName, LaneId};
 use enforcer_domain::scan_types::CommitRef;
@@ -103,6 +106,67 @@ fn claim_uses_explicit_caller_context() -> Result<(), Box<dyn std::error::Error>
         context.get("commit").and_then(|value| value.as_str()),
         Some("abc123")
     );
+    Ok(())
+}
+
+#[test]
+fn stale_repair_is_dry_run_first_then_appends_claim_resolve(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let ledger = tempdir()?;
+    let repo = tempdir()?;
+    std::fs::write(repo.path().join("lib.rs"), "// fixture")?;
+    let hub = open_hub(ledger.path(), "test-hub", "repair")?;
+    let lane: LaneId = "repair".parse()?;
+    let repo_root = CoordinationRepoRoot::parse(repo.path())?;
+    let context = caller("C:/repair", "repair")?;
+    claim_all(
+        &hub,
+        ClaimRequestArgs {
+            repo_root: &repo_root,
+            lane: &lane,
+            owns: &[ClaimPath::from_static("src")?],
+            caller: &context,
+            reason: None,
+        },
+    )?;
+    let paths = [ClaimPath::from_static("src/file.rs")?];
+    let (matched, event) = repair_stale_claims(
+        &hub,
+        enforcer_coordination::api::RepairStaleClaimsArgs {
+            lane: &lane,
+            paths: &paths,
+            owners: None,
+            caller: &context,
+            mode: enforcer_domain::coordination_types::RepairMode::DryRun,
+        },
+    )?;
+    assert_eq!(matched.get(), 1);
+    assert!(event.is_none());
+    assert_eq!(
+        active_claims(
+            &enforcer_coordination::sync::stream::read_all_streams(ledger.path())?.events
+        )
+        .len(),
+        1
+    );
+    let (_, event) = repair_stale_claims(
+        &hub,
+        enforcer_coordination::api::RepairStaleClaimsArgs {
+            lane: &lane,
+            paths: &paths,
+            owners: None,
+            caller: &context,
+            mode: enforcer_domain::coordination_types::RepairMode::Write,
+        },
+    )?;
+    assert_eq!(
+        event.ok_or("write must append event")?.kind,
+        "claim.resolve"
+    );
+    assert!(active_claims(
+        &enforcer_coordination::sync::stream::read_all_streams(ledger.path())?.events
+    )
+    .is_empty());
     Ok(())
 }
 
@@ -220,6 +284,61 @@ fn closeout_does_not_release_another_lane() -> Result<(), Box<dyn std::error::Er
 }
 
 #[test]
+fn closeout_node_filter_preserves_another_node() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "primary")?;
+    let other_hub = Hub {
+        root: hub.root.clone(),
+        config: HubConfig {
+            node_id: NodeId::parse("node_other".to_owned())?,
+            node_name: NodeName::parse("other".to_owned())?,
+            ..hub.config.clone()
+        },
+    };
+    let repo = tempdir()?;
+    std::fs::write(repo.path().join("a.rs"), "// a")?;
+    std::fs::write(repo.path().join("b.rs"), "// b")?;
+    let lane: LaneId = "primary".parse()?;
+    let repo_root = CoordinationRepoRoot::parse(repo.path())?;
+    claim_all(
+        &hub,
+        ClaimRequestArgs {
+            repo_root: &repo_root,
+            lane: &lane,
+            owns: &[ClaimPath::from_static("a.rs")?],
+            caller: &caller("wt-a", "branch-a")?,
+            reason: None,
+        },
+    )?;
+    claim_all(
+        &other_hub,
+        ClaimRequestArgs {
+            repo_root: &repo_root,
+            lane: &lane,
+            owns: &[ClaimPath::from_static("b.rs")?],
+            caller: &caller("wt-b", "branch-b")?,
+            reason: None,
+        },
+    )?;
+
+    let filters = CloseoutFilters {
+        lane: Some(lane.clone()),
+        node_id_prefix: Some(hub.config.node_id.clone()),
+        ..Default::default()
+    };
+    let events = closeout(&hub, &lane, &filters, &caller("wt-a", "branch-a")?, None)?;
+    assert_eq!(events.len(), 1);
+
+    let remaining = active_claims(
+        &enforcer_coordination::sync::stream::read_all_streams(hub.root.as_path())?.events,
+    );
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].writer.as_str(), "node_other.primary");
+    assert_eq!(remaining[0].paths, vec![ClaimPath::from_static("b.rs")?]);
+    Ok(())
+}
+
+#[test]
 fn release_and_message_acknowledgement_are_public_operations(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let dir = tempdir()?;
@@ -255,6 +374,160 @@ fn release_and_message_acknowledgement_are_public_operations(
         acknowledgement.message_id.as_deref(),
         Some(message.id.as_str())
     );
+    Ok(())
+}
+
+#[test]
+fn release_does_not_clear_another_lane() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "lane-a")?;
+    let repo = tempdir()?;
+    std::fs::write(repo.path().join("a.rs"), "// a")?;
+    let lane_a: LaneId = "lane-a".parse()?;
+    let lane_b: LaneId = "lane-b".parse()?;
+    let repo_root = CoordinationRepoRoot::parse(repo.path())?;
+    claim_all(
+        &hub,
+        ClaimRequestArgs {
+            repo_root: &repo_root,
+            lane: &lane_a,
+            owns: &[ClaimPath::from_static("a.rs")?],
+            caller: &caller("wt-a", "branch-a")?,
+            reason: None,
+        },
+    )?;
+
+    let result = release(
+        &hub,
+        &lane_b,
+        &[ClaimPath::from_static("a.rs")?],
+        &caller("wt-b", "branch-b")?,
+        None,
+    );
+    let error = match result {
+        Ok(_) => return Err("a caller cannot release another lane's claim".into()),
+        Err(error) => error,
+    };
+    assert_eq!(
+        error.to_string(),
+        "coordination release matched no caller-owned active claims"
+    );
+    let remaining = active_claims(
+        &enforcer_coordination::sync::stream::read_all_streams(hub.root.as_path())?.events,
+    );
+    assert_eq!(remaining.len(), 1);
+    assert_eq!(remaining[0].lane.as_str(), "lane-a");
+    Ok(())
+}
+
+#[test]
+fn report_replay_index_and_notifier_cursor_are_durable_but_not_authoritative(
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "primary")?;
+    let primary: LaneId = "primary".parse()?;
+    let worker: LaneId = "worker-a".parse()?;
+    let worker_context = caller("wt-worker", "worker-branch")?;
+    let primary_context = caller("wt-primary", "primary-branch")?;
+    let message = send_message(
+        &hub,
+        &worker,
+        primary.clone(),
+        CoordinationMessageBody::from_static("Please review the handoff.")?,
+        &worker_context,
+    )?;
+    let report_event = report(
+        &hub,
+        &worker,
+        CoordinationReportTitle::from_static("handoff")?,
+        CoordinationReportSummary::from_static("BLOCKED waiting on review")?,
+        &worker_context,
+    )?;
+    assert_eq!(report_event.kind, "report");
+
+    let first = enforcer_coordination::ledger::materialize(hub.root.as_path())?;
+    let second = enforcer_coordination::ledger::materialize(hub.root.as_path())?;
+    assert_eq!(
+        first.digest, second.digest,
+        "stream replay index must be stable"
+    );
+    assert_eq!(first.reports.len(), 1);
+    assert_eq!(first.inbox.get("primary").map(Vec::len), Some(1));
+
+    let peek = notify(
+        &hub,
+        &primary,
+        enforcer_coordination::api::boundary::NotifyRequest {
+            peek: true,
+            state_file: None,
+        },
+    )?;
+    assert_eq!(
+        peek.wake_requests.len(),
+        2,
+        "inbox plus blocked report wake-up"
+    );
+    let delivered = notify(
+        &hub,
+        &primary,
+        enforcer_coordination::api::boundary::NotifyRequest {
+            peek: false,
+            state_file: None,
+        },
+    )?;
+    assert_eq!(delivered.wake_requests.len(), 2);
+    assert!(notify(
+        &hub,
+        &primary,
+        enforcer_coordination::api::boundary::NotifyRequest {
+            peek: false,
+            state_file: None
+        }
+    )?
+    .wake_requests
+    .is_empty());
+    acknowledge_message(
+        &hub,
+        &primary,
+        ClaimEventId::parse(message.id)?,
+        &primary_context,
+    )?;
+    let after_ack = enforcer_coordination::ledger::materialize(hub.root.as_path())?;
+    assert!(after_ack.inbox["primary"][0]
+        .acknowledged_by
+        .iter()
+        .any(|writer| writer.ends_with(".primary")));
+    Ok(())
+}
+
+#[test]
+fn notifier_state_file_cannot_escape_the_ledger() -> Result<(), Box<dyn std::error::Error>> {
+    let dir = tempdir()?;
+    let hub = open_hub(dir.path(), "test-hub", "primary")?;
+    let lane: LaneId = "primary".parse()?;
+    let outside = hub.root.as_path().join("outside.json");
+    std::fs::write(&outside, "sentinel")?;
+    let result = notify(
+        &hub,
+        &lane,
+        enforcer_coordination::api::boundary::NotifyRequest {
+            peek: false,
+            state_file: Some(std::path::PathBuf::from("../outside.json")),
+        },
+    );
+    let error = match result {
+        Err(error) => error,
+        Ok(response) => {
+            return Err(
+                format!("escaping notifier state file unexpectedly returned {response:?}").into(),
+            );
+        }
+    };
+    assert_eq!(
+        error.to_string(),
+        "notifier state file must stay inside the ledger notifier directory"
+    );
+    assert_eq!(std::fs::read_to_string(outside)?, "sentinel");
     Ok(())
 }
 

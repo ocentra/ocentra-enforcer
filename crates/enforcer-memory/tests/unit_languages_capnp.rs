@@ -1,18 +1,18 @@
 //! Hard tests for Cap'n Proto, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_capnp`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_capnp`]) -- there is
 //! no bespoke `languages::capnp` extractor to prove zero-regression
 //! against (Cap'n Proto has never had one in this crate), so these
 //! tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::capnp`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::capnp`]'s own doc
 //! comment directly: every claimed node kind exposes ZERO fields at
 //! all (confirmed via a real `node-types.json` dump), so names are
-//! read positionally by [`enforcer_memory::languages::generic::capnp_quirk`],
+//! read positionally by [`enforcer_syntax::languages::generic::capnp_quirk`],
 //! and nested in-place type definitions parse as
 //! `field > nested_struct > struct`.
 
-use enforcer_memory::languages::generic::parse_capnp;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_capnp;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_capnp";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

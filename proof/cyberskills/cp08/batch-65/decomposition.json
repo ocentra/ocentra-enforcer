@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-65",
+  "baselineCommit": "097187e7572d9ceaeac22b39f3c41bf7ad61de27",
+  "family": "Canonical-order defensive threat-hunting and evidence-manifest predicates",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "hunting-for-shadow-copy-deletion",
+      "hunting-for-spearphishing-indicators",
+      "hunting-for-startup-folder-persistence",
+      "hunting-for-suspicious-scheduled-tasks",
+      "hunting-for-t1098-account-manipulation",
+      "hunting-for-unusual-network-connections",
+      "hunting-for-unusual-service-installations",
+      "hunting-for-webshell-activity",
+      "hunting-saas-sso-token-abuse",
+      "implementing-application-whitelisting-with-applocker"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-64."
+  },
+  "accounting": {
+    "acceptedPrior": 640,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 650,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "hunting-for-shadow-copy-deletion",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-shadow-copy-deletion/SKILL.md",
+        "sha256": "bf323480d8581962a603ff42da1888414aace8f9df11b50afb9589ba471d05c9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting For Shadow Copy Deletion:L38"]
+      },
+      "components": [
+        {"id": "hunting-for-shadow-copy-deletion::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed file, volume, snapshot, path, timestamp, owner, hash, scope, and evidence-manifest fields without accessing storage or endpoints.", "notProved": ["shadow-copy deletion", "file deletion", "recovery state"]},
+        {"id": "hunting-for-shadow-copy-deletion::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep volume-shadow-copy services, storage, filesystems, PowerShell, endpoints, EDR, and live backup systems external.", "notProved": ["snapshot state", "filesystem truth", "ransomware activity"]},
+        {"id": "hunting-for-shadow-copy-deletion::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain backup, recovery, volume-integrity review, monitoring, and defensive hunting guidance as advisory.", "notProved": ["backup availability", "recovery efficacy", "incident resolution"]},
+        {"id": "hunting-for-shadow-copy-deletion::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, storage and host ownership, legal/privacy/ethics/safety review, chain of custody, containment, remediation, recovery, and disclosure decisions.", "notProved": ["authorization", "evidentiary validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-spearphishing-indicators",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-spearphishing-indicators/SKILL.md",
+        "sha256": "91278c4f16d596985c13afa5bf7ac8ab8a0c2552f613578178837c598fb40efc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting For Spearphishing Indicators:L64"]
+      },
+      "components": [
+        {"id": "hunting-for-spearphishing-indicators::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed message, header, URL, domain, attachment, indicator, campaign, scope, and evidence-manifest fields without mail or endpoint access.", "notProved": ["message delivery", "credential capture", "phishing compromise"]},
+        {"id": "hunting-for-spearphishing-indicators::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep mail systems, identity providers, MFA and sessions, URL scanners, threat-intelligence services, live channels, and endpoints external.", "notProved": ["mailbox state", "recipient activity", "detection efficacy"]},
+        {"id": "hunting-for-spearphishing-indicators::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain phishing triage, indicator review, awareness, reporting, and defensive response guidance as advisory.", "notProved": ["coverage", "user susceptibility", "incident resolution"]},
+        {"id": "hunting-for-spearphishing-indicators::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics review, notification, data handling, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "indicator validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-startup-folder-persistence",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-startup-folder-persistence/SKILL.md",
+        "sha256": "0c5a8e3ce71ae16eab52e49627bf4b515c5268b165a1b76f2c604129e9c8b1f7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Startup Folder Persistence:L38"]
+      },
+      "components": [
+        {"id": "hunting-for-startup-folder-persistence::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed path, file, autorun, user, host, timestamp, hash, process, scope, and evidence-manifest fields without filesystem or endpoint access.", "notProved": ["startup persistence", "file execution", "endpoint compromise"]},
+        {"id": "hunting-for-startup-folder-persistence::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep endpoints, filesystems, shells, processes, EDR, operating systems, and live telemetry external.", "notProved": ["startup state", "execution truth", "detection efficacy"]},
+        {"id": "hunting-for-startup-folder-persistence::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain startup inventory, application control, allowlisting, endpoint monitoring, and defensive hunting guidance as advisory.", "notProved": ["coverage", "persistence detection", "incident resolution"]},
+        {"id": "hunting-for-startup-folder-persistence::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "persistence finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-suspicious-scheduled-tasks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-suspicious-scheduled-tasks/SKILL.md",
+        "sha256": "820b1ae98af00fc09a321f579644975f91ce4439d2aa86b129b47f8eb0fb2318",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Suspicious Scheduled Tasks:L31"]
+      },
+      "components": [
+        {"id": "hunting-for-suspicious-scheduled-tasks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed task, name, trigger, action, principal, host, time, policy, scope, and evidence-manifest fields without scheduler or process access.", "notProved": ["task persistence", "task execution", "endpoint compromise"]},
+        {"id": "hunting-for-suspicious-scheduled-tasks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep task schedulers, Windows hosts, processes, EDR, endpoints, credentials, and live telemetry external.", "notProved": ["task state", "execution truth", "detection efficacy"]},
+        {"id": "hunting-for-suspicious-scheduled-tasks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain scheduled-task inventory, least-privilege review, endpoint monitoring, triage, and defensive hunting guidance as advisory.", "notProved": ["coverage", "persistence detection", "incident resolution"]},
+        {"id": "hunting-for-suspicious-scheduled-tasks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host and account ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "task finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-t1098-account-manipulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-t1098-account-manipulation/SKILL.md",
+        "sha256": "64b558c82ff1571e71ec6e581adf3f4c4dc3ec4318c2e222bc6e3d61650c4271",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for T1098 Account Manipulation:L36"]
+      },
+      "components": [
+        {"id": "hunting-for-t1098-account-manipulation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed account, identity, group, role, event, time, scope, owner, and evidence-manifest fields without directory or identity-provider access.", "notProved": ["account change", "privilege escalation", "identity compromise"]},
+        {"id": "hunting-for-t1098-account-manipulation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Active Directory, identity providers, cloud IAM, directories, credentials, sessions, endpoints, and live audit systems external.", "notProved": ["identity state", "authorization truth", "detection efficacy"]},
+        {"id": "hunting-for-t1098-account-manipulation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain identity governance, least-privilege review, account monitoring, escalation, and defensive hunting guidance as advisory.", "notProved": ["coverage", "finding truth", "control effectiveness"]},
+        {"id": "hunting-for-t1098-account-manipulation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, identity ownership, credential handling, legal/privacy/ethics/safety review, revocation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "account finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-unusual-network-connections",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-unusual-network-connections/SKILL.md",
+        "sha256": "27d21f517b9fe502dc1c035757779387da01e8df2b0090aa1d4bbc27ba4d3db5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting For Unusual Network Connections:L37"]
+      },
+      "components": [
+        {"id": "hunting-for-unusual-network-connections::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed network-flow, endpoint, destination, port, protocol, time, scope, and evidence-manifest fields without network access or packet capture.", "notProved": ["live connection", "exfiltration", "network compromise"]},
+        {"id": "hunting-for-unusual-network-connections::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep live networks, packet capture, DNS, firewalls, NDR, SIEM, endpoints, and production sensors external.", "notProved": ["connection state", "traffic truth", "detection efficacy"]},
+        {"id": "hunting-for-unusual-network-connections::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain network triage, segmentation, telemetry design, anomaly review, and defensive hunting guidance as advisory.", "notProved": ["coverage", "anomaly truth", "incident resolution"]},
+        {"id": "hunting-for-unusual-network-connections::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, network and data ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "network finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-unusual-service-installations",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-unusual-service-installations/SKILL.md",
+        "sha256": "3f61d69e2d74b1d9e662b8da2d849ca2c5d700bb5ec734e43ba17b3a086caec5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Unusual Service Installations:L38"]
+      },
+      "components": [
+        {"id": "hunting-for-unusual-service-installations::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed service, name, binary, startup, user, host, time, policy, scope, and evidence-manifest fields without service-manager or endpoint access.", "notProved": ["service installation", "service start", "process execution"]},
+        {"id": "hunting-for-unusual-service-installations::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep service managers, endpoints, processes, registries, EDR, operating systems, and live telemetry external.", "notProved": ["service state", "execution truth", "detection efficacy"]},
+        {"id": "hunting-for-unusual-service-installations::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain service inventory, application control, least-privilege review, endpoint monitoring, and defensive hunting guidance as advisory.", "notProved": ["coverage", "installation detection", "incident resolution"]},
+        {"id": "hunting-for-unusual-service-installations::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "service finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-webshell-activity",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-webshell-activity/SKILL.md",
+        "sha256": "12165b087b9f0f54e0abc133124a1a6ade558b70d49ee7f9b313e399fa72ac04",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting For Webshell Activity:L38"]
+      },
+      "components": [
+        {"id": "hunting-for-webshell-activity::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed web-request, route, host, file, process, user, time, hash, scope, and evidence-manifest fields without server or traffic access.", "notProved": ["webshell activity", "server execution", "web compromise"]},
+        {"id": "hunting-for-webshell-activity::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep web servers, filesystems, HTTP traffic, WAF, EDR, SIEM, processes, and production infrastructure external.", "notProved": ["server state", "request truth", "detection efficacy"]},
+        {"id": "hunting-for-webshell-activity::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain web-server hardening, log review, application triage, monitoring, and defensive hunting guidance as advisory.", "notProved": ["coverage", "webshell finding", "incident resolution"]},
+        {"id": "hunting-for-webshell-activity::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application and host ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "web finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-saas-sso-token-abuse",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-saas-sso-token-abuse/SKILL.md",
+        "sha256": "f1da72bf0a50e833dfc48be534d431487942a0cd36d6d8048c4fcbe7457a3782",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting SaaS SSO Token Abuse:L23"]
+      },
+      "components": [
+        {"id": "hunting-saas-sso-token-abuse::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed SaaS identity, token, session, application, event, time, scope, owner, and evidence-manifest fields without SaaS or identity-provider access.", "notProved": ["token abuse", "session takeover", "SaaS compromise"]},
+        {"id": "hunting-saas-sso-token-abuse::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep SaaS platforms, identity providers, OAuth/session engines, production APIs, endpoints, and live audit telemetry external.", "notProved": ["tenant state", "token validity", "detection efficacy"]},
+        {"id": "hunting-saas-sso-token-abuse::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain token lifecycle, SSO hardening, session review, identity monitoring, and defensive hunting guidance as advisory.", "notProved": ["coverage", "abuse finding", "control effectiveness"]},
+        {"id": "hunting-saas-sso-token-abuse::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, tenant ownership, legal/privacy/ethics/safety review, data handling, analyst validation, revocation, remediation, and disclosure decisions.", "notProved": ["authorization", "token finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-application-whitelisting-with-applocker",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-application-whitelisting-with-applocker/SKILL.md",
+        "sha256": "e4fe8b7392401c1b78d175b102e344fdbfc392a603bf952b2725759769166f84",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Application Whitelisting with AppLocker:L34"]
+      },
+      "components": [
+        {"id": "implementing-application-whitelisting-with-applocker::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed application, binary, hash, policy, rule, signer, host, scope, and evidence-manifest fields without policy-engine or endpoint enforcement.", "notProved": ["allowlisting enforcement", "application execution", "block decision"]},
+        {"id": "implementing-application-whitelisting-with-applocker::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Windows endpoints, AppLocker engines, processes, EDR, production policy enforcement, and live telemetry external.", "notProved": ["policy state", "execution outcome", "detection efficacy"]},
+        {"id": "implementing-application-whitelisting-with-applocker::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain application-allowlisting design, signer review, policy tuning, rollout, monitoring, and defensive guidance as advisory.", "notProved": ["coverage", "policy effectiveness", "incident resolution"]},
+        {"id": "implementing-application-whitelisting-with-applocker::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host and application ownership, legal/privacy/ethics/safety review, release approval, rollback, remediation, and disclosure decisions.", "notProved": ["authorization", "enforcement validity", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, storage, mail, identity, cloud, SaaS, network, web, SIEM, EDR, or production telemetry is proved.",
+    "No shadow-copy deletion, spearphishing delivery, startup or scheduled-task persistence, account manipulation, unusual network or service activity, webshell, SaaS token abuse, allowlisting enforcement, execution, compromise, or credential access is proved.",
+    "No detection efficacy, attribution, data exposure, containment, remediation, recovery, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}

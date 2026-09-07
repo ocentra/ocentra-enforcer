@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-35",
+  "baselineCommit": "c3e4ad963ee6923b24e3a74cf3342d544c3f4a04",
+  "family": "Phishing simulation, social-engineering awareness, detection, and incident response",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["conducting-phishing-incident-response", "conducting-social-engineering-penetration-test", "conducting-social-engineering-pretext-call", "conducting-spearphishing-simulation-campaign", "executing-phishing-simulation-campaign", "implementing-anti-phishing-training-program", "investigating-phishing-email-incident", "performing-adversary-in-the-middle-phishing-detection", "performing-phishing-simulation-with-gophish", "performing-red-team-phishing-with-gophish"],
+    "reason": "Ten disjoint phishing simulation, social-engineering, awareness, detection, and incident-response skills. Native checks are limited to static typed supplied manifests; live delivery, channels, identities, sessions, and outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "conducting-phishing-incident-response",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-phishing-incident-response/SKILL.md", "sha256": "267ed953f75e05f966489d9c460a39519bf42dde392640d24f002530e7aac3ed", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Phishing Incident Response:L68"]},
+      "components": [
+        {"componentId": "conducting-phishing-incident-response::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed incident, message, indicator, reporter, evidence, notification, and response-plan manifests.", "notProved": ["No live delivery, classification, detection efficacy, containment, remediation, recovery, or security outcome proof."]},
+        {"componentId": "conducting-phishing-incident-response::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use mail, IdP, MFA/session, SIEM, EDR, threat-intelligence, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, live telemetry, response runtime, or normalized evidence."]},
+        {"componentId": "conducting-phishing-incident-response::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain phishing incident-response guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "conducting-phishing-incident-response::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, privacy/ethics approval, scope, owner validation, legal/data handling, notification, containment, remediation, and recovery decisions.", "notProved": ["No live incident-response proof."]}
+      ]
+    },
+    {
+      "catalogId": "conducting-social-engineering-penetration-test",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-social-engineering-penetration-test/SKILL.md", "sha256": "3b122b2912ca174fb6640f980fd8db2aaeab876616d3ab8e1816c19f05ff7764", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Social Engineering Penetration Test:L71"]},
+      "components": [
+        {"componentId": "conducting-social-engineering-penetration-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed campaign, target cohort, authorization, safety, message, outcome-report, and evidence manifests.", "notProved": ["No live social engineering, delivery, susceptibility, credential capture, or security outcome proof."]},
+        {"componentId": "conducting-social-engineering-penetration-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use mail, phone/social channels, IdP, MFA/session, endpoint, network, SIEM, EDR, and production authorities.", "notProved": ["No pinned adapter, live channel, target access, or normalized evidence."]},
+        {"componentId": "conducting-social-engineering-penetration-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized social-engineering testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "conducting-social-engineering-penetration-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, ethics and safety approval, scope, privacy/legal review, owner validation, notification, containment, remediation, and recovery decisions.", "notProved": ["No live penetration-test proof."]}
+      ]
+    },
+    {
+      "catalogId": "conducting-social-engineering-pretext-call",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-social-engineering-pretext-call/SKILL.md", "sha256": "72bf029981a17fc0c3e968f4fc60f4ceb21d977d2cf5eb094df062378191ed00", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Social Engineering Pretext Call:L74"]},
+      "components": [
+        {"componentId": "conducting-social-engineering-pretext-call::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed pretext, actor, target cohort, authorization, safety, consent, report, and evidence manifests.", "notProved": ["No live call, impersonation, susceptibility, credential disclosure, or security outcome proof."]},
+        {"componentId": "conducting-social-engineering-pretext-call::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live phone/social channels, mail, IdP, MFA/session, endpoint, network, SIEM, EDR, and production authorities.", "notProved": ["No pinned adapter, live channel, target access, or normalized evidence."]},
+        {"componentId": "conducting-social-engineering-pretext-call::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain safety-scoped pretext-call guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "conducting-social-engineering-pretext-call::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require explicit written authorization, ethics/safety approval, scope, privacy/legal review, target-owner validation, notification, containment, remediation, and recovery decisions.", "notProved": ["No live pretext-call proof."]}
+      ]
+    },
+    {
+      "catalogId": "conducting-spearphishing-simulation-campaign",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-spearphishing-simulation-campaign/SKILL.md", "sha256": "2db449015d83c99546368e9df6074e756fa984d68a1b4873e8972b70386891f1", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Spearphishing Simulation Campaign:L68"]},
+      "components": [
+        {"componentId": "conducting-spearphishing-simulation-campaign::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed campaign, cohort, authorization, message, training, report, notification, and evidence manifests.", "notProved": ["No live delivery, click behavior, credential capture, susceptibility, detection efficacy, or security outcome proof."]},
+        {"componentId": "conducting-spearphishing-simulation-campaign::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use mail, GoPhish, IdP, MFA/session, SIEM, EDR, threat-intelligence, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, delivery runtime, identity/session, or normalized evidence."]},
+        {"componentId": "conducting-spearphishing-simulation-campaign::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized spearphishing-simulation and awareness guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "conducting-spearphishing-simulation-campaign::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, ethics/privacy approval, scope, owner validation, legal/data handling, notification, containment, remediation, and recovery decisions.", "notProved": ["No live campaign proof."]}
+      ]
+    },
+    {
+      "catalogId": "executing-phishing-simulation-campaign",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/executing-phishing-simulation-campaign/SKILL.md", "sha256": "b0c885c88def8221a226619ef4a52d02d9500e95865cb8fc9aa6cd62652ca6c8", "availability": "available", "license": "Apache-2.0", "anchors": ["# Executing Phishing Simulation Campaign:L67"]},
+      "components": [
+        {"componentId": "executing-phishing-simulation-campaign::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed campaign, message, cohort, authorization, training, report, notification, and evidence fields.", "notProved": ["No live delivery, credential capture, session compromise, susceptibility, detection efficacy, or security outcome proof."]},
+        {"componentId": "executing-phishing-simulation-campaign::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use mail, IdP, MFA/session, GoPhish, SIEM, EDR, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, channel runtime, identity/session, or normalized evidence."]},
+        {"componentId": "executing-phishing-simulation-campaign::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain phishing simulation and awareness guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "executing-phishing-simulation-campaign::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, ethics/privacy approval, scope, owner validation, legal/data handling, notification, containment, remediation, and recovery decisions.", "notProved": ["No live simulation proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-anti-phishing-training-program",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-anti-phishing-training-program/SKILL.md", "sha256": "1ffa67c3505de9546b0ddc9b2328901a20f25136301b8c66ae720fadb6e4a03f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Anti-Phishing Training Program:L57"]},
+      "components": [
+        {"componentId": "implementing-anti-phishing-training-program::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed training, cohort, curriculum, authorization, completion, notification, privacy, and evidence manifests.", "notProved": ["No live training delivery, user behavior, susceptibility, detection efficacy, or security outcome proof."]},
+        {"componentId": "implementing-anti-phishing-training-program::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use LMS, mail, IdP, MFA/session, HR, SIEM, EDR, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, training runtime, identity/session, or normalized evidence."]},
+        {"componentId": "implementing-anti-phishing-training-program::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain anti-phishing training and awareness guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-anti-phishing-training-program::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require privacy/ethics approval, written scope, owner validation, legal/data handling, notification, remediation, and recovery decisions.", "notProved": ["No live training or behavior proof."]}
+      ]
+    },
+    {
+      "catalogId": "investigating-phishing-email-incident",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/investigating-phishing-email-incident/SKILL.md", "sha256": "e946a062aafcbb143ff99ee240ad2bbec8669cd245114354dbc9815f4efc095f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Investigating Phishing Email Incident:L68"]},
+      "components": [
+        {"componentId": "investigating-phishing-email-incident::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed email, header, indicator, reporter, incident, evidence-chain, notification, and response manifests.", "notProved": ["No live mailbox, message trace, attribution, classification, containment, remediation, recovery, or security outcome proof."]},
+        {"componentId": "investigating-phishing-email-incident::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use mail, IdP, MFA/session, SIEM, EDR, threat-intelligence, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, mailbox access, live telemetry, or normalized evidence."]},
+        {"componentId": "investigating-phishing-email-incident::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain phishing-email investigation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "investigating-phishing-email-incident::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, privacy/legal review, scope, owner validation, chain-of-custody, notification, containment, remediation, and recovery decisions.", "notProved": ["No live incident investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-adversary-in-the-middle-phishing-detection",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-adversary-in-the-middle-phishing-detection/SKILL.md", "sha256": "1b950af25b34d3518c386dfe3c9a1c3dc49fb372a8cc78a164adf4e7ea354738", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Adversary-in-the-Middle Phishing Detection:L62"]},
+      "components": [
+        {"componentId": "performing-adversary-in-the-middle-phishing-detection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed auth event, session, identity, message, indicator, alert, evidence, and response-plan manifests.", "notProved": ["No live AiTM, credential capture, MFA/session compromise, detection efficacy, containment, or security outcome proof."]},
+        {"componentId": "performing-adversary-in-the-middle-phishing-detection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use IdP, MFA/session, mail, SIEM, EDR, threat-intelligence, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, authentication runtime, live telemetry, or normalized evidence."]},
+        {"componentId": "performing-adversary-in-the-middle-phishing-detection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain adversary-in-the-middle phishing detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-adversary-in-the-middle-phishing-detection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, ethics/privacy and legal review, scope, owner validation, notification, containment, remediation, and recovery decisions.", "notProved": ["No live AiTM detection proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-phishing-simulation-with-gophish",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-phishing-simulation-with-gophish/SKILL.md", "sha256": "51a6d64ff527a9784fb050b93e958f9bcf87fa1e587c3a0efd12b48f65feef1f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Phishing Simulation with GoPhish:L61"]},
+      "components": [
+        {"componentId": "performing-phishing-simulation-with-gophish::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed campaign, message, cohort, authorization, training, report, notification, and evidence manifests.", "notProved": ["No GoPhish execution, live delivery, credential capture, susceptibility, detection efficacy, or security outcome proof."]},
+        {"componentId": "performing-phishing-simulation-with-gophish::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use GoPhish, mail, IdP, MFA/session, SIEM, EDR, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, campaign runtime, identity/session, or normalized evidence."]},
+        {"componentId": "performing-phishing-simulation-with-gophish::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain GoPhish-oriented simulation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-phishing-simulation-with-gophish::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require explicit written authorization, ethics/privacy approval, scope, owner validation, legal/data handling, notification, containment, remediation, and recovery decisions.", "notProved": ["No live GoPhish simulation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-red-team-phishing-with-gophish",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-red-team-phishing-with-gophish/SKILL.md", "sha256": "cd9be6405b551ea8a565a43345fed27d359dbfcbf818105addc94b6e45a4d412", "availability": "available", "license": "Apache-2.0", "anchors": ["# For authorized penetration testing and lab environments only:L88"]},
+      "components": [
+        {"componentId": "performing-red-team-phishing-with-gophish::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed lab campaign, message, cohort, explicit authorization, safety, report, notification, and evidence manifests.", "notProved": ["No GoPhish execution, live delivery, credential capture, session compromise, susceptibility, or security outcome proof."]},
+        {"componentId": "performing-red-team-phishing-with-gophish::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use GoPhish, mail, IdP, MFA/session, SIEM, EDR, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, campaign runtime, identity/session, or normalized evidence."]},
+        {"componentId": "performing-red-team-phishing-with-gophish::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain the source's authorized-lab phishing guidance under its safety boundary.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-red-team-phishing-with-gophish::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require explicit written authorization before any action, lab-only scope, ethics/safety approval, privacy/legal review, owner validation, notification, containment, remediation, and recovery decisions.", "notProved": ["No live red-team phishing proof and no authorization is inferred from this artifact."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "GoPhish, mail, IdP, MFA/session, SIEM, EDR, threat intelligence, live social channels, endpoint, network, and production authorities remain blocked external engines.",
+    "No live delivery, credential capture, session compromise, social-engineering success, user susceptibility, detection efficacy, attribution, containment, remediation, recovery, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The performing-red-team-phishing-with-gophish source is safety-scoped to authorized penetration testing and lab environments only; no authorization is inferred.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

@@ -1,16 +1,16 @@
 //! Hard tests for Pine (TradingView Pine Script), onboarded directly
 //! through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_pine`]) -- grammar
+//! ([`enforcer_syntax::languages::generic::parse_pine`]) -- grammar
 //! VENDORED (`vendor/tree-sitter-pine-local/`). Asserts against the
 //! grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::pine`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::pine`]'s own doc
 //! comment: `function_declaration_statement`'s fieldless-for-`"name"`
 //! name resolution via its own `function`/`method` fields (claimed by
-//! [`enforcer_memory::languages::generic::pine_quirk`]), and real
+//! [`enforcer_syntax::languages::generic::pine_quirk`]), and real
 //! `type_definition_statement`/`call` fields.
 
-use enforcer_memory::languages::generic::parse_pine;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_pine;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_pine";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

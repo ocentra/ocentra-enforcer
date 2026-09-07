@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-79",
+  "family": "IF/threat-hunting",
+  "baselineCommit": "5184e0333ec7ac1882c1446aeb096418aab19dc6",
+  "scope": "Retain threat-hunting hypotheses, telemetry queries, relationships, pivots, evidence, and analyst decision guidance from immutable CP08 evidence; native predicates are limited to static supplied hypothesis, query, event, relationship, pivot, host, process, identity, network, evidence, owner, severity, and response manifests; live endpoints, hosts, processes, credentials, directories, packets, SIEM, EDR, cloud, network, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "hunting-for-data-staging-before-exfiltration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-data-staging-before-exfiltration/SKILL.md",
+        "sha256": "3af7a58a7127e95ec953f879f479edb0c840a73737f464baf4ac4fa227cd8432",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Data Staging Before Exfiltration:L38"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-63/decomposition.json", "artifactSha256": "5ce06ea9a9b510afb1e60f9b01aa909959333ca55328befe8eac4b854cc5925e"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive data-staging, exfiltration, filesystem, network, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live data, filesystem, network, endpoint, staging finding, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, data and network ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, staging conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-dcom-lateral-movement",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-dcom-lateral-movement/SKILL.md",
+        "sha256": "667875b0423857bd86ff20ce4146783910f8b7d19a0c28bfe4bf8d51e6f4c0d3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for DCOM Lateral Movement:L45"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-63/decomposition.json", "artifactSha256": "5ce06ea9a9b510afb1e60f9b01aa909959333ca55328befe8eac4b854cc5925e"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive DCOM, lateral-movement, identity, process, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live DCOM, host, identity, process, network, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, asset and identity ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, lateral-movement conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-dcsync-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-dcsync-attacks/SKILL.md",
+        "sha256": "a39594e99fea58ba5a2cb9e4d386b66654d2c9f003d9949d9c3adf643c50f451",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for DCSync Attacks:L38"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-64/decomposition.json", "artifactSha256": "4e37a5ed38afe89ad2f4e17ba93fdea404ea3d2a41e01de7184c6c2b6e79d15f"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive DCSync, directory, identity, credential, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live directory, identity, credential, replication, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, directory and identity ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, DCSync conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-defense-evasion-via-timestomping",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-defense-evasion-via-timestomping/SKILL.md",
+        "sha256": "885e81dc78f59848ed66ce9d279837078ec14c30e811bcf12f52585949183d7f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Defense Evasion via Timestomping:L37"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-64/decomposition.json", "artifactSha256": "4e37a5ed38afe89ad2f4e17ba93fdea404ea3d2a41e01de7184c6c2b6e79d15f"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive timestamp, filesystem, artifact, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live filesystem, artifact, endpoint, timestamp finding, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, artifact and endpoint ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, timestomping conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-dns-based-persistence",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-dns-based-persistence/SKILL.md",
+        "sha256": "e4586bff2ee6eb3fe507b45615d5c25a4d0851bba9c3598035c0f3a8ac33eb22",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for DNS-based Persistence:L32"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-24/decomposition.json", "artifactSha256": "ef2acf25cfe2f31c4fd2622b570b0c043e293b4aa8026f0fcd280427f038ad37"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive DNS, persistence, domain, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live DNS, domain, endpoint, persistence, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, DNS and asset ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, DNS-persistence conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-dns-tunneling-with-zeek",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-dns-tunneling-with-zeek/SKILL.md",
+        "sha256": "74f89daaa9beea6b697d8e88275ab643f4ff1481d1c7465c8daf1a06fb2cc793",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for DNS Tunneling with Zeek:L38"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-24/decomposition.json", "artifactSha256": "ef2acf25cfe2f31c4fd2622b570b0c043e293b4aa8026f0fcd280427f038ad37"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive DNS, Zeek, tunneling, network, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live Zeek, DNS, packet, network, tunneling finding, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, DNS and network ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, DNS-tunnel conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-domain-fronting-c2-traffic",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-domain-fronting-c2-traffic/SKILL.md",
+        "sha256": "cf12736da6dd5f52ff3c4d04c5728e28085a090065de7008fba12fbcade6c2e0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Domain Fronting C2 Traffic:L38"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-26/decomposition.json", "artifactSha256": "fbe5db5dd64c3a4440007ffd7f340d5e89bbcdefb4dc891585aff8015a53f437"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive domain-fronting, C2, TLS, network, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live C2, domain, TLS, network, traffic finding, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, network and domain ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, domain-fronting conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-lateral-movement-via-wmi",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-lateral-movement-via-wmi/SKILL.md",
+        "sha256": "2c08ea29ad03550e928bf3ca75440b0ff722afbb8181b9a2f2b250ccd6a66793",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Lateral Movement via WMI:L30"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-64/decomposition.json", "artifactSha256": "4e37a5ed38afe89ad2f4e17ba93fdea404ea3d2a41e01de7184c6c2b6e79d15f"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive WMI, lateral-movement, process, identity, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live WMI, host, identity, process, network, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, host and identity ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, WMI-movement conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-living-off-the-cloud-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-living-off-the-cloud-techniques/SKILL.md",
+        "sha256": "9991e1b50e0ae306ea396f5d6506d7ca2d0e1b6971b102813c3c7cd1aeb4458a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting For Living Off The Cloud Techniques:L37"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-64/decomposition.json", "artifactSha256": "4e37a5ed38afe89ad2f4e17ba93fdea404ea3d2a41e01de7184c6c2b6e79d15f"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive cloud, identity, service, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live cloud, account, service, telemetry, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, cloud tenant and data ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, cloud-hunt conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "hunting-for-living-off-the-land-binaries",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-living-off-the-land-binaries/SKILL.md",
+        "sha256": "deb1eaef2464847115e4b40a48aec33aeaa1383669bcc5354e39f00cde26922d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Living-off-the-Land Binaries (LOLBins):L37"]
+      },
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-64/decomposition.json", "artifactSha256": "4e37a5ed38afe89ad2f4e17ba93fdea404ea3d2a41e01de7184c6c2b6e79d15f"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive LOLBin, process, command, endpoint, telemetry, threat-hunting, detection, triage, and response guidance.", "notProved": ["No live binary, process, endpoint, command, detection efficacy, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, endpoint and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.", "notProved": ["No human authorization, LOLBin conclusion, severity, containment, remediation, or disclosure decision is proved."]}
+    }
+  ],
+  "derivedCounts": {"skills": 10, "advisoryRetained": 10, "manualRetained": 10, "nativeImplemented": 0, "executableProof": 0, "externalExecuted": 0},
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, host, process, credential, directory, cloud, packet, network, SIEM, EDR, or production execution.",
+    "No data staging, lateral movement, DCSync, timestomping, DNS persistence/tunneling, domain fronting, WMI movement, cloud abuse, LOLBin execution, detection efficacy, hunting result, attribution, containment, remediation, or security outcome is proved.",
+    "This packet covers the fourth ten threat-hunting skills as retained advisory/manual evidence only; the family remains incomplete until its remaining packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, SIEM, EDR, directories, endpoints, networks, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

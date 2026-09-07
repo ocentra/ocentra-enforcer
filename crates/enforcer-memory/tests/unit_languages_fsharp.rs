@@ -1,9 +1,9 @@
 //! Hard tests for F#, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_fsharp`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_fsharp`])
 //! -- there is no bespoke `languages::fsharp` extractor to prove
 //! zero-regression against (F# has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::fsharp`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::fsharp`]'s own doc
 //! comment directly: `function_or_value_defn` signature/body-field
 //! split naming, `anon_type_defn`/`record_type_defn`/`union_type_defn`
 //! positional `type_name` naming + `inherit Base(...)` INHERITS,
@@ -11,8 +11,8 @@
 //! and `application_expression`'s narrow (baseline-matching)
 //! curried-call callee-head reconstruction.
 
-use enforcer_memory::languages::generic::parse_fsharp;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_fsharp;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_fsharp";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

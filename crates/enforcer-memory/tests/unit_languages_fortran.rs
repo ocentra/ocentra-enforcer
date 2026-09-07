@@ -1,17 +1,17 @@
 //! Hard tests for Fortran, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_fortran`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_fortran`])
 //! -- there is no bespoke `languages::fortran` extractor to prove
 //! zero-regression against (Fortran has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::fortran`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::fortran`]'s own doc
 //! comment directly: `function`/`subroutine`'s own name resolution off
 //! the nested `*_statement` child's real `"name"` field, and the two
 //! distinct callee field names (`"function"` for `call_expression`,
 //! `"subroutine"` for `subroutine_call` -- the real, confirmed baseline
 //! gap this row fills).
 
-use enforcer_memory::languages::generic::parse_fortran;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_fortran;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_fortran";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-12",
+  "family": "IF/cloud-security",
+  "baselineCommit": "6a54c007e395dd682c7292d50e46b935c677d47c",
+  "scope": "Retain advisory and manual content for the deterministic cloud-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-cloud-forensics-with-aws-cloudtrail",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-forensics-with-aws-cloudtrail/SKILL.md",
+        "sha256": "9b1a067c9d5573148fbb2a49c431040dd9fcc8315350478b7aa384f2c419b130",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Cloud Forensics with AWS CloudTrail:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-23/decomposition.json",
+        "artifactSha256": "3421408d66a97bf6367c00b94c6a3a7cdfb2db21e24a1faa95cd533372679334"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive CloudTrail collection design, event normalization, timeline review, anomaly triage, evidence quality, and cloud-forensics planning guidance.",
+        "notProved": ["Guidance is not CloudTrail, AWS, a cloud API, SIEM, log store, endpoint, acquisition tool, or production execution and does not prove event truth, collection, timeline, anomaly, attribution, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, trail, event, region, data, retention, acquisition, and analyst scope; owner validation, legal/privacy review, chain of custody, source terms, severity, containment, remediation, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, trail, event, log, timeline, acquisition, finding, containment, remediation, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-cloud-log-forensics-with-athena",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-log-forensics-with-athena/SKILL.md",
+        "sha256": "43cca16e93718cea7746e794c280d85f6aacc7a6fdeb3b73c8fc2a0b575283f4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Cloud Log Forensics with AWS Athena:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-23/decomposition.json",
+        "artifactSha256": "3421408d66a97bf6367c00b94c6a3a7cdfb2db21e24a1faa95cd533372679334"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud-log schema, query design, event correlation, timeline, evidence handling, privacy, and forensic review guidance.",
+        "notProved": ["Guidance is not Athena, AWS, a data lake, query engine, log authority, SIEM, endpoint, or production execution and does not prove log completeness, query truth, event attribution, finding, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, region, table, log, query, date, identity, and data scope; owner validation, legal/privacy review, retention, chain of custody, data handling, analyst interpretation, severity, containment, remediation, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, table, log, query, date range, event, timeline, finding, evidentiary validity, containment, remediation, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-cloud-native-forensics-with-falco",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-native-forensics-with-falco/SKILL.md",
+        "sha256": "e6c17735287b76f12cdcc209d208addfdd721e10f79379141829a14d42f95c39",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Cloud Native Forensics with Falco:L35", "## Instructions:L52", "## Examples:L80"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud-native runtime, syscall, container, Kubernetes, evidence, alert-review, and incident-analysis guidance.",
+        "notProved": ["Guidance is not Falco, a kernel, container runtime, Kubernetes cluster, endpoint, sensor, SIEM, or production execution and does not prove syscall, process, alert, compromise, detection, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact cluster, node, namespace, workload, container, syscall, rule, sensor, log, and data scope; owner validation, legal/privacy/safety review, acquisition handling, stop conditions, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, cluster, node, namespace, workload, process, sensor, alert, acquisition, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-cloud-native-threat-hunting-with-aws-detective",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-native-threat-hunting-with-aws-detective/SKILL.md",
+        "sha256": "19798b1f9fa857c193d4ffeca0de9e4a08ccbb8c79159692fc6be2a0cd3d5845",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Cloud-Native Threat Hunting with AWS Detective:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json",
+        "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud-threat-hunting hypotheses, graph and timeline analysis, evidence review, uncertainty, and analyst workflow guidance.",
+        "notProved": ["Guidance is not Detective, AWS, cloud telemetry, graph authority, SIEM, endpoint, or production execution and does not prove event truth, relationship, threat, attribution, compromise, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, region, identity, resource, event, graph, timeline, hypothesis, and data scope; owner validation, legal/privacy review, source terms, analyst interpretation, uncertainty, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, account, resource, identity, graph, event, hypothesis, threat, attribution, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-cloud-penetration-testing-with-pacu",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-penetration-testing-with-pacu/SKILL.md",
+        "sha256": "03ae0ee0c5c52aac22a6f152c2fc52c09370fc27a26afbff0ffb5a8f9815c77e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Cloud Penetration Testing with Pacu:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json",
+        "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud-assessment scoping, threat modeling, evidence, risk review, reporting, and remediation planning guidance.",
+        "notProved": ["Guidance is not Pacu, AWS, IAM, cloud APIs, exploit tooling, scanner, credential authority, or production execution and does not prove exploitability, privilege, access, compromise, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, tenant, region, principal, role, resource, API, credential, test, safety, and data scope; legal/safety review, owner validation, stop conditions, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, principal, role, resource, credential, exploit, access, compromise, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-gcp-penetration-testing-with-gcpbucketbrute",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-gcp-penetration-testing-with-gcpbucketbrute/SKILL.md",
+        "sha256": "eae165b945bec4d2060e70a4adae24347a56b254e30f0177ece0c849452e7302",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing GCP Penetration Testing with GCPBucketBrute:L39"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-05/decomposition.json",
+        "artifactSha256": "e5f932b0b26f265ae5c413ae349fcdbb7dbcb1369065260b10ed71665762ffbf"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive GCP storage-assessment, exposure review, evidence, risk triage, reporting, and remediation planning guidance.",
+        "notProved": ["Guidance is not GCPBucketBrute, GCP, storage, network, credential, scanner, or production execution and does not prove bucket existence, exposure, access, exploitability, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact project, bucket, region, account, credential, request, network, test, and data scope; legal/safety review, owner validation, provider terms, stop conditions, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, project, bucket, credential, request, access, exposure, exploit, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-gcp-security-assessment-with-forseti",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-gcp-security-assessment-with-forseti/SKILL.md",
+        "sha256": "414468feeab2af7a7a73336311658225ed50919217822cfe386f9dc88636ad68",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing GCP Security Assessment with Forseti:L43"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-05/decomposition.json",
+        "artifactSha256": "e5f932b0b26f265ae5c413ae349fcdbb7dbcb1369065260b10ed71665762ffbf"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive GCP inventory, policy, configuration, IAM, compliance, evidence-review, and remediation planning guidance.",
+        "notProved": ["Guidance is not Forseti, GCP, a scanner, CMDB, cloud API, SIEM, or production execution and does not prove inventory, configuration, compliance, IAM, finding, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact organization, project, folder, resource, policy, IAM, framework, finding, and data scope; owner validation, legal/privacy review, provider terms, analyst interpretation, severity, exception, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, organization, project, resource, policy, IAM, compliance, finding, exception, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-serverless-function-security-review",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-serverless-function-security-review/SKILL.md",
+        "sha256": "70b331ce7f8e63e3d868938a31707bbcd156fc2b5a8d6166fa244dc316e01ff5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Serverless Function Security Review:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive serverless architecture, function, dependency, IAM, event, logging, evidence, and security-review guidance.",
+        "notProved": ["Guidance is not Lambda, a serverless runtime, cloud API, scanner, endpoint, event bus, or production execution and does not prove code safety, configuration, invocation, isolation, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, function, runtime, layer, event, role, dependency, data, and deployment scope; owner validation, legal/privacy/safety review, change control, severity, rollback, remediation, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, function, runtime, role, event, dependency, invocation, finding, rollback, remediation, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "remediating-s3-bucket-misconfiguration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/remediating-s3-bucket-misconfiguration/SKILL.md",
+        "sha256": "746c501fe8345a7c8c7838c38b71c69063b07d95578acbce40ff586e267e61ca",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Remediating S3 Bucket Misconfiguration:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-81/decomposition.json",
+        "artifactSha256": "ff701913c6bad304bcf96c60eba0865b71d51e80f9a6f446fa7105839a4072cc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive S3 exposure review, access policy, encryption, logging, ownership, evidence, and remediation planning guidance.",
+        "notProved": ["Guidance is not S3, AWS, a storage API, policy engine, scanner, endpoint, or production remediation and does not prove exposure, access, encryption, logging, integrity, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, bucket, object, region, principal, policy, encryption, log, data, and change scope; owner validation, legal/privacy review, data handling, maintenance window, validation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, bucket, object, principal, policy, exposure, access, encryption, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-api-gateway-with-aws-waf",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-api-gateway-with-aws-waf/SKILL.md",
+        "sha256": "ea9a6357d74a3a95ab9b82737f887e2fc4a51f74bcd29bd9bf8032c3312f8a37",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing API Gateway with AWS WAF:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-81/decomposition.json",
+        "artifactSha256": "ff701913c6bad304bcf96c60eba0865b71d51e80f9a6f446fa7105839a4072cc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive API gateway, WAF policy, route, authentication, rate-limit, evidence, change-control, and web-protection guidance.",
+        "notProved": ["Guidance is not API Gateway, WAF, AWS, browser, endpoint, traffic, payload engine, scanner, or production enforcement and does not prove authentication, blocking, rate limiting, exploitability, availability, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, API, stage, route, method, policy, rule, payload, traffic, owner, data, and change scope; legal/safety review, maintenance window, validation, stop conditions, severity, rollback, remediation, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, API, stage, route, method, rule, request, response, block, allow, rate limit, rollback, remediation, recovery, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live AWS, GCP, cloud provider, account, tenant, identity, credential, CloudTrail, Athena, Falco, Detective, Pacu, GCPBucketBrute, Forseti, Lambda, S3, API Gateway, WAF, scanner, endpoint, network, session, acquisition, containment, remediation, recovery, or production execution is proved.",
+    "No log truth, timeline, forensic validity, threat, attribution, exploitability, access, privilege, configuration, compliance, exposure, detection, remediation, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

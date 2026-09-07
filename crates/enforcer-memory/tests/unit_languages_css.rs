@@ -1,14 +1,14 @@
 //! Hard tests for CSS, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_css`]). Tier-0 (see
-//! [`enforcer_memory::languages::spec::LangSpec::css`]'s own doc
+//! ([`enforcer_syntax::languages::generic::parse_css`]). Tier-0 (see
+//! [`enforcer_syntax::languages::spec::LangSpec::css`]'s own doc
 //! comment): `call_expression`/`import_statement` are both fully
 //! fieldless (confirmed via a real `node-types.json` dump), so
-//! [`enforcer_memory::languages::generic::css_call_override`]/
-//! [`enforcer_memory::languages::generic::css_import_quirk`] both read
+//! [`enforcer_syntax::languages::generic::css_call_override`]/
+//! [`enforcer_syntax::languages::generic::css_import_quirk`] both read
 //! their content positionally.
 
-use enforcer_memory::languages::generic::parse_css;
+use enforcer_syntax::languages::generic::parse_css;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

@@ -1,12 +1,12 @@
 //! Hard tests for standalone regular-expression patterns, onboarded
 //! directly through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_regex`]). Regex is a
+//! ([`enforcer_syntax::languages::generic::parse_regex`]). Regex is a
 //! Tier-0 nominal language (see
-//! [`enforcer_memory::languages::spec::LangSpec::regex`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::regex`]'s own doc
 //! comment): only its own real root node kind (`pattern`, matching
 //! baseline) is asserted.
 
-use enforcer_memory::languages::generic::parse_regex;
+use enforcer_syntax::languages::generic::parse_regex;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

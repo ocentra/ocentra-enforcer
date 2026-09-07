@@ -1,6 +1,14 @@
 use super::{
     run_scan, CliOptions, FileRole, LanguageFamily, LiteralCandidate, LiteralKind, RiskCategory,
 };
+use crate::language_registry::{
+    language_registry, matched_projection, matching_length, profile_overlay_is_exhaustive,
+};
+use enforcer_domain::language_types::{
+    DetectionMatcher, DetectionMatcherKind, LiteralProjection, LiteralProjectionDisposition,
+};
+use enforcer_syntax::registry::{detection_precedence, literal_projections};
+use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -160,6 +168,163 @@ fn gitignore_and_default_ignored_dirs_work() -> Result<(), Box<dyn std::error::E
     assert!(report.ignored.gitignore >= 1);
     let _ = fs::remove_dir_all(root);
     Ok(())
+}
+
+#[test]
+fn canonical_literal_projection_and_overlay_denominators_are_exact() {
+    let projections = literal_projections();
+    assert_eq!(projections.len(), 68);
+    assert_eq!(
+        projections
+            .iter()
+            .filter(|projection| matches!(
+                projection,
+                LiteralProjection::Row(_, LiteralProjectionDisposition::Fallback, _, _, _)
+            ))
+            .count(),
+        1
+    );
+    assert_eq!(
+        projections
+            .iter()
+            .filter(|projection| matches!(
+                projection,
+                LiteralProjection::Row(_, LiteralProjectionDisposition::LiteralOnly, _, _, _)
+            ))
+            .count(),
+        5
+    );
+    assert_eq!(language_registry().len(), 67);
+    assert!(profile_overlay_is_exhaustive());
+
+    let expected_names = projections
+        .iter()
+        .filter_map(|projection| match projection {
+            LiteralProjection::Row(name, disposition, _, _, _)
+                if *disposition != LiteralProjectionDisposition::Fallback =>
+            {
+                Some(*name)
+            }
+            _ => None,
+        })
+        .collect::<BTreeSet<_>>();
+    let actual_names = language_registry()
+        .iter()
+        .map(|spec| spec.id.as_str())
+        .collect::<BTreeSet<_>>();
+    assert_eq!(actual_names, expected_names);
+}
+
+#[test]
+fn canonical_matchers_drive_spec_extensions_and_basenames() -> Result<(), Box<dyn std::error::Error>>
+{
+    let specs = language_registry();
+    for projection in literal_projections() {
+        let LiteralProjection::Row(name, disposition, _, matchers, _) = projection;
+        if *disposition == LiteralProjectionDisposition::Fallback {
+            continue;
+        }
+        let spec = specs
+            .iter()
+            .find(|spec| spec.id.as_str() == *name)
+            .ok_or("every named projection must have one lexical profile")?;
+        let expected_extensions = matchers
+            .iter()
+            .filter_map(|matcher| match matcher {
+                DetectionMatcher::Extension(value) => Some(*value),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        let expected_basenames = matchers
+            .iter()
+            .filter_map(|matcher| match matcher {
+                DetectionMatcher::ExactBasename(value) => Some(*value),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(
+            spec.extensions.as_slice(),
+            expected_extensions.as_slice(),
+            "{name}"
+        );
+        assert_eq!(
+            spec.basenames.as_slice(),
+            expected_basenames.as_slice(),
+            "{name}"
+        );
+    }
+    Ok(())
+}
+
+#[test]
+fn canonical_detection_precedence_and_fallback_are_preserved() {
+    assert_eq!(
+        detection_precedence().ordered_kinds(),
+        &[
+            DetectionMatcherKind::ExactBasename,
+            DetectionMatcherKind::CompoundSuffix,
+            DetectionMatcherKind::Extension,
+        ]
+    );
+
+    let basename = "service.env.local";
+    let candidates = [
+        DetectionMatcher::CompoundSuffix(".env"),
+        DetectionMatcher::CompoundSuffix(".env.local"),
+    ];
+    let longest = candidates
+        .iter()
+        .filter_map(|matcher| {
+            matching_length(*matcher, basename, "local").map(|length| (*matcher, length))
+        })
+        .max_by_key(|(_, length)| *length)
+        .map(|(matcher, _)| matcher);
+    assert_eq!(
+        longest,
+        Some(DetectionMatcher::CompoundSuffix(".env.local"))
+    );
+
+    assert_eq!(
+        matched_projection(std::path::Path::new("Dockerfile")).map(|row| match row {
+            LiteralProjection::Row(name, _, _, _, _) => *name,
+        }),
+        Some("dockerfile")
+    );
+    assert_eq!(
+        matched_projection(std::path::Path::new("service.env.local")).map(|row| match row {
+            LiteralProjection::Row(name, _, _, _, _) => *name,
+        }),
+        Some("env")
+    );
+    assert_eq!(
+        matched_projection(std::path::Path::new("x.c")).map(|row| match row {
+            LiteralProjection::Row(name, _, _, _, _) => *name,
+        }),
+        Some("c")
+    );
+    assert_eq!(
+        matched_projection(std::path::Path::new("x.nim")).map(|row| match row {
+            LiteralProjection::Row(name, _, _, _, _) => *name,
+        }),
+        Some("nim")
+    );
+    assert_eq!(
+        matched_projection(std::path::Path::new("X.RS")).map(|row| match row {
+            LiteralProjection::Row(name, _, _, _, _) => *name,
+        }),
+        Some("rust")
+    );
+    assert!(matched_projection(std::path::Path::new("unknown.extension")).is_none());
+    assert!(crate::language_registry::detect_language(
+        std::path::Path::new("unknown.extension"),
+        false
+    )
+    .is_none());
+    assert_eq!(
+        crate::language_registry::detect_language(std::path::Path::new("unknown.extension"), true)
+            .map(|spec| spec.id.as_str()),
+        Some("unknown")
+    );
 }
 
 fn temp_dir(name: &str) -> Result<PathBuf, Box<dyn std::error::Error>> {

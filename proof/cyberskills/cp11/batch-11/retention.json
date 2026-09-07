@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-11",
+  "family": "IF/cloud-security",
+  "baselineCommit": "d1389390334dde4d6657480caa737392e1a2c853",
+  "scope": "Retain advisory and manual content for the deterministic cloud-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-gcp-binary-authorization",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-gcp-binary-authorization/SKILL.md",
+        "sha256": "f2d8b669c9a041fabe273e4fe86f52ed3e514088fdccda259a3ff47f601a8531",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing GCP Binary Authorization:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-05/decomposition.json",
+        "artifactSha256": "e5f932b0b26f265ae5c413ae349fcdbb7dbcb1369065260b10ed71665762ffbf"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive artifact-signing, admission-policy, provenance, supply-chain, evidence-review, and release-hardening guidance.",
+        "notProved": ["Guidance is not Binary Authorization, GCP, a registry, signer, admission controller, scanner, or production execution and does not prove signature validity, provenance, admission, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact project, repository, image, signer, attestation, admission, release, and data scope; owner validation, legal review, key custody, analyst interpretation, severity, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, project, image, signer, attestation, admission, release, rollback, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-gcp-organization-policy-constraints",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-gcp-organization-policy-constraints/SKILL.md",
+        "sha256": "21c1627cfc0721522160fd071711e1551bb511b0536eb48cf8563a5d8f7c1c78",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing GCP Organization Policy Constraints:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-05/decomposition.json",
+        "artifactSha256": "e5f932b0b26f265ae5c413ae349fcdbb7dbcb1369065260b10ed71665762ffbf"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive organization-policy, constraint, inheritance, exception, configuration-review, and cloud-governance guidance.",
+        "notProved": ["Guidance is not GCP, an organization policy engine, Terraform, cloud API, scanner, or production enforcement and does not prove policy state, inheritance, compliance, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact organization, folder, project, resource, constraint, exception, owner, and data scope; legal/privacy review, change control, validation, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, organization, folder, project, resource, constraint, exception, compliance, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-gcp-vpc-firewall-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-gcp-vpc-firewall-rules/SKILL.md",
+        "sha256": "64111385c4364f10d5de6a19f586cccb4ee43f497ad6d87e8efbce0ff2c52e3f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing GCP VPC Firewall Rules:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-05/decomposition.json",
+        "artifactSha256": "e5f932b0b26f265ae5c413ae349fcdbb7dbcb1369065260b10ed71665762ffbf"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive network-segmentation, rule-design, priority, logging, evidence-review, and cloud-firewall hardening guidance.",
+        "notProved": ["Guidance is not GCP, VPC, a firewall, packet filter, network, scanner, or production enforcement and does not prove reachability, blocking, exposure, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact project, VPC, subnet, source, destination, port, protocol, rule, owner, and change scope; safety/legal review, maintenance window, validation, stop conditions, severity, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No human authorization, project, VPC, subnet, route, rule, packet, block, allow, rollback, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-secrets-management-with-vault",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-secrets-management-with-vault/SKILL.md",
+        "sha256": "ed7d934e4eaea426d0575c127a113b32e38a1ce8ca27b85655844778907c339a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Secrets Management with Vault:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json",
+        "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive secret inventory, lifecycle, access policy, rotation, audit, recovery, and evidence-handling guidance.",
+        "notProved": ["Guidance is not Vault, a secrets store, HSM, identity provider, scanner, endpoint, or production execution and does not prove secret custody, rotation, access control, exposure, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, namespace, mount, secret, identity, policy, key, recovery, and data scope; owner/key-custody validation, legal/privacy review, dual control, severity, revocation, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, secret, identity, policy, key, access, rotation, revocation, recovery, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-zero-trust-in-cloud",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-in-cloud/SKILL.md",
+        "sha256": "e32e3aaecd1ed3fda7ec0f26b4b9db79452a98345558a42e68a347181e3fc77b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust in Cloud:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-27/decomposition.json",
+        "artifactSha256": "f2da8b0c94a52862d08b619990e25798f0047ecb0502b6fa9fc82fcc86fe6956"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive zero-trust architecture, identity, device posture, segmentation, least privilege, telemetry, and cloud-control planning guidance.",
+        "notProved": ["Guidance is not a cloud provider, IdP, device authority, policy engine, network, session, or production enforcement and does not prove identity, posture, access, segmentation, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, account, identity, device, network, application, session, policy, and data scope; owner validation, legal/privacy/safety review, enrollment, exception, revocation, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, identity, device, posture, policy, session, access, enrollment, revocation, exception, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-zero-trust-network-access",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-network-access/SKILL.md",
+        "sha256": "88fa1ff266f284a444cc065656c697518b2d51921e7bac5833255c4d56d02290",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Trust Network Access:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-27/decomposition.json",
+        "artifactSha256": "f2da8b0c94a52862d08b619990e25798f0047ecb0502b6fa9fc82fcc86fe6956"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive ZTNA, identity-aware access, application segmentation, policy, session, telemetry, and access-review planning guidance.",
+        "notProved": ["Guidance is not ZTNA, an IdP, device authority, VPN, proxy, network, session, or production enforcement and does not prove authentication, posture, access, segmentation, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, application, user, device, route, session, policy, and data scope; owner validation, legal/privacy/safety review, least privilege, enrollment, exception, revocation, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, application, user, device, route, session, access, enrollment, exception, revocation, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "managing-cloud-identity-with-okta",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/managing-cloud-identity-with-okta/SKILL.md",
+        "sha256": "ea963e663085c72f1beff1f4957384702e27b98d8a597beedafb7193856a10df",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Managing Cloud Identity with Okta:L64"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-09/decomposition.json",
+        "artifactSha256": "6e8649af278f30d2762bcaffaa3730386b5bee5396552c82527751ae833e4ee2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud-identity lifecycle, federation, group and role governance, access review, MFA, and evidence-quality guidance.",
+        "notProved": ["Guidance is not Okta, an IdP, directory, MFA, SAML, session, cloud provider, or production authority and does not prove identity, authentication, access, enrollment, revocation, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact organization, tenant, user, group, role, application, factor, session, and data scope; owner validation, legal/privacy review, least privilege, key custody, exception, revocation, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, organization, tenant, user, group, role, application, factor, authentication, access, revocation, exception, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-aws-account-enumeration-with-scout-suite",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-aws-account-enumeration-with-scout-suite/SKILL.md",
+        "sha256": "4390ced60253502f3e2dc820330d4a44085e1f095aa365dfc14ccdfc4e297742",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing AWS Account Enumeration with ScoutSuite:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-37/decomposition.json",
+        "artifactSha256": "b29b08638121c875fabd8d5981376bdd96f2aabeb7c9f25ff12b43ffdd42d661"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud-account inventory, configuration-review, evidence, risk-triage, and assessment-planning guidance.",
+        "notProved": ["Guidance is not ScoutSuite, AWS, cloud APIs, account enumeration, scanner, CSPM, SIEM, or production execution and does not prove account inventory, misconfiguration, exposure, finding, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, organization, region, service, resource, credential, API, and data scope; owner validation, legal/privacy review, provider terms, safety stop conditions, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, account, organization, region, resource, credential, API, finding, exposure, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-aws-privilege-escalation-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-aws-privilege-escalation-assessment/SKILL.md",
+        "sha256": "f581ca35043f71d3a96e7767254173d0230a017f611d6d33f355c9ec5fe9ff93",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["### Step 2: Scan for Privilege Escalation Paths with Pacu:L84"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-04/decomposition.json",
+        "artifactSha256": "04cdd6b0cda44129373c802694deb5bf606b8a8910003663f52ced1ce7f41df9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud-IAM review, privilege-boundary, attack-path analysis, evidence, severity, and remediation-planning guidance.",
+        "notProved": ["Guidance is not Pacu, AWS, IAM, cloud API, exploitation engine, scanner, or production execution and does not prove privilege escalation, exploitability, access, compromise, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, principal, role, policy, resource, API, credential, test, and data scope; legal/safety review, owner validation, stop conditions, analyst interpretation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, account, principal, role, policy, resource, credential, escalation path, exploit, access, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-cloud-asset-inventory-with-cartography",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-asset-inventory-with-cartography/SKILL.md",
+        "sha256": "5499f9e12d4edfb090fd8a8dd9c78c476653a643f386a46d3f34265dac3df4d0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Cloud Asset Inventory with Cartography:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-27/decomposition.json",
+        "artifactSha256": "f2da8b0c94a52862d08b619990e25798f0047ecb0502b6fa9fc82fcc86fe6956"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud-asset inventory, relationship modeling, ownership, exposure review, evidence, and remediation-planning guidance.",
+        "notProved": ["Guidance is not Cartography, cloud APIs, a graph database, CMDB, scanner, endpoint, or production execution and does not prove asset inventory, ownership, exposure, relationship, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, account, project, region, resource, identity, graph, network, and data scope; owner validation, legal/privacy review, provider terms, analyst interpretation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, account, project, resource, identity, graph, relationship, ownership, exposure, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live GCP, AWS, Vault, Okta, cloud provider, tenant, identity, credential, policy, firewall, network, registry, scanner, Cartography, ScoutSuite, Pacu, endpoint, session, containment, remediation, recovery, or production execution is proved.",
+    "No signature, provenance, admission, policy, compliance, configuration, posture, inventory, privilege, access, exploitation, detection, attribution, remediation, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

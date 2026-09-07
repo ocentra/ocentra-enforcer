@@ -1,0 +1,675 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-25",
+  "baselineCommit": "bbac4af1298738310b44b4f0d52e81ac72338e37",
+  "family": "TLS, PKI, certificate, and cryptographic assurance",
+  "status": "proposed",
+  "selection": {
+    "catalogIds": [
+      "analyzing-certificate-transparency-for-phishing",
+      "analyzing-tls-certificate-transparency-logs",
+      "auditing-tls-certificate-transparency-logs",
+      "configuring-certificate-authority-with-openssl",
+      "configuring-hsm-for-key-storage",
+      "configuring-tls-1-3-for-secure-communications",
+      "performing-cryptographic-audit-of-application",
+      "performing-ssl-certificate-lifecycle-management",
+      "performing-ssl-tls-inspection-configuration",
+      "performing-ssl-tls-security-assessment"
+    ],
+    "reason": "Ten disjoint TLS/PKI assurance skills; static certificate, policy, inventory, and scan-manifest predicates are proposed only, external authorities remain blocked, and operational procedures are retained advisory/manual."
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-certificate-transparency-for-phishing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-certificate-transparency-for-phishing/SKILL.md",
+        "sha256": "890fe618933fcb97c28ba2c4d512ead6a0820738423fc2a8a3f6eae564524f8f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Analyzing Certificate Transparency for Phishing:L61"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "analyzing-certificate-transparency-for-phishing::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate CT certificate evidence manifests for domain, SAN, issuer, fingerprint, issuance time, and source fields.",
+          "evidenceRefs": [
+            "source:# Analyzing Certificate Transparency for Phishing:L61"
+          ],
+          "notProved": [
+            "No Rust executor, fixtures, CT query, or phishing determination proof."
+          ]
+        },
+        {
+          "componentId": "analyzing-certificate-transparency-for-phishing::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use CT log services, crt.sh, DNS, and certificate intelligence authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "analyzing-certificate-transparency-for-phishing::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain CT investigation and phishing-analysis guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "analyzing-certificate-transparency-for-phishing::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain analyst, domain-ownership, privacy, and response decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "analyzing-tls-certificate-transparency-logs",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-tls-certificate-transparency-logs/SKILL.md",
+        "sha256": "784e8248192b8191b27c71c1509b7e1d65e0b169b6fb110fe25be3f979a41783",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Analyzing TLS Certificate Transparency Logs:L63"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "analyzing-tls-certificate-transparency-logs::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate CT log record manifests for certificate, subject, issuer, validity, timestamp, and query provenance fields.",
+          "evidenceRefs": [
+            "source:# Analyzing TLS Certificate Transparency Logs:L63"
+          ],
+          "notProved": [
+            "No Rust executor, fixtures, CT retrieval, or finding proof."
+          ]
+        },
+        {
+          "componentId": "analyzing-tls-certificate-transparency-logs::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use CT log APIs, certificate transparency search, and TLS telemetry authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "analyzing-tls-certificate-transparency-logs::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain certificate-log analysis and reporting guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "analyzing-tls-certificate-transparency-logs::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain authorized search, scope, privacy, and analyst decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "auditing-tls-certificate-transparency-logs",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-tls-certificate-transparency-logs/SKILL.md",
+        "sha256": "9885e9fb0f540680b2af59809a0c458038af18fe7a57d017157a76a05e1cf48d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mukul975",
+        "anchors": [
+          "# Auditing TLS Certificate Transparency Logs:L36"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "auditing-tls-certificate-transparency-logs::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate CT audit manifests for domain inventory, monitoring interval, issuer, alert threshold, and evidence fields.",
+          "evidenceRefs": [
+            "source:# Auditing TLS Certificate Transparency Logs:L36"
+          ],
+          "notProved": [
+            "No Rust executor, fixtures, continuous monitor, or alert proof."
+          ]
+        },
+        {
+          "componentId": "auditing-tls-certificate-transparency-logs::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use CT log monitors, DNS, certificate registries, and alerting authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "auditing-tls-certificate-transparency-logs::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain CT audit workflow and alert-triage guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "auditing-tls-certificate-transparency-logs::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain authorized inventory, issuer review, escalation, and response decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "configuring-certificate-authority-with-openssl",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-certificate-authority-with-openssl/SKILL.md",
+        "sha256": "64c09e09497a6556396f08fd699cabf8c823ddc38037d11c1da0f9a92610f47d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Configuring Certificate Authority with OpenSSL:L27"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "configuring-certificate-authority-with-openssl::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate CA policy manifests for hierarchy, key algorithm, key size, extensions, validity, and revocation settings.",
+          "evidenceRefs": [
+            "source:# Configuring Certificate Authority with OpenSSL:L27"
+          ],
+          "notProved": [
+            "No Rust executor, OpenSSL invocation, generated CA, or cryptographic outcome proof."
+          ]
+        },
+        {
+          "componentId": "configuring-certificate-authority-with-openssl::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use OpenSSL, HSM, certificate issuance, and revocation authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "configuring-certificate-authority-with-openssl::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain CA hierarchy, extension, and operational configuration guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "configuring-certificate-authority-with-openssl::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain trust, key ceremony, revocation, and administrator decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "configuring-hsm-for-key-storage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-hsm-for-key-storage/SKILL.md",
+        "sha256": "75852f7ce6aefdf042916a4a1afc78092bee02318f25aa76f2e54ad75b7cb742",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Configuring HSM for Key Storage:L34"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "configuring-hsm-for-key-storage::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate HSM policy manifests for key labels, algorithms, usage, access roles, rotation, and audit requirements.",
+          "evidenceRefs": [
+            "source:# Configuring HSM for Key Storage:L34"
+          ],
+          "notProved": [
+            "No Rust executor, HSM session, PKCS#11 proof, or key-protection outcome."
+          ]
+        },
+        {
+          "componentId": "configuring-hsm-for-key-storage::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use HSM vendor, PKCS#11, KMS, and hardware-backed cryptographic authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "configuring-hsm-for-key-storage::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain HSM architecture, compliance, and operational guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "configuring-hsm-for-key-storage::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain key ceremony, custody, recovery, and authorization decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "configuring-tls-1-3-for-secure-communications",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-tls-1-3-for-secure-communications/SKILL.md",
+        "sha256": "f98d7ad59b93bf0fe740ba07dc0651c98c94fdb946a5f52755365a9698624e28",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Configuring TLS 1.3 for Secure Communications:L28"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "configuring-tls-1-3-for-secure-communications::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate TLS policy manifests for minimum version, cipher suites, certificate trust, key exchange, and downgrade settings.",
+          "evidenceRefs": [
+            "source:# Configuring TLS 1.3 for Secure Communications:L28"
+          ],
+          "notProved": [
+            "No Rust executor, handshake, endpoint, or cryptographic outcome proof."
+          ]
+        },
+        {
+          "componentId": "configuring-tls-1-3-for-secure-communications::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use TLS libraries, endpoint scanners, certificate authorities, and runtime handshake authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "configuring-tls-1-3-for-secure-communications::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain TLS version, cipher, trust, and deployment guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "configuring-tls-1-3-for-secure-communications::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain endpoint ownership, compatibility, exception, and rollout decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "performing-cryptographic-audit-of-application",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cryptographic-audit-of-application/SKILL.md",
+        "sha256": "c39ca781b08e121cb8f439090078bacff3cfb629cbe524c40e2de203aa4f86f9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Performing Cryptographic Audit of Application:L49"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "performing-cryptographic-audit-of-application::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate application crypto inventory manifests for algorithm, mode, key size, randomness, usage, and deprecation fields.",
+          "evidenceRefs": [
+            "source:# Performing Cryptographic Audit of Application:L49"
+          ],
+          "notProved": [
+            "No Rust executor, code scan, runtime trace, or weakness determination proof."
+          ]
+        },
+        {
+          "componentId": "performing-cryptographic-audit-of-application::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use SAST, dependency, cryptographic scanner, and runtime analysis authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "performing-cryptographic-audit-of-application::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain cryptographic weakness taxonomy and audit guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "performing-cryptographic-audit-of-application::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain code-owner, threat-model, exception, and remediation decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "performing-ssl-certificate-lifecycle-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-certificate-lifecycle-management/SKILL.md",
+        "sha256": "6663b5076eff9b30f6a00f8a1bea6daed4104722525ced5b01fbdabd18280ab8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Performing SSL Certificate Lifecycle Management:L28"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "performing-ssl-certificate-lifecycle-management::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate certificate inventory manifests for owner, subject, issuer, expiry, rotation, revocation, and environment fields.",
+          "evidenceRefs": [
+            "source:# Performing SSL Certificate Lifecycle Management:L28"
+          ],
+          "notProved": [
+            "No Rust executor, certificate store, renewal run, or lifecycle outcome proof."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-certificate-lifecycle-management::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use certificate inventory, ACME, CA, revocation, and endpoint monitoring authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-certificate-lifecycle-management::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain certificate issuance, renewal, revocation, and inventory guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-certificate-lifecycle-management::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain owner, renewal window, exception, and incident-response decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "performing-ssl-tls-inspection-configuration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-tls-inspection-configuration/SKILL.md",
+        "sha256": "88cc5e0dcea22231f010c2f513a8f338a054ea5c32f06a8c0f7f5dfbf911ebf8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Performing SSL/TLS Inspection Configuration:L33"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "performing-ssl-tls-inspection-configuration::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate inspection policy manifests for mode, trust chain, certificate authority, bypass scope, and logging fields.",
+          "evidenceRefs": [
+            "source:# Performing SSL/TLS Inspection Configuration:L33"
+          ],
+          "notProved": [
+            "No Rust executor, proxy, handshake, or inspection outcome proof."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-tls-inspection-configuration::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use forward proxies, TLS interception devices, endpoint clients, and certificate authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-tls-inspection-configuration::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain inspection modes, trust-chain, privacy, and deployment guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-tls-inspection-configuration::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain legal, privacy, exception, rollout, and incident decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    },
+    {
+      "catalogId": "performing-ssl-tls-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-tls-security-assessment/SKILL.md",
+        "sha256": "fcb8643d06d506e2c7709a314ebdcced08e3c5b8b5d6a2da04ed734d091dbb48",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Performing SSL/TLS Security Assessment:L31"
+        ]
+      },
+      "components": [
+        {
+          "componentId": "performing-ssl-tls-security-assessment::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate TLS assessment manifests for endpoint, protocol, cipher, certificate, finding severity, timestamp, and evidence fields.",
+          "evidenceRefs": [
+            "source:# Performing SSL/TLS Security Assessment:L31"
+          ],
+          "notProved": [
+            "No Rust executor, scanner, endpoint, or security outcome proof."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-tls-security-assessment::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Use TLS scanners, endpoint probes, certificate authorities, and runtime telemetry authorities.",
+          "evidenceRefs": [
+            "source:## Prerequisites"
+          ],
+          "notProved": [
+            "No pinned external adapter, executable/version contract, runtime, or normalized evidence."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-tls-security-assessment::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain TLS assessment, remediation, and reporting guidance.",
+          "evidenceRefs": [
+            "source:## Key Concepts"
+          ],
+          "notProved": [
+            "Guidance is not enforcement."
+          ]
+        },
+        {
+          "componentId": "performing-ssl-tls-security-assessment::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Retain endpoint authorization, risk acceptance, remediation, and response decisions.",
+          "evidenceRefs": [
+            "source:## When to Use"
+          ],
+          "notProved": [
+            "No live operational or governance proof."
+          ]
+        }
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This immutable CP08 proposal does not modify the 817-row disposition ledger.",
+    "Proposed native predicates have no Rust executors, pass/fail fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Blocked external-engine components have no Rust-owned adapter, pinned executable/version contract, live run, or normalized evidence.",
+    "Advisory and manual procedures are retained as non-enforcement content; they are not parity claims.",
+    "CT logs, HSM, OpenSSL, scanners, TLS inspection, runtime cryptography, and security outcomes remain unproved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity was not inspected and is outside this batch."
+  ]
+}

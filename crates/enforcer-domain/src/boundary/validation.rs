@@ -79,6 +79,44 @@ impl From<&'static str> for ValidationSourceText {
     }
 }
 
+/// Opaque text decoded from an MCP validation report before it enters
+/// process-local compatibility history.
+///
+/// BRAND-INVARIANT: labels are non-blank, contain no control characters, and
+/// cross the transport boundary through this type rather than raw strings.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct McpReportLabelText(String);
+
+impl McpReportLabelText {
+    /// Canonical valid timestamp used only when a platform timestamp cannot
+    /// cross the MCP boundary. This is a domain-owned invariant, not a router
+    /// fallback string.
+    #[must_use]
+    pub fn epoch_fallback() -> Self {
+        Self("1970-01-01T00:00:00.000Z".to_owned())
+    }
+
+    /// Reject blank and control-bearing report labels at the MCP boundary.
+    pub fn try_new(value: String) -> Result<Self, DecodeError> {
+        if value.trim().is_empty() {
+            return Err(DecodeError::new("mcpReportLabel", "label is blank"));
+        }
+        if value.chars().any(char::is_control) {
+            return Err(DecodeError::new(
+                "mcpReportLabel",
+                "label contains a control character",
+            ));
+        }
+        Ok(Self(value))
+    }
+
+    /// Move validated label text into a typed consumer without cloning.
+    #[must_use]
+    pub fn into_inner(self) -> String {
+        self.0
+    }
+}
+
 /// Canonical Dart widget class name extracted from a source boundary.
 ///
 /// BRAND-INVARIANT: values are accepted only when they are non-empty Dart

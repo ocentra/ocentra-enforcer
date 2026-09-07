@@ -39,6 +39,7 @@ use enforcer_domain::ids::RuleId;
 use enforcer_domain::severity::Severity;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
+use super::schema_framework::recognize_schema_framework;
 use crate::boundary::finding::{from_source, SourceFinding};
 use crate::boundary::source_analysis::{
     aliased_imported_feature, brace_import_names, import_target, is_any_annotation, owning_feature,
@@ -908,42 +909,39 @@ impl EffectNotZodValidator {
     }
 }
 
-const ZOD_MARKERS: &[&str] = &["from \"zod\"", "from 'zod'", "z.object(", "zodResolver"];
-
 impl Validator for EffectNotZodValidator {
     fn rule_id(&self) -> &RuleId {
         &self.rule_id
     }
 
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
-        for line in lines(input.source) {
-            if source_line_role(line.text) == SourceLineRole::CommentOnly {
-                continue;
-            }
-            if let Some(marker) = ZOD_MARKERS
-                .iter()
-                .find(|m| line.text.as_str().contains(**m))
-            {
-                return finding(
-                    &self.rule_id,
-                    &input,
-                        SourceFinding {
+        if let Some(evidence) = recognize_schema_framework(input.source).filter(|evidence| {
+            evidence.family()
+                == enforcer_domain::doctrine_profile_types::DoctrineFrameworkFamily::Zod
+        }) {
+            let marker = evidence.marker();
+            let capability = evidence.capability();
+            let line = evidence.line();
+            return finding(
+                &self.rule_id,
+                &input,
+                SourceFinding {
                         severity: Severity::Error,
                         title: "effect: Zod usage forbidden, Effect Schema mandated",
                         detail: format!(
-                            "line {}: `{marker}` — Zod is forbidden as a validation source-of-truth \
+                        "line {}: `{}` ({capability:?}) — Zod is forbidden as a validation source-of-truth \
                              in this codebase (house doctrine diverges from ADBP's Zod mandate); use \
                              Effect Schema (`import {{ Schema }} from \"@effect/schema\"`, \
                              `Schema.Struct`) instead.",
-                            line.number
+                        line,
+                        marker.as_str()
                         ),
-                        line: line.number,
-                        snippet: Some(line.text.as_str().trim()),
-                    },
-                )
-                .into_iter()
-                .collect();
-            }
+                    line,
+                    snippet: None,
+                },
+            )
+            .into_iter()
+            .collect();
         }
         Vec::new()
     }

@@ -1,12 +1,12 @@
 //! Hard tests for Dockerfile, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_dockerfile`]). Tier-0
-//! (see [`enforcer_memory::languages::spec::LangSpec::dockerfile`]'s
+//! ([`enforcer_syntax::languages::generic::parse_dockerfile`]). Tier-0
+//! (see [`enforcer_syntax::languages::spec::LangSpec::dockerfile`]'s
 //! own doc comment): only its own real root node kind (`source_file`,
 //! matching baseline) is asserted -- `var_types` is documentation
 //! parity only, not consumed by this crate's generic walker.
 
-use enforcer_memory::languages::generic::parse_dockerfile;
+use enforcer_syntax::languages::generic::parse_dockerfile;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

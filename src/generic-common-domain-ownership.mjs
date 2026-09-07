@@ -38,5 +38,8 @@ export function hasCohesiveRustDtoFamily(rel, text, rawTypeNames) {
 
 /** Joins a source file's lines for decision-code policy checks. */
 export function decisionCodeText(lines) {
-  return lines.filter((line) => !/^\s*(?:\/\/|#(?!\[)|\/\*|\*)/u.test(line)).join("\n");
+  return lines
+    .filter((line) => !/^\s*(?:\/\/|#(?!\[)|\/\*|\*)/u.test(line))
+    .map((line) => line.replace(/(?:"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*')/gu, ""))
+    .join("\n");
 }

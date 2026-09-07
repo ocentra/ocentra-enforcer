@@ -15,6 +15,14 @@ use crate::lock::path_overlaps;
 use crate::lock::singletons::normalize_coordination_path;
 use crate::lock::RawClaim;
 use enforcer_domain::coordination_types::ClaimPath;
+use std::path::Path;
+
+pub mod boundary;
+
+/// Rebuild the read-only derived snapshot from canonical event streams.
+pub fn materialize(root: &Path) -> crate::error::Result<boundary::LedgerSnapshot> {
+    boundary::materialize(root)
+}
 
 /// A currently-active claim, keyed by `(writer, eventId)` in the JS source's
 /// `claimIdentityKey`; here we key by event id alone since ids are globally

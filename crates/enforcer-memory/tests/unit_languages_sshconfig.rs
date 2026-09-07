@@ -1,15 +1,15 @@
 //! Hard tests for SSH client config files, onboarded directly through
 //! the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_sshconfig`]). Grammar
+//! ([`enforcer_syntax::languages::generic::parse_sshconfig`]). Grammar
 //! VENDORED (`vendor/tree-sitter-sshclientconfig-local/`) -- the
 //! published `tree-sitter-ssh-client-config` crate's own binding pins an
 //! incompatible `tree-sitter` version, see
-//! [`enforcer_memory::languages::spec::LangSpec::sshconfig`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::sshconfig`]'s own doc
 //! comment (including why the real root node kind is `client_config`,
 //! not the baseline's own `source_file`).
 
-use enforcer_memory::languages::generic::parse_sshconfig;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_sshconfig;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 

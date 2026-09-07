@@ -22,6 +22,7 @@ use enforcer_core::redaction::Redactor;
 use enforcer_domain::core_types::ChainBreak;
 use enforcer_domain::hashes::Sha256;
 use enforcer_domain::proof_types::{JournalEventType, ProofId, ProofRunId};
+use fs2::FileExt;
 
 // ROUNDTRIP-TEST: journal append/open/replay tests serialize and deserialize every record.
 
@@ -63,13 +64,12 @@ struct JournalLine {
     digest: Sha256,
 }
 
-/// A chain break detected while verifying a journal file, translated to a
-/// journal-relative description (which line, what was recorded vs.
-/// expected).
 #[derive(Debug, PartialEq, Eq, thiserror::Error)]
 #[error(
     "proof journal tamper detected at line {line_index} (recorded {recorded}, expected {expected})"
 )]
+/// A chain break detected while verifying a journal file, translated to a
+/// journal-relative description (which line, what was recorded vs. expected).
 pub struct JournalTamper {
     /// Zero-based line index of the first broken link.
     pub line_index: usize,
@@ -134,12 +134,35 @@ impl ProofJournal {
     /// Append one record, redacting it through `redactor` first (two-layer
     /// redaction: key-name then value-pattern, both always run), folding
     /// the new line's digest over the previous line's digest.
+    /// Append one redacted record while holding the cross-process journal lock.
     pub fn append(&mut self, redactor: &Redactor, record: JournalRecordEnvelope) -> Result<()> {
+        if let Some(parent) = self.path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+        let lock_path = self.path.with_extension("ndjson.lock");
+        let lock = std::fs::OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(lock_path)?;
+        lock.lock_exclusive()?;
+
+        // Another process may have appended since this instance was opened.
+        // Re-read under the lock and chain from the authoritative disk tail.
+        let existing = if self.path.exists() {
+            read_lines(&self.path)?
+        } else {
+            Vec::new()
+        };
+        verify_lines(&existing).map_err(|error| journal_tamper_to_error(&error))?;
+        let disk_tail = existing.last().map(|line| line.digest.clone());
+
         let mut payload = record.payload.clone();
         redactor.redact(&mut payload);
         let redacted_record = JournalRecordEnvelope { payload, ..record };
         let canonical = serde_json::to_vec(&redacted_record)?;
-        let digest = link_digest(self.last_digest.as_ref(), &canonical);
+        let digest = link_digest(disk_tail.as_ref(), &canonical);
         let line = JournalLine {
             record: redacted_record,
             digest: digest.clone(),
@@ -147,6 +170,7 @@ impl ProofJournal {
         let mut writer: NdjsonWriter<JournalLine> = NdjsonWriter::open(&self.path)?;
         writer.append(&line)?;
         self.last_digest = Some(digest);
+        FileExt::unlock(&lock)?;
         Ok(())
     }
 
@@ -194,7 +218,7 @@ fn journal_tamper_to_error(tamper: &JournalTamper) -> Error {
 #[cfg(test)]
 mod tests {
     use super::{JournalRecordEnvelope, ProofJournal, JOURNAL_SCHEMA_VERSION};
-    use enforcer_core::error::Result;
+    use enforcer_core::error::{Error, Result};
     use enforcer_core::redaction::Redactor;
     use enforcer_domain::proof_types::{JournalEventType, ProofId, ProofRunId};
     use std::io::Write as _;
@@ -304,6 +328,36 @@ mod tests {
             "reordered lines must fail closed"
         );
         std::fs::remove_file(&path)?;
+        Ok(())
+    }
+
+    #[test]
+    fn concurrent_journal_instances_serialize_verify_and_append() -> Result<()> {
+        let path = temp_path("concurrent-append");
+        let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
+        let mut threads = Vec::new();
+        for event in ["proof-started", "proof-finished"] {
+            let path = path.clone();
+            let barrier = std::sync::Arc::clone(&barrier);
+            threads.push(std::thread::spawn(move || -> Result<()> {
+                let redactor = Redactor::with_defaults()?;
+                let mut journal = ProofJournal::open(&path)?;
+                barrier.wait();
+                journal.append(&redactor, sample_record(event, "x")?)
+            }));
+        }
+        for thread in threads {
+            thread.join().map_err(|_panic| {
+                Error::InvalidConfig("journal writer thread panicked".to_owned())
+            })??;
+        }
+        let journal = ProofJournal::open(&path)?;
+        assert_eq!(journal.verify_on_replay()?, 2);
+        std::fs::remove_file(&path)?;
+        let lock_path = path.with_extension("ndjson.lock");
+        if lock_path.exists() {
+            std::fs::remove_file(lock_path)?;
+        }
         Ok(())
     }
 

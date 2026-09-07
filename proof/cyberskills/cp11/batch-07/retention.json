@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-07",
+  "family": "IF/cloud-security",
+  "baselineCommit": "15ef4702d47c95f98aab0c00f0cad15ed3aa2259",
+  "scope": "Retain advisory and manual content for the deterministic cloud-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-cloud-storage-access-patterns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-cloud-storage-access-patterns/SKILL.md",
+        "sha256": "ce5eb7439bfcceab20129e96af4286fa7854009e046deef930eacd3163b99432",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Cloud Storage Access Patterns:L42"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-52/decomposition.json",
+        "artifactSha256": "f4fb49c294289ade67b5327106ff1aa303c23264b4d4fb8b89c95060ca92d0f2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud storage access review, least-privilege, logging, privacy, monitoring, and remediation guidance.",
+        "notProved": ["Guidance is not cloud-provider, storage, object, IAM, SIEM, CSPM, or production execution and does not prove access exposure, exfiltration, detection, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, tenant and storage ownership, legal/privacy/safety review, data boundaries, provider terms, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, bucket, object, provider, data, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "analyzing-office365-audit-logs-for-compromise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-office365-audit-logs-for-compromise/SKILL.md",
+        "sha256": "9e9561397e5e34f45771fe3570536163fca1a07c64e299643dc1578717438bb4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Office 365 Audit Logs for Compromise:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-52/decomposition.json",
+        "artifactSha256": "f4fb49c294289ade67b5327106ff1aa303c23264b4d4fb8b89c95060ca92d0f2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Office 365 audit-log review, identity monitoring, source validation, incident triage, containment, and remediation guidance.",
+        "notProved": ["Guidance is not Microsoft 365 API, tenant, mailbox, Defender, SIEM, endpoint, or production execution and does not prove compromise, detection, attribution, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, tenant and mailbox ownership, legal/privacy review, data boundaries, provider terms, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, mailbox, audit service, identity session, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "auditing-aws-s3-bucket-permissions",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-aws-s3-bucket-permissions/SKILL.md",
+        "sha256": "c0e9a74bfe4c50dece597dfef22e6392a775413863d37e4c29e428c7ccecc1f4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["### Step 1: Enumerate All S3 Buckets and Account-Level Block Public Access:L56"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-04/decomposition.json",
+        "artifactSha256": "04cdd6b0cda44129373c802694deb5bf606b8a8910003663f52ced1ce7f41df9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive S3 permission review, public-access prevention, ownership, policy analysis, evidence handling, and remediation guidance.",
+        "notProved": ["Guidance is not AWS, S3, IAM, scanner, policy-enforcement, or production execution and does not prove public exposure, data access, exfiltration, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, account and bucket ownership, legal/privacy/data review, provider terms, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, AWS account, bucket, object, policy, provider, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "auditing-azure-active-directory-configuration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-azure-active-directory-configuration/SKILL.md",
+        "sha256": "b114b06ba5bcdc4c9ef65c1b406e57469dfa80e277f2c4e5409eea1e85297e1f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Auditing Azure Active Directory Configuration:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-06/decomposition.json",
+        "artifactSha256": "60b0609032666c033137b7bbca6cb081cbbf9557e16fab46841446b515a068b5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Entra/Azure identity configuration review, least privilege, conditional access, credential protection, monitoring, and remediation guidance.",
+        "notProved": ["Guidance is not Azure, Entra, IdP, directory, session, endpoint, Defender, or production execution and does not prove identity security, access, compromise, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, tenant and identity ownership, legal/privacy/safety review, credential and session handling, provider terms, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, directory, identity, session, credential, provider, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "auditing-cloud-with-cis-benchmarks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-cloud-with-cis-benchmarks/SKILL.md",
+        "sha256": "c1ec47a63c60a1edfd95cd67aad9cdd84d8bdff01e9201389916bd0819611b03",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Auditing Cloud with CIS Benchmarks:L38"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-27/decomposition.json",
+        "artifactSha256": "f2da8b0c94a52862d08b619990e25798f0047ecb0502b6fa9fc82fcc86fe6956"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive CIS benchmark interpretation, preventive-control review, evidence quality, exception handling, and remediation guidance.",
+        "notProved": ["Guidance is not CIS execution, cloud API, scanner, CSPM, workload, WAF, identity, or production enforcement and does not prove compliance, configuration, risk, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, tenant and workload ownership, legal/privacy/safety review, data boundaries, benchmark version, exceptions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, workload, benchmark run, exception approval, control result, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "auditing-gcp-iam-permissions",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-gcp-iam-permissions/SKILL.md",
+        "sha256": "5200c83cb8d96bb1e8dc7b36faf28f554665ed241d38731c4c64c6eaceccff28",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Auditing GCP IAM Permissions:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-05/decomposition.json",
+        "artifactSha256": "e5f932b0b26f265ae5c413ae349fcdbb7dbcb1369065260b10ed71665762ffbf"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive GCP IAM permission review, least privilege, role ownership, policy analysis, evidence handling, and remediation guidance.",
+        "notProved": ["Guidance is not GCP, IAM, organization, resource, scanner, provider, or production execution and does not prove privilege, exposure, compromise, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, organization/project/resource ownership, legal/privacy review, credential and data boundaries, provider terms, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, GCP organization, project, resource, identity, credential, provider, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "auditing-kubernetes-cluster-rbac",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-kubernetes-cluster-rbac/SKILL.md",
+        "sha256": "d2d4c917cfb94732c14ca4b648ce23889d735c2ae087c81bc243f37210bc95de",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["## Workflow:L77", "### Step 1: Enumerate ClusterRoles and Roles with Dangerous Permissions:L79", "### Step 4: Run KubiScan for Risky Permissions Detection:L196"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-01/decomposition.json",
+        "artifactSha256": "9e46cfe6ae87db1ba040407df529069e722ec16709bccc244adedfc7099d0c1f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Kubernetes RBAC review, workload isolation, least privilege, cluster evidence, detection, and remediation guidance.",
+        "notProved": ["Guidance is not Kubernetes, API-server, cluster, KubiScan, workload, endpoint, scanner, or production execution and does not prove privilege, exposure, compromise, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, cluster and workload ownership, legal/privacy/safety review, credential and data boundaries, stop conditions, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, cluster, namespace, role, workload, credential, scanner, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "auditing-terraform-infrastructure-for-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-terraform-infrastructure-for-security/SKILL.md",
+        "sha256": "0ccb9490f13f53099ac90917cffb98e103efb080409c280c85184e0610c4e95a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Auditing Terraform Infrastructure for Security:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-53/decomposition.json",
+        "artifactSha256": "985bda0f2523df050ff41f4b2867ee1ed731307bdfd5bbdacba97d72b25ea664"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Terraform configuration review, infrastructure policy, state handling, provider security, evidence quality, and remediation guidance.",
+        "notProved": ["Guidance is not Terraform, provider, state, scanner, CI, cloud, deployment, or production execution and does not prove misconfiguration, exploitability, drift, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, repository/state/provider/workload ownership, legal/privacy/safety review, secret and data handling, plan approval, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, repository, state, provider, plan, apply, secret, workload, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "building-cloud-siem-with-sentinel",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-cloud-siem-with-sentinel/SKILL.md",
+        "sha256": "fd885f16306cf25fe58a86825f39e9489984cb49fd690d8dfca55fe58a79dffe",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Cloud SIEM with Sentinel:L42"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-54/decomposition.json",
+        "artifactSha256": "1d512f7350503833b6921265d19d19cf1b20f791dd9576e9d97b7686cef36ee3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud SIEM architecture, log source design, detection engineering, incident triage, evidence handling, and remediation guidance.",
+        "notProved": ["Guidance is not Sentinel, SIEM, Log Analytics, cloud, endpoint, network, identity, alerting, or production execution and does not prove telemetry, detection, incident, or response effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, tenant/workspace/log-source ownership, legal/privacy review, retention and data boundaries, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, workspace, log source, query, alert, incident, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "conducting-cloud-penetration-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-cloud-penetration-testing/SKILL.md",
+        "sha256": "4bc7f2b556d71f6f1fd69dd0a0073bf70ddc9a6f33934278baa1dacafb482f56",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Conducting Cloud Penetration Testing:L48"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-55/decomposition.json",
+        "artifactSha256": "0e7ea377341afe2f35a52a5e1f1e3976202f6936fe71f3e4c42a3046e59c3ca9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud assessment planning, scope control, evidence handling, safe testing guidance, finding analysis, and remediation guidance.",
+        "notProved": ["Guidance is not cloud API, tenant, host, scanner, exploit, credential, session, network, or production execution and does not prove exploitability, compromise, finding validity, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact scope, tenant/account/resource ownership, legal/privacy/safety review, stop conditions, credential and data boundaries, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, account, resource, exploit, credential, session, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "This packet retains advisory/manual content only and does not promote CP08 decomposition to native implementation or executable proof.",
+    "No live cloud provider, tenant, identity, storage, workload, Kubernetes cluster, Terraform provider, SIEM, scanner, endpoint, network, credential, session, penetration test, containment, remediation, or production authority was executed.",
+    "No cloud exposure, privilege, compromise, detection, exploitability, attribution, finding, compliance, remediation, recovery, safety, privacy, or security outcome is proved.",
+    "The protected vendor deletion remains excluded and was not read, materialized, hashed, or counted as eligible coverage.",
+    "External repositories and tools remain reference/parity inputs only; this retention packet is not an external adapter or live integration."
+  ]
+}

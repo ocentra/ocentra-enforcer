@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-80",
+  "baselineCommit": "f4c32df88bf1aa325d6a99e3f7d88db0b350f219",
+  "family": "Static authorized-assessment and evidence manifests for network, web, identity, intelligence, and forensic boundaries",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-vlan-hopping-attack",
+      "performing-vulnerability-scanning-with-nessus",
+      "performing-web-application-firewall-bypass",
+      "performing-web-application-penetration-test",
+      "performing-web-cache-deception-attack",
+      "performing-web-cache-poisoning-attack",
+      "performing-wifi-password-cracking-with-aircrack",
+      "post-exploiting-microsoft-graph-with-graphrunner",
+      "profiling-threat-actor-groups",
+      "recovering-deleted-files-with-photorec"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-79."
+  },
+  "accounting": {"acceptedPrior": 790, "proposed": 10, "overlap": 0, "combined": 800, "protectedExcluded": 1},
+  "skills": [
+    {
+      "catalogId": "performing-vlan-hopping-attack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-vlan-hopping-attack/SKILL.md", "sha256": "90cb042dd40efeb2b046204e42937d2ec0580561cf4e2edb0436078697a7cc55", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing VLAN Hopping Attack:L31"]},
+      "components": [
+        {"id": "performing-vlan-hopping-attack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed VLAN, segment, switch, port, trunk, authorization, scope, and evidence-manifest fields without network access or traffic generation.", "notProved": ["VLAN hopping", "network access", "segmentation efficacy"]},
+        {"id": "performing-vlan-hopping-attack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep switches, 802.1Q trunks, network interfaces, packet tools, hosts, credentials, and production networks external.", "notProved": ["live hop", "traffic", "access bypass"]},
+        {"id": "performing-vlan-hopping-attack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain VLAN segmentation, trunk hardening, switch configuration, and defensive testing guidance as advisory.", "notProved": ["finding validity", "control efficacy", "remediation effectiveness"]},
+        {"id": "performing-vlan-hopping-attack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, network ownership, legal and safety review, bounded scope, stop conditions, analyst validation, and remediation decisions.", "notProved": ["authorization", "live attack", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-vulnerability-scanning-with-nessus",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-vulnerability-scanning-with-nessus/SKILL.md", "sha256": "8f76d3fb61eabdaf505fd2223ff9b19916747b0920db22279b5f25c43a3806e5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Vulnerability Scanning with Nessus:L34"]},
+      "components": [
+        {"id": "performing-vulnerability-scanning-with-nessus::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed asset, plugin, scan-plan, credential-policy, CVE, CVSS, owner, scope, and evidence-manifest fields without scanning.", "notProved": ["vulnerability", "scan result", "priority truth"]},
+        {"id": "performing-vulnerability-scanning-with-nessus::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Nessus, scanners, hosts, networks, credentials, CMDB, ticketing, and production infrastructure external.", "notProved": ["live scan", "exploitability", "asset exposure"]},
+        {"id": "performing-vulnerability-scanning-with-nessus::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain vulnerability scanning, asset hygiene, severity review, patching, and defensive assessment guidance as advisory.", "notProved": ["finding validity", "CVSS truth", "remediation effectiveness"]},
+        {"id": "performing-vulnerability-scanning-with-nessus::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset ownership, legal and maintenance-window review, severity validation, stop conditions, remediation, and disclosure decisions.", "notProved": ["authorization", "live scan", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-web-application-firewall-bypass",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-application-firewall-bypass/SKILL.md", "sha256": "7e56849e7e2be2cb4d707ba5a64ed44bffb2fc61d1b12e8ab397661a81b81d74", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Web Application Firewall Bypass:L32"]},
+      "components": [
+        {"id": "performing-web-application-firewall-bypass::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed route, rule, payload-class, request-response, scope, owner, and evidence-manifest fields without payload execution.", "notProved": ["WAF bypass", "filter behavior", "exploitability"]},
+        {"id": "performing-web-application-firewall-bypass::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep WAFs, endpoints, Burp, OWASP ZAP, fuzzers, servers, sessions, and payload execution external.", "notProved": ["live bypass", "request behavior", "data exposure"]},
+        {"id": "performing-web-application-firewall-bypass::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain WAF rule design, normalization, input validation, monitoring, and defensive hardening guidance as advisory.", "notProved": ["finding validity", "control efficacy", "remediation effectiveness"]},
+        {"id": "performing-web-application-firewall-bypass::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application ownership, legal and safety review, bounded scope, stop conditions, analyst validation, containment, and remediation decisions.", "notProved": ["authorization", "live exploit", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-web-application-penetration-test",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-application-penetration-test/SKILL.md", "sha256": "0c1f45f85bdd2ce34bfa2a476cbda205fa2746e41bf50acce9a06d9543ceed99", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Web Application Penetration Test:L34"]},
+      "components": [
+        {"id": "performing-web-application-penetration-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed route, input, auth, session, control, finding, scope, and evidence-manifest fields without endpoint interaction.", "notProved": ["web vulnerability", "auth bypass", "exploitability"]},
+        {"id": "performing-web-application-penetration-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep browsers, endpoints, Burp, OWASP ZAP, scanners, fuzzers, credentials, sessions, and production systems external.", "notProved": ["live test", "payload behavior", "data exposure"]},
+        {"id": "performing-web-application-penetration-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive web testing, secure design, input validation, authentication, authorization, and reporting guidance as advisory.", "notProved": ["finding validity", "detection efficacy", "remediation effectiveness"]},
+        {"id": "performing-web-application-penetration-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope and ownership, legal and safety review, data handling, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "live penetration test", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-web-cache-deception-attack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-cache-deception-attack/SKILL.md", "sha256": "536d6980057fd3f4b284b5c495117c84fd4b85b7087c7046092e583640598b45", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Web Cache Deception Attack:L32"]},
+      "components": [
+        {"id": "performing-web-cache-deception-attack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed URL, cache-key, header, route, content-policy, owner, scope, and evidence-manifest fields without requests.", "notProved": ["cache deception", "content exposure", "cache behavior"]},
+        {"id": "performing-web-cache-deception-attack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep CDN, proxy, cache, browser, server, endpoint, network, and request tooling external.", "notProved": ["live deception", "response behavior", "data exposure"]},
+        {"id": "performing-web-cache-deception-attack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cache-control, routing, content separation, authentication, and defensive cache-hardening guidance as advisory.", "notProved": ["finding validity", "control efficacy", "remediation effectiveness"]},
+        {"id": "performing-web-cache-deception-attack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, service ownership, legal and safety review, change window, stop conditions, validation, containment, and remediation decisions.", "notProved": ["authorization", "live attack", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-web-cache-poisoning-attack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-cache-poisoning-attack/SKILL.md", "sha256": "52c72a075c6c2c150cd7f30f5a484117060141baa70b43b2ba3912c1c355f587", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Web Cache Poisoning Attack:L30"]},
+      "components": [
+        {"id": "performing-web-cache-poisoning-attack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed cache-key, header, host, route, policy, owner, scope, and evidence-manifest fields without request or payload execution.", "notProved": ["cache poisoning", "response contamination", "cache behavior"]},
+        {"id": "performing-web-cache-poisoning-attack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep CDN, reverse proxy, cache, server, browser, Burp, payloads, endpoints, and production networks external.", "notProved": ["live poisoning", "victim impact", "data exposure"]},
+        {"id": "performing-web-cache-poisoning-attack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cache-key integrity, header validation, cache isolation, monitoring, and defensive hardening guidance as advisory.", "notProved": ["finding validity", "control efficacy", "remediation effectiveness"]},
+        {"id": "performing-web-cache-poisoning-attack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, service ownership, legal and safety review, bounded scope, stop conditions, analyst validation, rollback, and disclosure decisions.", "notProved": ["authorization", "live attack", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-wifi-password-cracking-with-aircrack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-wifi-password-cracking-with-aircrack/SKILL.md", "sha256": "79afcda793901c69fd01bb0490d8bb3340ae3fbbed33c2a46e2d1be514169952", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing WiFi Password Cracking with Aircrack-ng:L31"]},
+      "components": [
+        {"id": "performing-wifi-password-cracking-with-aircrack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed WLAN, access-point, SSID, security-mode, credential-policy, capture-manifest, scope, and evidence fields without wireless access.", "notProved": ["password crack", "wireless access", "handshake validity"]},
+        {"id": "performing-wifi-password-cracking-with-aircrack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Aircrack-ng, wireless interfaces, access points, packet capture, password cracking, credentials, and networks external.", "notProved": ["live crack", "authentication", "network access"]},
+        {"id": "performing-wifi-password-cracking-with-aircrack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain WPA hardening, credential policy, wireless segmentation, monitoring, and defensive assessment guidance as advisory.", "notProved": ["finding validity", "control efficacy", "remediation effectiveness"]},
+        {"id": "performing-wifi-password-cracking-with-aircrack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, radio and asset ownership, legal/privacy/safety review, bounded scope, stop conditions, and remediation decisions.", "notProved": ["authorization", "live cracking", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "post-exploiting-microsoft-graph-with-graphrunner",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/post-exploiting-microsoft-graph-with-graphrunner/SKILL.md", "sha256": "8d184752d3e531eb0b68b7e27db717477963e9f9e2c5db42e1c03c1fff5211e7", "availability": "available", "license": "Apache-2.0", "anchors": ["# Post-Exploiting Microsoft Graph with GraphRunner:L23"]},
+      "components": [
+        {"id": "post-exploiting-microsoft-graph-with-graphrunner::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed tenant, application, Graph permission, identity, token, endpoint, scope, and evidence-manifest fields without API access.", "notProved": ["Graph access", "post-exploitation", "data access"]},
+        {"id": "post-exploiting-microsoft-graph-with-graphrunner::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Microsoft Graph, GraphRunner, Entra ID, IdP, tokens, sessions, mail, files, users, and production tenants external.", "notProved": ["live access", "credential use", "data exposure"]},
+        {"id": "post-exploiting-microsoft-graph-with-graphrunner::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain identity governance, least privilege, consent review, tenant hardening, and defensive cloud assessment guidance as advisory.", "notProved": ["finding validity", "access control efficacy", "remediation effectiveness"]},
+        {"id": "post-exploiting-microsoft-graph-with-graphrunner::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written tenant authorization, ownership, data and legal review, credential custody, bounded scope, stop conditions, analyst validation, and disclosure decisions.", "notProved": ["authorization", "live post-exploitation", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "profiling-threat-actor-groups",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/profiling-threat-actor-groups/SKILL.md", "sha256": "4f054fe28561a677a9d8b2b06bef2fb99f3e3c3f16a159aec536dac22fa023c5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Profiling Threat Actor Groups:L38"]},
+      "components": [
+        {"id": "profiling-threat-actor-groups::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed actor, source, TTP, relationship, citation, confidence, timestamp, and evidence-manifest fields without live collection.", "notProved": ["actor identity", "attribution", "source truth"]},
+        {"id": "profiling-threat-actor-groups::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep OSINT, MISP, ATT&CK, threat feeds, dark web, live sources, enrichment, DNS, WHOIS, and hosting authorities external.", "notProved": ["fresh collection", "actor attribution", "infrastructure ownership"]},
+        {"id": "profiling-threat-actor-groups::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain source evaluation, uncertainty tracking, TTP comparison, intelligence analysis, and defensive reporting guidance as advisory.", "notProved": ["profile validity", "attribution accuracy", "intelligence outcome"]},
+        {"id": "profiling-threat-actor-groups::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source terms, legal/privacy/ethics review, analyst validation, uncertainty review, attribution, dissemination, and disclosure decisions.", "notProved": ["authorization", "live collection", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "recovering-deleted-files-with-photorec",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/recovering-deleted-files-with-photorec/SKILL.md", "sha256": "f2d5b98906177ab24f9a30273f5524e73c28059282aad721cd790038c1c12f35", "availability": "available", "license": "Apache-2.0", "anchors": ["# Recovering Deleted Files with PhotoRec:L38"]},
+      "components": [
+        {"id": "recovering-deleted-files-with-photorec::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed image, artifact, hash, offset, filesystem, custody, recovery-plan, scope, and evidence-manifest fields without acquisition or extraction.", "notProved": ["file recovery", "file contents", "filesystem state"]},
+        {"id": "recovering-deleted-files-with-photorec::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep PhotoRec, disk images, filesystems, hosts, storage, live acquisition, extraction, and production evidence systems external.", "notProved": ["live recovery", "artifact authenticity", "data restoration"]},
+        {"id": "recovering-deleted-files-with-photorec::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain forensic recovery planning, evidence preservation, hashing, artifact triage, and defensive handling guidance as advisory.", "notProved": ["recovery efficacy", "content validity", "evidentiary validity"]},
+        {"id": "recovering-deleted-files-with-photorec::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal scope, chain of custody, privacy review, acquisition safety, analyst interpretation, disclosure, containment, and remediation decisions.", "notProved": ["authorization", "live acquisition", "forensic outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "protectedExcludedSkills": 1, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, database, mail, SIEM, EDR, OT, wireless, scanner, cache, registry, or production state is proved.",
+    "No VLAN hop, Nessus scan, WAF bypass, web penetration test, cache deception, cache poisoning, WiFi password crack, Graph post-exploitation, actor attribution, deleted-file recovery, compromise, data exposure, detection, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No source truth, vulnerability or severity truth, attribution, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security, privacy, operational, compliance, or forensic outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity was not read, touched, counted, proposed, or accepted in this batch."
+  ]
+}

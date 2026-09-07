@@ -25,6 +25,53 @@
 
 use std::path::PathBuf;
 
+/// Preserve required historical check routes before clap interprets the
+/// generic check positional scope. The canonical typed handler remains the
+/// policy action; only this exact documented spelling is rewritten.
+pub fn normalize_required_check_route(
+    mut args: Vec<std::ffi::OsString>,
+) -> Vec<std::ffi::OsString> {
+    if args.get(1).and_then(|value| value.to_str()) == Some("check")
+        && args.get(2).and_then(|value| value.to_str()) == Some("mutation-risk")
+    {
+        if let Some(route) = args.get_mut(1) {
+            *route = "policy".into();
+        }
+    }
+    args
+}
+
+#[cfg(test)]
+mod route_normalization_tests {
+    use super::normalize_required_check_route;
+    use proptest::{prop_assert_eq, prop_assume, proptest};
+
+    proptest! {
+        #[test]
+        fn mutation_risk_route_normalization_preserves_every_trailing_argument(
+            tail in proptest::collection::vec("[^\\x00]*", 0..12)
+        ) {
+            let mut args = vec!["enforcer".into(), "check".into(), "mutation-risk".into()];
+            args.extend(tail.iter().map(std::ffi::OsString::from));
+            let normalized = normalize_required_check_route(args);
+            prop_assert_eq!(normalized.get(1).and_then(|value| value.to_str()), Some("policy"));
+            prop_assert_eq!(normalized.get(2).and_then(|value| value.to_str()), Some("mutation-risk"));
+            let normalized_tail = normalized.iter().skip(3).map(|value| value.to_string_lossy()).collect::<Vec<_>>();
+            prop_assert_eq!(normalized_tail, tail);
+        }
+
+        #[test]
+        fn unrelated_routes_are_never_rewritten(
+            route in "[^\\x00]*",
+            action in "[^\\x00]*"
+        ) {
+            prop_assume!(route != "check" || action != "mutation-risk");
+            let args = vec!["enforcer".into(), route.into(), action.into()];
+            prop_assert_eq!(normalize_required_check_route(args.clone()), args);
+        }
+    }
+}
+
 use clap::{ArgGroup, Args, Parser, Subcommand};
 
 use crate::advise::AdviseTarget;
@@ -33,13 +80,14 @@ use crate::onboard::OnboardArgs;
 use crate::verify::VerifyMode;
 
 /// The `enforcer` binary's top-level grammar.
+/// Top-level parsed command-line grammar.
 #[derive(Debug, Parser)]
 #[command(
     name = "enforcer",
     version,
     about = "Ocentra Enforcer -- mechanical enforcement, one binary."
 )]
-#[doc = "Top-level parsed command-line grammar."]
+/// Top-level parsed command-line grammar.
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
@@ -75,8 +123,13 @@ pub enum Command {
     /// Register the installed binary with every supported user-level
     /// harness, then verify each native registration before exiting.
     Install,
+    /// Verify every supported user-level harness registration without
+    /// changing any files. Exit 0 only when every native doctor check passes.
+    Doctor,
     /// Plan/workpack scaffolding and validation (arc-20).
     Plan,
+    /// Query the repo-owned Cyber Plan execution graph.
+    Graph(GraphArgs),
     /// Proof-artifact recording/inspection (arc-17).
     Proof,
     /// Multi-agent coordination hub (arc-16). `full` feature only;
@@ -109,6 +162,11 @@ pub enum Command {
         #[command(subcommand)]
         action: ArchitectureAction,
     },
+    /// Native CI policy checks that have a real Rust implementation.
+    Policy {
+        #[command(subcommand)]
+        action: PolicyAction,
+    },
     /// f02 ratchet-first onboarding: create `.enforce/`, write (or
     /// preserve) the project profile, capture a baseline over every
     /// current violation, and register the project. Explicit and
@@ -120,6 +178,51 @@ pub enum Command {
         #[command(subcommand)]
         action: HookAction,
     },
+}
+
+/// Arguments for the Cyber Plan graph control-plane commands.
+#[derive(Debug, Args)]
+pub struct GraphArgs {
+    /// Read-only graph view to render.
+    #[command(subcommand)]
+    pub action: GraphAction,
+}
+
+/// Read-only Cyber Plan graph views.
+#[derive(Debug, Subcommand)]
+pub enum GraphAction {
+    /// Render all workpack and catalog status counts.
+    Status(GraphOutputArgs),
+    /// Render workpacks whose hard dependencies are satisfied.
+    Ready(GraphOutputArgs),
+    /// Select the first dependency-legal workpack packet deterministically.
+    Next(GraphOutputArgs),
+    /// Render workpacks blocked by dependencies or graph integrity.
+    Blocked(GraphOutputArgs),
+    /// Validate IDs, endpoints, cycles, protected coverage, and DONE contracts.
+    Validate(GraphOutputArgs),
+    /// Inspect one stable graph ID.
+    Inspect(GraphInspectArgs),
+    /// Explain the first dependency chain blocking one stable graph ID.
+    Why(GraphInspectArgs),
+}
+
+/// Common output control for graph collection views.
+#[derive(Debug, Args)]
+pub struct GraphOutputArgs {
+    /// Emit pretty JSON for scripts and review tooling.
+    #[arg(long, default_value_t = true)]
+    pub json: bool,
+}
+
+/// Graph ID argument used by node-specific views.
+#[derive(Debug, Args)]
+pub struct GraphInspectArgs {
+    /// Stable graph identifier, such as `WP/CP08` or `SKILL/<catalog-id>`.
+    pub id: String,
+    /// Emit pretty JSON for scripts and review tooling.
+    #[arg(long, default_value_t = true)]
+    pub json: bool,
 }
 
 /// Supported harness hook entry points.
@@ -158,6 +261,94 @@ pub enum ArchitectureAction {
     Check(ArchitectureCheckArgs),
 }
 
+/// Native CI policy check actions. Each action is only exposed once backed by
+/// a concrete Rust engine; unsupported legacy checks are intentionally absent.
+#[derive(Debug, Subcommand)]
+pub enum PolicyAction {
+    /// Reject local Cargo path dependencies that are neither a declared
+    /// workspace member nor an in-crate vendored grammar dependency.
+    #[command(name = "dependency-policy")]
+    DependencyPolicy,
+    /// Detect committed credential material using the native `SEC-1`/`SEC-2`
+    /// secret validators. This is a real policy gate, not a marker check or a
+    /// wrapper around the legacy Node collector.
+    #[command(name = "secrets")]
+    Secrets,
+    /// Generate a deterministic, schema-validated Cargo SBOM from the locked
+    /// dependency resolution. The output is native Rust JSON, not a copied
+    /// Node/npm artifact.
+    #[command(name = "sbom")]
+    Sbom(SbomArgs),
+    /// Enforce organized test trees, empty-tree strict mode from project
+    /// configuration, and exact private Rust test-module allowlists.
+    #[command(name = "required-tests")]
+    RequiredTests(RequiredTestsArgs),
+    /// Reject generated output paths in the selected scope or Git tracked
+    /// inventory when configuration or `--tracked` requests it.
+    #[command(name = "generated-artifacts")]
+    GeneratedArtifacts(GeneratedArtifactsArgs),
+    /// Report policy-critical mutations and the complete required proof set.
+    #[command(name = "mutation-risk")]
+    MutationRisk(MutationRiskArgs),
+    #[command(name = "single-source-contracts")]
+    SingleSourceContracts(SingleSourceContractsArgs),
+    #[command(name = "ai-rule-index")]
+    AiRuleIndex(AiRuleIndexArgs),
+}
+
+/// Output selection for the native Cargo SBOM policy.
+#[derive(Debug, Args)]
+pub struct SbomArgs {
+    /// Directory into which `cargo-sbom.json` is written.
+    #[arg(long, default_value = "target/security")]
+    pub output: PathBuf,
+}
+
+/// Required-test policy arguments.
+#[derive(Debug, Args)]
+pub struct RequiredTestsArgs {
+    /// Treat empty/skeleton-only test category directories as failures even
+    /// when the project configuration does not require strict empty trees.
+    #[arg(long)]
+    pub strict_empty_test_trees: bool,
+    /// Limit the policy to explicit paths, a Git diff, or the full workspace.
+    #[command(flatten)]
+    pub scope: ScopeArgs,
+}
+
+/// Generated-artifact policy arguments.
+#[derive(Debug, Args)]
+pub struct GeneratedArtifactsArgs {
+    /// Include Git tracked files even when project configuration uses scope mode.
+    #[arg(long)]
+    pub tracked: bool,
+}
+/// Mutation-risk policy arguments.
+#[derive(Debug, Args)]
+pub struct MutationRiskArgs {
+    /// Repository root containing the mutation set. Relative values are
+    /// resolved against the current working directory before validation.
+    #[arg(long)]
+    pub root: Option<PathBuf>,
+    /// Limit mutation-risk to explicit paths or an explicit Git diff. `--all`
+    /// is intentionally rejected: a workspace walk is not a mutation set.
+    #[command(flatten)]
+    pub scope: ScopeArgs,
+}
+
+/// Single-source contract policy arguments.
+#[derive(Debug, Args)]
+pub struct SingleSourceContractsArgs {
+    #[arg(long)]
+    pub config_path: Option<PathBuf>,
+}
+/// AI rule-index policy arguments.
+#[derive(Debug, Args)]
+pub struct AiRuleIndexArgs {
+    #[arg(long)]
+    pub max_lines: Option<usize>,
+}
+
 /// Arguments for the architecture-policy check.
 #[derive(Debug, Args)]
 pub struct ArchitectureCheckArgs {
@@ -167,6 +358,12 @@ pub struct ArchitectureCheckArgs {
     /// no-op.
     #[arg(long)]
     pub language: ArchitectureLanguage,
+    /// Project configuration path, matching the frozen architecture CLI.
+    #[arg(long)]
+    pub config: Option<PathBuf>,
+    /// Emit the native report as JSON.
+    #[arg(long)]
+    pub json: bool,
     #[command(flatten)]
     pub scope: ScopeArgs,
 }
@@ -212,6 +409,7 @@ pub struct VerifyArgs {
 /// [`crate::scope::resolve_request`], not a clap-level requirement, since
 /// an empty invocation should read as "you forgot a scope", not a generic
 /// clap usage dump).
+/// Workspace scope arguments shared by command families.
 #[derive(Debug, Args)]
 #[command(group(
     ArgGroup::new("scope")
@@ -224,7 +422,7 @@ pub struct VerifyArgs {
         .args(["base", "head"])
         .multiple(true)
 ))]
-#[doc = "Parsed tri-modal workspace scope."]
+/// Parsed tri-modal workspace scope.
 pub struct ScopeArgs {
     /// Explicit file or directory paths (Windows or POSIX separators,
     /// either works -- normalized before comparison).
@@ -270,6 +468,68 @@ mod tests {
             Command::Check(scope) => assert_eq!(scope.paths.len(), 1),
             other => return Err(format!("expected Check, got {other:?}").into()),
         }
+        Ok(())
+    }
+
+    #[test]
+    fn required_tests_accepts_the_standard_scope_modes() -> Result<(), Box<dyn std::error::Error>> {
+        let paths = parse(&["policy", "required-tests", "crates/example/src/lib.rs"])?;
+        let all = parse(&["policy", "required-tests", "--all"])?;
+        let diff = parse(&[
+            "policy",
+            "required-tests",
+            "--base",
+            "main",
+            "--head",
+            "HEAD",
+        ])?;
+        assert!(
+            matches!(paths.command, Command::Policy { action: super::PolicyAction::RequiredTests(args) } if args.scope.paths.len() == 1)
+        );
+        assert!(
+            matches!(all.command, Command::Policy { action: super::PolicyAction::RequiredTests(args) } if args.scope.all)
+        );
+        assert!(
+            matches!(diff.command, Command::Policy { action: super::PolicyAction::RequiredTests(args) } if args.scope.base.as_deref() == Some("main") && args.scope.head.as_deref() == Some("HEAD"))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn documented_mutation_risk_route_accepts_an_explicit_root(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let normalized = super::normalize_required_check_route(
+            [
+                "enforcer",
+                "check",
+                "mutation-risk",
+                "--root",
+                ".",
+                "--base",
+                "origin/main",
+                "--head",
+                "HEAD",
+            ]
+            .into_iter()
+            .map(std::ffi::OsString::from)
+            .collect(),
+        );
+        let cli = Cli::try_parse_from(normalized)?;
+        assert!(matches!(
+            cli.command,
+            Command::Policy {
+                action: super::PolicyAction::MutationRisk(args)
+            } if args.root.as_deref() == Some(std::path::Path::new("."))
+                && args.scope.base.as_deref() == Some("origin/main")
+                && args.scope.head.as_deref() == Some("HEAD")
+        ));
+        Ok(())
+    }
+
+    #[test]
+    fn doctor_is_a_first_class_command() -> Result<(), Box<dyn std::error::Error>> {
+        let cli = parse(&["doctor"])?;
+        assert!(matches!(cli.command, Command::Doctor));
         Ok(())
     }
 
@@ -398,6 +658,35 @@ mod tests {
                     assert!(args.scope.all);
                 }
             },
+            other => return Err(format!("expected Architecture, got {other:?}").into()),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn architecture_check_accepts_frozen_config_and_json_flags(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let cli = parse(&[
+            "architecture",
+            "check",
+            "--language",
+            "rust",
+            "--config",
+            "architecture.json",
+            "--json",
+            "--all",
+        ])?;
+        match cli.command {
+            Command::Architecture {
+                action: super::ArchitectureAction::Check(args),
+            } => {
+                assert_eq!(
+                    args.config.as_deref(),
+                    Some(std::path::Path::new("architecture.json"))
+                );
+                assert!(args.json);
+                assert!(args.scope.all);
+            }
             other => return Err(format!("expected Architecture, got {other:?}").into()),
         }
         Ok(())

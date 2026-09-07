@@ -20,8 +20,25 @@ pub(crate) const SPECS: &[RuleSpec] = &[
         rule_id: "TS-1.2",
         title: "Direct Zod source usage is forbidden",
         kind: TriggerKind::Word,
-        needles: &["zod", "zodResolver", "ZodError"],
-        comment_guard: true,
+        needles: &[
+            "zod",
+            "zodResolver",
+            "ZodError",
+            "ZodIssue",
+            "ZodType",
+            "ZodSchema",
+            "ZodObject",
+            "ZodString",
+            "ZodNumber",
+            "ZodBoolean",
+            "ZodArray",
+            "ZodRecord",
+            "ZodUnion",
+        ],
+        // The frozen MJS policy evaluates its Zod patterns on raw source
+        // lines, including comment-only lines. Keeping comments visible here
+        // prevents a commented-out Zod import from becoming an escape hatch.
+        comment_guard: false,
     },
     RuleSpec {
         rule_id: "TS-1.3",
@@ -159,6 +176,18 @@ mod tests {
             run_fixture_parity(&validator, &fail, &pass)
                 .map_err(|e| format!("{}: {e}", spec.rule_id))?;
         }
+        Ok(())
+    }
+
+    #[test]
+    fn no_zod_source_covers_the_frozen_public_api_markers() -> Result<(), Box<dyn std::error::Error>>
+    {
+        let validator = SpecValidator::new(SPECS[1])?;
+        run_fixture_parity(
+            &validator,
+            "fixtures/source-scan/ts-1-2/fail_public_api.ts",
+            "fixtures/source-scan/ts-1-2/pass_public_api.ts",
+        )?;
         Ok(())
     }
 }

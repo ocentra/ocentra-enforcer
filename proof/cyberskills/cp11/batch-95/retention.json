@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-95",
+  "family": "IF/web-application-security",
+  "baselineCommit": "e590459b6e888dac5bac94f1fa7fe9e3cd7b5114",
+  "scope": "Retain the final web-application-security packet covering redirects, sensitive data, XML and XXE boundaries, browser XSS guidance, and JWT security guidance from immutable CP08 evidence; native predicates are limited to static supplied URL, route, redirect, input, output, document, parser, schema, browser-policy, token, claim, key, endpoint, owner, scope, and evidence manifests; live applications, endpoints, servers, browsers, Burp, ZAP, parsers, payloads, fuzzers, identity providers, credentials, sessions, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "testing-for-open-redirect-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-open-redirect-vulnerabilities/SKILL.md",
+        "sha256": "773bc2e3ddb71f93cfe356debef6c75edbcf835bf83f367a4e200e807e976670",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for Open Redirect Vulnerabilities:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-41/decomposition.json",
+        "artifactSha256": "9985625651fb85c2569fdf5fcbf6425e13719537d8c450aff2ec619a23f33193"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive redirect allowlists, URL validation, origin control, browser policy, test design, and remediation guidance as advisory.",
+        "notProved": ["No live redirect, endpoint, browser navigation, exploitability, finding validity, control efficacy, or remediation effectiveness is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application ownership, legal and safety review, bounded scope, stop conditions, analyst validation, containment, rollback, and remediation decisions.",
+        "notProved": ["No authorization, live redirect test, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-for-sensitive-data-exposure",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-sensitive-data-exposure/SKILL.md",
+        "sha256": "086d5cf8fd640eb9aa5d66d6f983b992393edfb35c0932dad5203faed0c14b3f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for Sensitive Data Exposure:L39"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-81/decomposition.json",
+        "artifactSha256": "ff701913c6bad304bcf96c60eba0865b71d51e80f9a6f446fa7105839a4072cc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain data minimization, masking, encryption, access control, retention, privacy, transport, and defensive review guidance as advisory.",
+        "notProved": ["No sensitive-data exposure, data classification truth, privacy impact, finding validity, or remediation effectiveness is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, data ownership, legal and privacy review, data-handling controls, bounded scope, analyst validation, severity, stop conditions, disclosure, and remediation decisions.",
+        "notProved": ["No authorization, live data access, exposure finding, privacy outcome, or remediation decision is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-for-xml-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-xml-injection-vulnerabilities/SKILL.md",
+        "sha256": "7eb75bc6499dab8d1aea8e52d00dd8760acd53fafc4942b185fbba7f2bec6b4b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for XML Injection Vulnerabilities:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-50/decomposition.json",
+        "artifactSha256": "2091d873aac0c60153c9c0fd8bda86df8bd37e4053f3de47484430363edc1b90"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive XML parsing, schema validation, encoding, entity handling, test design, and remediation guidance as advisory.",
+        "notProved": ["No XML parser behavior, entity expansion, injection, data access, endpoint behavior, exploitability, finding, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, application ownership, legal and safety review, parser and data boundaries, credential handling, analyst validation, severity, containment, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No human XML test, parser result, finding, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-for-xss-vulnerabilities-with-burpsuite",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-xss-vulnerabilities-with-burpsuite/SKILL.md",
+        "sha256": "58815cbe46601c7587cd2f071858cd26f2ef0094f17003532d9303d71d679781",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for XSS Vulnerabilities with Burp Suite:L29"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-50/decomposition.json",
+        "artifactSha256": "2091d873aac0c60153c9c0fd8bda86df8bd37e4053f3de47484430363edc1b90"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive XSS context, output encoding, input validation, browser policy, test design, and remediation guidance as advisory.",
+        "notProved": ["No browser rendering, script execution, XSS exploitability, payload effect, endpoint behavior, finding, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, application and owner approval, legal and safety review, browser and payload boundaries, data handling, analyst validation, severity, containment, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No human browser test, payload, finding, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-for-xxe-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-xxe-injection-vulnerabilities/SKILL.md",
+        "sha256": "d2501aefc63508db7732a4adaf251d8f0beff93decab5b466754a5f8744e2994",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for XXE Injection Vulnerabilities:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-41/decomposition.json",
+        "artifactSha256": "9985625651fb85c2569fdf5fcbf6425e13719537d8c450aff2ec619a23f33193"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive entity restrictions, parser hardening, schema validation, safe resolution, test design, and remediation guidance as advisory.",
+        "notProved": ["No XXE payload, external entity resolution, file access, network request, parser behavior, exploitability, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, application ownership, legal and safety review, parser and data boundaries, stop conditions, analyst validation, containment, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No human parser test, file access, network request, finding, containment, remediation, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-jwt-token-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-jwt-token-security/SKILL.md",
+        "sha256": "d7b6b10a9ea2538b0b3cdb2bc4e608ecf84c27d188cbfcb5d2854579653319f9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing JWT Token Security:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-50/decomposition.json",
+        "artifactSha256": "2091d873aac0c60153c9c0fd8bda86df8bd37e4053f3de47484430363edc1b90"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive JWT claims, algorithms, key management, issuer and audience, expiry, validation, test design, and remediation guidance as advisory.",
+        "notProved": ["No token acceptance, signature validation, algorithm confusion, claim bypass, authentication, exploitability, finding, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, application and identity-owner approval, legal and safety review, key and credential handling, data boundaries, analyst validation, severity, containment, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No human token, key, session, authentication, finding, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 6,
+    "advisoryRetained": 6,
+    "manualRetained": 6,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live application, endpoint, server, browser, parser, Burp, ZAP, fuzzer, payload, identity provider, credential, session, or production execution is proved.",
+    "No redirect, data exposure, XML or XXE injection, XSS, JWT weakness, exploitability, authentication, authorization, finding, remediation, or security outcome is proved.",
+    "This packet is the final web-application-security retention packet; completion of CP11 retention does not make native or executable proof complete.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, scanners, browsers, platforms, parsers, identity providers, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+
 import {
   expectedProductManifests,
   normalizedRelative,
@@ -10,6 +12,19 @@ function sortedUnique(values) {
 function difference(left, right) {
   const rightSet = new Set(right);
   return left.filter((value) => !rightSet.has(value));
+}
+
+function hasWorkspaceLintOptIn(manifestPath) {
+  let inLintsTable = false;
+  for (const line of readFileSync(manifestPath, "utf8").split(/\r?\n/u)) {
+    const trimmed = line.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      inLintsTable = trimmed === "[lints]";
+      continue;
+    }
+    if (inLintsTable && /^workspace\s*=\s*true\s*$/u.test(trimmed)) return true;
+  }
+  return false;
 }
 
 /** Validates that Cargo metadata contains every expected product workspace member. */
@@ -47,5 +62,23 @@ export function validateCargoWorkspaceMembers(root, metadata) {
     .map((id) => packageById.get(id))
     .filter(Boolean)
     .sort((left, right) => left.name.localeCompare(right.name));
-  return { ok: errors.length === 0, errors, expected, workspace, defaults, workspacePackages };
+  const expectedSet = new Set(expected);
+  const lintOptIns = workspacePackages
+    .filter((pkg) => expectedSet.has(normalizedRelative(root, pkg.manifest_path)))
+    .filter((pkg) => hasWorkspaceLintOptIn(pkg.manifest_path))
+    .map((pkg) => normalizedRelative(root, pkg.manifest_path));
+  const missingLintOptIns = difference(expected, lintOptIns);
+  if (missingLintOptIns.length) {
+    errors.push(`product packages missing [lints] workspace = true: ${missingLintOptIns.join(", ")}`);
+  }
+
+  return {
+    ok: errors.length === 0,
+    errors,
+    expected,
+    workspace,
+    defaults,
+    workspacePackages,
+    lintOptIns,
+  };
 }

@@ -1,16 +1,16 @@
 //! Hard tests for Agda, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_agda`]) --
+//! ([`enforcer_syntax::languages::generic::parse_agda`]) --
 //! language-parity wave G2.6 (found genuinely missing during the G2.5
 //! closeout audit, no bespoke `languages::agda` extractor ever existed).
 //! Every assertion here is against real grammar shapes confirmed via a
 //! `cargo run` probe with the vendored grammar (not `node-types.json`
 //! alone -- this grammar exposes zero field names anywhere, see
-//! [`enforcer_memory::languages::spec::LangSpec::agda`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::agda`]'s own doc
 //! comment), not guessed from the baseline's C spec table.
 
-use enforcer_memory::languages::generic::parse_agda;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_agda;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_agda";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

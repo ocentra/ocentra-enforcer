@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-71",
+  "family": "IF/soc-operations",
+  "baselineCommit": "3ec191d8c874928ccd1d82f5603854a9e53239d4",
+  "scope": "Retain SOC monitoring, alert, triage, escalation, case, notification, metric, and response guidance from immutable CP08 evidence; native predicates are limited to static supplied route, log, event, alert, case, owner, severity, evidence, notification, escalation, metric, and response manifests; no live endpoint, cloud, host, device, packet, SIEM, SOAR, scanner, external service, or production execution.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-siem-use-case-tuning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-siem-use-case-tuning/SKILL.md",
+        "sha256": "720a5d6677fde2ed96fcfd12dde89be7ce96c5150b38726bc2d438efb9bd1c40",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing SIEM Use Case Tuning:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-44/decomposition.json",
+        "artifactSha256": "3081c7a7c474da5f0480d10cd67415909fa3553316782efac9156c98c2406d62"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-soar-automation-with-phantom",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-soar-automation-with-phantom/SKILL.md",
+        "sha256": "28fe209964359f6dd4b57f46e482fc27d2f966d2796c50398108f8edaa5d5e92",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing SOAR Automation with Phantom:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-soar-playbook-for-phishing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-soar-playbook-for-phishing/SKILL.md",
+        "sha256": "bb3c35a6df3d6e3e5cf28d0b32d69f668593b324482f60fff73a190ade539caa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing SOAR Playbook for Phishing:L57"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-soar-playbook-with-palo-alto-xsoar",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-soar-playbook-with-palo-alto-xsoar/SKILL.md",
+        "sha256": "6d636b91d9d8beaf3c738d765aa99aea64eb3013659e0a0121664524ee14225b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing SOAR Playbook with Palo Alto XSOAR:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-syslog-centralization-with-rsyslog",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-syslog-centralization-with-rsyslog/SKILL.md",
+        "sha256": "0cb553738acc7f0f59177353234168dcbfcda3b542375c7ea06d15d41f522a34",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Syslog Centralization with Rsyslog:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-threat-modeling-with-mitre-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-threat-modeling-with-mitre-attack/SKILL.md",
+        "sha256": "d6ec7e5b911133d53e4425769ba3f2c8744ef44ab42e50de028b59dbc8213adb",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Threat Modeling with MITRE ATT&CK:L48"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-71/decomposition.json",
+        "artifactSha256": "67f903bd350f095a032b24e8457d7cf7a5d3a6f929da13ceb0d9797f94f8fc4b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-ticketing-system-for-incidents",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ticketing-system-for-incidents/SKILL.md",
+        "sha256": "8d20bfb3ba25b6e9f4683f8f326923876aacaaabaaf13fee26afc5455d499066",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Ticketing System for Incidents:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-71/decomposition.json",
+        "artifactSha256": "67f903bd350f095a032b24e8457d7cf7a5d3a6f929da13ceb0d9797f94f8fc4b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "investigating-insider-threat-indicators",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/investigating-insider-threat-indicators/SKILL.md",
+        "sha256": "ed11964e8661cdd81ccabd7d5432dfc8986b52080b76e5f685e7b8f0b46de256",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Investigating Insider Threat Indicators:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-71/decomposition.json",
+        "artifactSha256": "67f903bd350f095a032b24e8457d7cf7a5d3a6f929da13ceb0d9797f94f8fc4b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "investigating-phishing-email-incident",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/investigating-phishing-email-incident/SKILL.md",
+        "sha256": "e946a062aafcbb143ff99ee240ad2bbec8669cd245114354dbc9815f4efc095f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Investigating Phishing Email Incident:L68"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-35/decomposition.json",
+        "artifactSha256": "7b486c870b0ec91ad04d98fd960589cd1667967ae841768adfcdfc22562c2b4f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-alert-triage-with-elastic-siem",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-alert-triage-with-elastic-siem/SKILL.md",
+        "sha256": "fba8437a251a00168d7cc54328000db0f554addf0882a25b11b15413152c0ae4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Alert Triage with Elastic SIEM:L37"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-44/decomposition.json",
+        "artifactSha256": "3081c7a7c474da5f0480d10cd67415909fa3553316782efac9156c98c2406d62"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive SOC monitoring, detection, triage, evidence, escalation, response, and improvement guidance.",
+        "notProved": [
+          "No live monitoring, detection truth, alert efficacy, event completeness, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, legal/privacy/safety review, scope, stop conditions, analyst interpretation, notification, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, severity, escalation, notification, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, cloud, host, device, packet, SIEM, SOAR, scanner, external service, or production execution.",
+    "No monitoring truth, alert efficacy, triage decision, attribution, containment, remediation success, safety outcome, or security outcome is proved.",
+    "This packet covers the fifth ten SOC-operations skills as retained advisory/manual evidence only; the family remains incomplete until its final packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, repositories, SIEM, SOAR, scanners, endpoints, networks, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

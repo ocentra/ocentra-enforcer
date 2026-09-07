@@ -1,0 +1,161 @@
+{
+  "schemaVersion": 1,
+  "workpack": "WP/CP02",
+  "kind": "consumer-adoption",
+  "baseCommit": "ea72eaa7150aa1423b10304c9fd63777d7606d8b",
+  "sourcePaths": [
+    "crates/enforcer-scan/tests/cyberskills_syntax_adoption.rs",
+    "proof/cyberskills/cp02/shared-syntax-adoption.json"
+  ],
+  "dependencies": [
+    {
+      "workpack": "EXT/UL02",
+      "path": "docs/plans/universal-language-enforcement-plan/decisions/UL02-GRAMMAR-OWNERSHIP.md",
+      "role": "accepted sole grammar ownership decision",
+      "status": "accepted",
+      "sha256": "C003242337AD07190364EF25E6683148166342146C5D0015CDD65090AEA09115"
+    },
+    {
+      "workpack": "EXT/UL03",
+      "path": "proof/universal-language/ul03/full-package-qa.json",
+      "role": "accepted shared syntax extraction package QA",
+      "status": "accepted",
+      "sha256": "A8B401DEAFDEF7C4B5F92A06C43170DB78F288511784AE40C9024371E6C97771"
+    },
+    {
+      "workpack": "EXT/UL03",
+      "path": "proof/universal-language/ul03/provenance.json",
+      "role": "syntax ownership and no-duplicate-source provenance",
+      "status": "accepted",
+      "sha256": "D17D0FC9D77B72FFF68561D3522336EDEE3E0B3ED93F54D70AF223057C9390A7"
+    }
+  ],
+  "consumer": {
+    "crate": "enforcer-scan",
+    "securityValidatorCrate": "enforcer-lang-security",
+    "sharedSyntaxCrate": "enforcer-syntax",
+    "interface": [
+      "enforcer_syntax::parsers::classify",
+      "enforcer_syntax::parsers::parse_file",
+      "enforcer_scan::engine::build_family_validators"
+    ],
+    "ownership": {
+      "grammar": "EXT/UL02",
+      "syntax": "EXT/UL03",
+      "consumer": "WP/CP02",
+      "securityRules": "enforcer-lang-security"
+    }
+  },
+  "gates": {
+    "focusedAdoption": {
+      "command": "cargo test --locked -p enforcer-scan --test cyberskills_syntax_adoption -- --nocapture",
+      "exitCode": 0,
+      "passed": 2,
+      "failed": 0
+    },
+    "scanCheck": {
+      "command": "cargo check --locked -p enforcer-scan",
+      "exitCode": 0
+    },
+    "securityLibrary": {
+      "command": "cargo test --locked -p enforcer-lang-security --lib",
+      "exitCode": 0,
+      "passed": 69,
+      "failed": 0
+    },
+    "securityCorpus": {
+      "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_corpus -- --nocapture",
+      "exitCode": 0,
+      "passed": 33,
+      "failed": 0
+    },
+    "scanLibrary": {
+      "command": "cargo test --locked -p enforcer-scan --lib",
+      "exitCode": 0,
+      "passed": 169,
+      "failed": 0
+    },
+    "broadScanPackage": {
+      "command": "cargo test --locked -p enforcer-scan --quiet",
+      "exitCode": 1,
+      "status": "blocked-protected-source",
+      "passedBeforeProtectedChecks": 169,
+      "failedTests": [
+        "cyberskills_vendor_not_dogfooded",
+        "without_the_vendor_glob_the_walk_would_see_vendor_files"
+      ],
+      "reason": "the protected vendor corpus is intentionally absent; the tests fail closed and require that source"
+    },
+    "formatAndDiff": {
+      "commands": [
+        "cargo fmt -p enforcer-scan -- --check",
+        "git diff --check"
+      ],
+      "exitCode": 0
+    },
+    "enforcer": {
+      "strictScan": "0 findings, 0 violations, 0 warnings",
+      "sourceShape": "0 findings, 0 violations, 0 warnings",
+      "secrets": "0 findings, 0 violations, 0 warnings",
+      "validationBypass": "0 findings, 0 violations, 0 warnings",
+      "placeholderImplementation": "0 findings, 0 violations, 0 warnings",
+      "reexports": "0 findings, 0 violations, 0 warnings",
+      "dependencyPolicy": "0 findings, 0 violations, 0 warnings"
+    },
+    "dependencyOwners": {
+      "command": "cargo tree --locked -p enforcer-scan --depth 1",
+      "exitCode": 0,
+      "directSyntaxOwner": "enforcer-syntax",
+      "directSecurityConsumer": "enforcer-lang-security",
+      "duplicateMemorySyntaxOwner": false
+    },
+    "protectedPath": {
+      "command": "Test-Path -LiteralPath vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md",
+      "exists": false,
+      "read": false,
+      "modified": false
+    }
+  },
+  "requirements": [
+    {
+      "id": "CP02-REQ-01",
+      "statement": "Security scanning consumes the shared syntax classification and normalized ParsedFile interface.",
+      "disposition": "accepted shared syntax capability",
+      "evidence": "crates/enforcer-scan/tests/cyberskills_syntax_adoption.rs"
+    },
+    {
+      "id": "CP02-REQ-02",
+      "statement": "CyberSkills validator assembly remains behind the existing scan consumer seam.",
+      "disposition": "accepted shared syntax capability",
+      "evidence": "crates/enforcer-scan/tests/cyberskills_syntax_adoption.rs"
+    },
+    {
+      "id": "CP02-REQ-03",
+      "statement": "No missing syntax fact is implemented by CP02; future demand routes to EXT/UL04.",
+      "disposition": "route missing capability to EXT/UL04",
+      "evidence": "docs/plans/cyberskills-parity-plan/workpacks/cp02-syntax-module-extraction.md"
+    },
+    {
+      "id": "CP02-REQ-04",
+      "statement": "No persistence, retrieval, UI, raw Tree-sitter, or duplicate grammar dependency is introduced.",
+      "disposition": "consumer boundary retained",
+      "evidence": "cargo tree -p enforcer-scan --depth 1"
+    }
+  ],
+  "externalExecution": "blocked",
+  "status": "accepted-for-cp02-scope",
+  "proves": [
+    "only the existing enforcer-scan consumer crosses the accepted enforcer-syntax interface",
+    "the security validator family remains assembled through the existing scan engine",
+    "CP02 adds no parser, grammar, memory, persistence, or CyberSkills rule behavior",
+    "the affected scan and security crates remain mechanically green under the bounded gates"
+  ],
+  "doesNotProve": [
+    "new syntax facts or parse-honesty semantics; route those to EXT/UL04",
+    "native implementation of any additional CyberSkills intent",
+    "executable security proof, external-engine correctness, live execution, or security outcomes",
+    "broad scan-package vendor dogfood while the protected source is unavailable",
+    "overall Universal Language or CyberSkills plan completion",
+    "protected vendor source, which remains excluded and untouched"
+  ]
+}

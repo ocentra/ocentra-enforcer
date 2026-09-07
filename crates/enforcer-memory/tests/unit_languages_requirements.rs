@@ -1,14 +1,14 @@
 //! Hard tests for pip `requirements.txt` files, onboarded directly
 //! through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_requirements`]).
+//! ([`enforcer_syntax::languages::generic::parse_requirements`]).
 //! Grammar: `tree-sitter-requirements` 0.6.1, a real crates.io crate.
 //! Matches the baseline's own `CBM_LANG_REQUIREMENTS` row -- `empty_types`
 //! for every array except `module_types = {"file"}` -- see
-//! [`enforcer_memory::languages::spec::LangSpec::requirements`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::requirements`]'s own doc
 //! comment.
 
-use enforcer_memory::languages::generic::parse_requirements;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_requirements;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 

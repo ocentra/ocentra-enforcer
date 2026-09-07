@@ -1,0 +1,455 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-59",
+  "baselineCommit": "56a5f76b8eca4104c18c6f978649800eb7e4bcec",
+  "family": "Canonical-order defensive detection of cloud, identity, endpoint, network, firmware, and serverless technique evidence",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "detecting-misconfigured-azure-storage",
+      "detecting-ntlm-relay-with-event-correlation",
+      "detecting-pass-the-hash-attacks",
+      "detecting-pass-the-ticket-attacks",
+      "detecting-privilege-escalation-attempts",
+      "detecting-process-hollowing-technique",
+      "detecting-process-injection-techniques",
+      "detecting-rdp-brute-force-attacks",
+      "detecting-secure-boot-bypass",
+      "detecting-serverless-function-injection"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-58."
+  },
+  "accounting": {
+    "acceptedPrior": 580,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 590,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-misconfigured-azure-storage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-misconfigured-azure-storage/SKILL.md",
+        "sha256": "91cbf338d7cbf2e7931dd73e79a892160c14f627eb600a0dda62fb6a6e48684a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Misconfigured Azure Storage:L42"]
+      },
+      "components": [
+        {
+          "id": "detecting-misconfigured-azure-storage::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed Azure storage account, container, access, encryption, logging, owner, scope, and evidence-manifest fields without contacting cloud services.",
+          "notProved": ["public exposure", "data access", "cloud configuration truth"]
+        },
+        {
+          "id": "detecting-misconfigured-azure-storage::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Azure APIs, portals, Defender, CSPM, storage endpoints, tenants, credentials, and production cloud systems external.",
+          "notProved": ["live storage inspection", "data disclosure", "cloud security outcome"]
+        },
+        {
+          "id": "detecting-misconfigured-azure-storage::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain defensive storage hardening, access review, logging, encryption, and cloud governance guidance as advisory.",
+          "notProved": ["hardening efficacy", "least privilege", "remediation completion"]
+        },
+        {
+          "id": "detecting-misconfigured-azure-storage::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, tenant and data ownership, legal/privacy review, analyst validation, severity, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "data handling approval", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-ntlm-relay-with-event-correlation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-ntlm-relay-with-event-correlation/SKILL.md",
+        "sha256": "573b549d495c9a29df12d5f6fa410e9de3f22d0d0945a64da7b630bb5f6e3ef2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting NTLM Relay with Event Correlation:L55"]
+      },
+      "components": [
+        {
+          "id": "detecting-ntlm-relay-with-event-correlation::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed authentication-event, host, identity, protocol, timestamp, correlation, scope, and evidence-manifest fields without performing authentication or relay activity.",
+          "notProved": ["relay occurrence", "credential capture", "identity compromise"]
+        },
+        {
+          "id": "detecting-ntlm-relay-with-event-correlation::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep Active Directory, domain controllers, NTLM relay tools, network sensors, SIEM, endpoints, credentials, and production identity systems external.",
+          "notProved": ["live relay", "credential access", "detection efficacy"]
+        },
+        {
+          "id": "detecting-ntlm-relay-with-event-correlation::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain defensive NTLM reduction, event correlation, identity hardening, monitoring, and response guidance as advisory.",
+          "notProved": ["rule efficacy", "identity protection", "incident resolution"]
+        },
+        {
+          "id": "detecting-ntlm-relay-with-event-correlation::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, directory and asset ownership, credential and evidence handling, legal/privacy/safety review, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-pass-the-hash-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-pass-the-hash-attacks/SKILL.md",
+        "sha256": "7e020a6ca0586f7b7bdce2129dd0a2a25e2c636932116d77c9e7b0ffb78901a9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Pass The Hash Attacks:L37"]
+      },
+      "components": [
+        {
+          "id": "detecting-pass-the-hash-attacks::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed credential-use, authentication-event, process, host, timestamp, scope, and evidence-manifest fields without accessing credentials or endpoints.",
+          "notProved": ["hash replay", "credential access", "lateral movement"]
+        },
+        {
+          "id": "detecting-pass-the-hash-attacks::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep LSASS, Active Directory, endpoints, credential tools, live authentication, SIEM, and production identity systems external.",
+          "notProved": ["credential extraction", "authentication success", "domain compromise"]
+        },
+        {
+          "id": "detecting-pass-the-hash-attacks::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain credential hygiene, privileged-access hardening, authentication monitoring, and response guidance as advisory.",
+          "notProved": ["control efficacy", "credential protection", "incident outcome"]
+        },
+        {
+          "id": "detecting-pass-the-hash-attacks::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, asset and identity ownership, credential and evidence handling, legal/privacy/safety review, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-pass-the-ticket-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-pass-the-ticket-attacks/SKILL.md",
+        "sha256": "e097bb2bdd7f49141875eaef11418bd055e532863b9fec86555ef5e1273af0ae",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Pass-the-Ticket Attacks:L38"]
+      },
+      "components": [
+        {
+          "id": "detecting-pass-the-ticket-attacks::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed Kerberos ticket, principal, domain, service, timestamp, authentication-event, scope, and evidence-manifest fields without creating or replaying tickets.",
+          "notProved": ["ticket use", "ticket replay", "identity compromise"]
+        },
+        {
+          "id": "detecting-pass-the-ticket-attacks::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep KDC, Active Directory, domain controllers, ticket tools, live sessions, endpoints, credentials, and production identity systems external.",
+          "notProved": ["ticket validity", "credential access", "authentication outcome"]
+        },
+        {
+          "id": "detecting-pass-the-ticket-attacks::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain defensive Kerberos monitoring, ticket-lifetime review, privileged identity hardening, and response guidance as advisory.",
+          "notProved": ["monitoring efficacy", "identity protection", "remediation completion"]
+        },
+        {
+          "id": "detecting-pass-the-ticket-attacks::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, domain and asset ownership, credential and evidence handling, legal/privacy/safety review, analyst validation, severity, containment, revocation, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-privilege-escalation-attempts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-privilege-escalation-attempts/SKILL.md",
+        "sha256": "20664925ab7779a7fda9f4baecc81370ff4fb7973f3d342600488149bf01b7c9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Privilege Escalation Attempts:L37"]
+      },
+      "components": [
+        {
+          "id": "detecting-privilege-escalation-attempts::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed principal, role, host, process, configuration, event, finding, scope, and evidence-manifest fields without executing escalation techniques.",
+          "notProved": ["privilege escalation", "administrator access", "host compromise"]
+        },
+        {
+          "id": "detecting-privilege-escalation-attempts::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep operating systems, endpoints, EDR, exploit tools, live processes, credentials, identity systems, and production infrastructure external.",
+          "notProved": ["exploit execution", "access gain", "detection efficacy"]
+        },
+        {
+          "id": "detecting-privilege-escalation-attempts::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain least-privilege, patching, hardening, monitoring, and incident-response guidance as advisory.",
+          "notProved": ["control efficacy", "risk reduction", "remediation completion"]
+        },
+        {
+          "id": "detecting-privilege-escalation-attempts::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, asset and identity ownership, legal/privacy/safety review, analyst interpretation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "finding validity", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-process-hollowing-technique",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-process-hollowing-technique/SKILL.md",
+        "sha256": "06ad010e6beb91fc4e425cb874fa9fbc2fa10d1f02d00eddb8c9e456628240d8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Process Hollowing Technique:L37"]
+      },
+      "components": [
+        {
+          "id": "detecting-process-hollowing-technique::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed binary, process, parent-child, image, memory-region, hash, timestamp, and evidence-manifest fields without accessing live memory or processes.",
+          "notProved": ["process hollowing", "malware execution", "memory tampering"]
+        },
+        {
+          "id": "detecting-process-hollowing-technique::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep live processes, process memory, operating systems, EDR, kernel interfaces, sandboxes, endpoints, and execution runtimes external.",
+          "notProved": ["injection execution", "endpoint compromise", "detection efficacy"]
+        },
+        {
+          "id": "detecting-process-hollowing-technique::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain defensive process-monitoring, endpoint-hardening, triage, and incident-response guidance as advisory.",
+          "notProved": ["monitoring efficacy", "malware classification", "remediation completion"]
+        },
+        {
+          "id": "detecting-process-hollowing-technique::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, endpoint ownership, legal/privacy/safety review, evidence handling, analyst interpretation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "attribution", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-process-injection-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-process-injection-techniques/SKILL.md",
+        "sha256": "ba4c5a849c88ec19a42b09eb195aa28859023ab7977722b13b2640ec480f5f19",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Process Injection Techniques:L40"]
+      },
+      "components": [
+        {
+          "id": "detecting-process-injection-techniques::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed process image, thread, module, memory, event, host, timestamp, scope, and evidence-manifest fields without interacting with live processes.",
+          "notProved": ["process injection", "code execution", "endpoint compromise"]
+        },
+        {
+          "id": "detecting-process-injection-techniques::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep live processes, debuggers, EDR, kernel interfaces, memory access, endpoint agents, exploit tools, and execution runtimes external.",
+          "notProved": ["injection activity", "payload execution", "detection efficacy"]
+        },
+        {
+          "id": "detecting-process-injection-techniques::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain defensive process telemetry, endpoint hardening, malware triage, and response guidance as advisory.",
+          "notProved": ["telemetry coverage", "malware classification", "remediation completion"]
+        },
+        {
+          "id": "detecting-process-injection-techniques::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, endpoint ownership, legal/privacy/safety review, evidence handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "attribution", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-rdp-brute-force-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-rdp-brute-force-attacks/SKILL.md",
+        "sha256": "cc1ae506cb98b6847b9022b1bf70232e4d40513f2f5ff9ee0d4ff408389bb465",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting RDP Brute Force Attacks:L29"]
+      },
+      "components": [
+        {
+          "id": "detecting-rdp-brute-force-attacks::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed RDP authentication-attempt, account, host, source, timestamp, rate, policy, scope, and evidence-manifest fields without contacting endpoints.",
+          "notProved": ["brute force", "account access", "remote compromise"]
+        },
+        {
+          "id": "detecting-rdp-brute-force-attacks::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep RDP endpoints, networks, Active Directory, credential systems, SIEM, scanners, live sessions, and production infrastructure external.",
+          "notProved": ["live login attempts", "credential validity", "detection efficacy"]
+        },
+        {
+          "id": "detecting-rdp-brute-force-attacks::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain RDP hardening, MFA, lockout, monitoring, network restriction, and response guidance as advisory.",
+          "notProved": ["control efficacy", "access prevention", "remediation completion"]
+        },
+        {
+          "id": "detecting-rdp-brute-force-attacks::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, asset and account ownership, legal/privacy/safety review, credential and evidence handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "account compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-secure-boot-bypass",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-secure-boot-bypass/SKILL.md",
+        "sha256": "0115f82d1b735aca00f74c59b93a83f15b69a0913308bbc2c78a120c8e5b980f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Secure Boot Bypass:L23"]
+      },
+      "components": [
+        {
+          "id": "detecting-secure-boot-bypass::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed platform, firmware, Secure Boot, boot-chain, asset, version, scope, and evidence-manifest fields without interacting with hardware or firmware.",
+          "notProved": ["Secure Boot bypass", "firmware compromise", "device integrity"]
+        },
+        {
+          "id": "detecting-secure-boot-bypass::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep UEFI, TPM, firmware, devices, Chipsec, boot interfaces, physical hosts, and production hardware external.",
+          "notProved": ["live firmware state", "bypass execution", "hardware security outcome"]
+        },
+        {
+          "id": "detecting-secure-boot-bypass::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain secure-boot configuration, firmware hygiene, platform assurance, and recovery guidance as advisory.",
+          "notProved": ["platform assurance", "firmware protection", "recovery completion"]
+        },
+        {
+          "id": "detecting-secure-boot-bypass::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, physical and asset ownership, legal/privacy/safety review, acquisition and evidence handling, analyst validation, severity, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "device compromise", "security outcome"]
+        }
+      ]
+    },
+    {
+      "catalogId": "detecting-serverless-function-injection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-serverless-function-injection/SKILL.md",
+        "sha256": "48437c12b9fb2d0b5ec2fa1ef29625e91abef9253b107ccdfe77dae03d932a71",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Serverless Function Injection:L38"]
+      },
+      "components": [
+        {
+          "id": "detecting-serverless-function-injection::native-predicate",
+          "kind": "native-predicate",
+          "status": "proposed",
+          "predicateOrPurpose": "Validate supplied typed function, dependency, input, route, identity, configuration, log, scope, and evidence-manifest fields without invoking runtimes or endpoints.",
+          "notProved": ["function injection", "code execution", "cloud compromise"]
+        },
+        {
+          "id": "detecting-serverless-function-injection::external-engine",
+          "kind": "external-engine",
+          "status": "blocked",
+          "predicateOrPurpose": "Keep cloud provider APIs, serverless runtimes, functions, WAF, endpoints, sessions, CI/CD, deployment systems, and production infrastructure external.",
+          "notProved": ["payload execution", "data exfiltration", "runtime security outcome"]
+        },
+        {
+          "id": "detecting-serverless-function-injection::advisory",
+          "kind": "advisory",
+          "status": "retained",
+          "predicateOrPurpose": "Retain secure input handling, dependency review, identity hardening, logging, cloud configuration, and incident-response guidance as advisory.",
+          "notProved": ["control efficacy", "vulnerability absence", "remediation completion"]
+        },
+        {
+          "id": "detecting-serverless-function-injection::manual",
+          "kind": "manual",
+          "status": "retained",
+          "predicateOrPurpose": "Require written authorization, tenant and function ownership, legal/privacy/safety review, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+          "notProved": ["authorization", "exploitation", "security outcome"]
+        }
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live cloud, identity, credential, endpoint, process, network, firmware, or serverless telemetry is proved.",
+    "No storage exposure, relay, credential replay, privilege escalation, process injection, brute force, firmware bypass, function injection, compromise, or execution is proved.",
+    "No SIEM, EDR, AD, Kerberos, RDP, cloud provider, firmware, runtime, scanner, or production-engine efficacy is proved.",
+    "No incident attribution, authorization, ownership, legal/privacy/safety approval, analyst decision, disclosure decision, remediation, containment, recovery, or security outcome is proved."
+  ]
+}

@@ -39,7 +39,8 @@ fn to_process_exit_code(exit: ExitCode) -> ProcessExitCode {
 }
 
 fn run() -> ExitCode {
-    let cli = match Cli::try_parse() {
+    let args = enforcer_cli::cli::normalize_required_check_route(std::env::args_os().collect());
+    let cli = match Cli::try_parse_from(args) {
         Ok(cli) => cli,
         Err(err) => {
             // clap renders its own usage text to stdout/stderr via
@@ -88,12 +89,24 @@ fn dispatch(command: &Command) -> ExitCode {
                 failure.exit_code()
             }
         },
+        Command::Doctor => match install::doctor() {
+            Ok(exit) => exit,
+            Err(failure) => {
+                if failure.exit_code() == ExitCode::ConfigError {
+                    output::print_config_error(&failure.to_string());
+                } else {
+                    output::print_internal_error(&failure.to_string());
+                }
+                failure.exit_code()
+            }
+        },
         Command::Plan => {
             output::print_internal_error(
                 "plan subcommand is routed to arc-20; not wired in this skeleton",
             );
             ExitCode::InternalError
         }
+        Command::Graph(args) => commands::run_graph(args),
         Command::Proof => {
             output::print_internal_error(
                 "proof subcommand is routed to arc-17; not wired in this skeleton",
@@ -118,6 +131,7 @@ fn dispatch(command: &Command) -> ExitCode {
         Command::Architecture { action } => match action {
             ArchitectureAction::Check(_) => commands::run_architecture(action),
         },
+        Command::Policy { action } => commands::run_policy(action),
         Command::Onboard(args) => onboard::run_onboard(args),
         Command::Hook {
             action: HookAction::PreToolUse,

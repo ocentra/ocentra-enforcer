@@ -1,0 +1,401 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedFrom": "crates/enforcer-literal-scan/src/boundary/language-registry.rs and crates/enforcer-rules/rules/*.json (UL00 packet)",
+  "rows": [
+    {
+      "languageId": "rust",
+      "aliases": ["rust-lang"],
+      "extensions": ["rs"],
+      "basenames": [],
+      "discovery": {
+        "state": "proved",
+        "evidence": [
+          "crates/enforcer-literal-scan/src/boundary/language-registry.rs"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-literal-scan",
+            "version": "0.1.0",
+            "role": "discovery-registry"
+          }
+        ],
+        "notProved": []
+      },
+      "lexical": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "lexical capability is not yet represented by a machine-typed layer in UL00"
+        ]
+      },
+      "structural": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/deny-wall.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-rust",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "full AST structural parity is not fully mapped"
+        ]
+      },
+      "graph": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "graph extraction claims are deferred outside UL00"
+        ]
+      },
+      "ecosystem": {
+        "state": "unsupported",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "no native ecosystem tool declared for rust in UL00"
+        ]
+      },
+      "rules": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/deny-wall.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-rust",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "rule coverage is language-scoped but not yet fixture-complete"
+        ]
+      },
+      "notProved": [
+        "language capabilities from UL00 are provisional and source-derived only where explicitly evidenced"
+      ]
+    },
+    {
+      "languageId": "typescript",
+      "aliases": ["ts"],
+      "extensions": ["ts", "tsx", "mts", "cts"],
+      "basenames": [],
+      "discovery": {
+        "state": "proved",
+        "evidence": [
+          "crates/enforcer-literal-scan/src/boundary/language-registry.rs"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-literal-scan",
+            "version": "0.1.0",
+            "role": "discovery-registry"
+          }
+        ],
+        "notProved": []
+      },
+      "lexical": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "lexical capability is not yet represented by a machine-typed layer in UL00"
+        ]
+      },
+      "structural": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/frontend-react.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-ts",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "full structural parity is not fully mapped"
+        ]
+      },
+      "graph": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "graph extraction claims are deferred outside UL00"
+        ]
+      },
+      "ecosystem": {
+        "state": "unsupported",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "no native ecosystem tool declared for typescript in UL00"
+        ]
+      },
+      "rules": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/frontend-react.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-ts",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "rule coverage is language-scoped but not yet fixture-complete"
+        ]
+      },
+      "notProved": [
+        "language capabilities from UL00 are provisional and source-derived only where explicitly evidenced"
+      ]
+    },
+    {
+      "languageId": "python",
+      "aliases": ["py"],
+      "extensions": ["py", "pyw"],
+      "basenames": [],
+      "discovery": {
+        "state": "proved",
+        "evidence": [
+          "crates/enforcer-literal-scan/src/boundary/language-registry.rs"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-literal-scan",
+            "version": "0.1.0",
+            "role": "discovery-registry"
+          }
+        ],
+        "notProved": []
+      },
+      "lexical": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "lexical capability is not yet represented by a machine-typed layer in UL00"
+        ]
+      },
+      "structural": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/fastapi-layered.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-py",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "full structural parity is not fully mapped"
+        ]
+      },
+      "graph": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "graph extraction claims are deferred outside UL00"
+        ]
+      },
+      "ecosystem": {
+        "state": "unsupported",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "no native ecosystem tool declared for python in UL00"
+        ]
+      },
+      "rules": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/fastapi-layered.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-py",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "rule coverage is language-scoped but not yet fixture-complete"
+        ]
+      },
+      "notProved": [
+        "language capabilities from UL00 are provisional and source-derived only where explicitly evidenced"
+      ]
+    },
+    {
+      "languageId": "dart",
+      "aliases": [],
+      "extensions": ["dart"],
+      "basenames": [],
+      "discovery": {
+        "state": "proved",
+        "evidence": [
+          "crates/enforcer-literal-scan/src/boundary/language-registry.rs"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-literal-scan",
+            "version": "0.1.0",
+            "role": "discovery-registry"
+          }
+        ],
+        "notProved": []
+      },
+      "lexical": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "lexical capability is not yet represented by a machine-typed layer in UL00"
+        ]
+      },
+      "structural": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/dart-advisory.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-dart",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "full structural parity is not fully mapped"
+        ]
+      },
+      "graph": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "graph extraction claims are deferred outside UL00"
+        ]
+      },
+      "ecosystem": {
+        "state": "unsupported",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "no native ecosystem tool declared for dart in UL00"
+        ]
+      },
+      "rules": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/dart-advisory.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-dart",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "rule coverage is language-scoped but not yet fixture-complete"
+        ]
+      },
+      "notProved": [
+        "language capabilities from UL00 are provisional and source-derived only where explicitly evidenced"
+      ]
+    },
+    {
+      "languageId": "coldfusion",
+      "aliases": ["cfml"],
+      "extensions": ["cfc", "cfm"],
+      "basenames": [],
+      "discovery": {
+        "state": "proved",
+        "evidence": [
+          "crates/enforcer-literal-scan/src/boundary/language-registry.rs"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-literal-scan",
+            "version": "0.1.0",
+            "role": "discovery-registry"
+          }
+        ],
+        "notProved": []
+      },
+      "lexical": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "lexical capability is not yet represented by a machine-typed layer in UL00"
+        ]
+      },
+      "structural": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/cfml-advisory.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-cfml",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "full structural parity is not fully mapped"
+        ]
+      },
+      "graph": {
+        "state": "blocked",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "graph extraction claims are deferred outside UL00"
+        ]
+      },
+      "ecosystem": {
+        "state": "unsupported",
+        "evidence": [],
+        "providers": [],
+        "notProved": [
+          "no native ecosystem tool declared for coldfusion in UL00"
+        ]
+      },
+      "rules": {
+        "state": "partial",
+        "evidence": [
+          "crates/enforcer-rules/rules/cfml-advisory.json"
+        ],
+        "providers": [
+          {
+            "provider": "enforcer-lang-cfml",
+            "version": "0.1.0",
+            "role": "validator-registry"
+          }
+        ],
+        "notProved": [
+          "rule coverage is language-scoped but not yet fixture-complete"
+        ]
+      },
+      "notProved": [
+        "language capabilities from UL00 are provisional and source-derived only where explicitly evidenced"
+      ]
+    }
+  ]
+}

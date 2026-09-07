@@ -1,0 +1,27 @@
+{
+  "componentId": "native-predicate-exploiting-mass-assignment",
+  "fixtures": {
+    "fail": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/bad/vuln.py",
+    "pass": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/good/safe.py"
+  },
+  "generated": {
+    "securityMeaning": "supplied-input-only",
+    "writesFiles": false
+  },
+  "kind": "native-cyberskill-packet-skeleton",
+  "notProved": "Does not prove live endpoint discovery, authorization behavior, or exploitation outcomes.",
+  "paths": {
+    "evidence": "proof/cyberskills/cp05/mass-assignment-packet.json",
+    "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+    "registry": "crates/enforcer-rules/rules/cyberskills.json"
+  },
+  "predicate": "Static source detection of whole untrusted request-object binding without a field allowlist.",
+  "ruleId": "CYBER-MASS-ASSIGN.1",
+  "schemaVersion": 1,
+  "source": {
+    "anchor": "### Step 2 — Test Privilege Escalation via Role Fields:L73",
+    "license": "Apache-2.0",
+    "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-mass-assignment-in-rest-apis/SKILL.md",
+    "sha256": "23393f7b14703375d6487e099a3108186d299b359fab45e7c09281e41b479af9"
+  }
+}

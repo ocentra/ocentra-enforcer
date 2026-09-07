@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-29",
+  "baselineCommit": "6bfaf773a8987772ea2de6a5a5c64fa8d51b8e7f",
+  "family": "Ransomware prevention, detection, incident response, and recovery",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["detecting-ransomware-encryption-behavior", "detecting-ransomware-precursors-in-network", "implementing-anti-ransomware-group-policy", "implementing-honeypot-for-ransomware-detection", "implementing-ransomware-backup-strategy", "implementing-ransomware-kill-switch-detection", "investigating-ransomware-attack-artifacts", "performing-ransomware-response", "recovering-from-ransomware-attack", "testing-ransomware-recovery-procedures"],
+    "reason": "Ten disjoint ransomware prevention, detection, response, and recovery skills. Native checks are limited to static typed policy/configuration, supplied file-process-network telemetry, evidence, and backup-recovery manifests with deterministic fixture fields; execution and live outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-ransomware-encryption-behavior",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-ransomware-encryption-behavior/SKILL.md", "sha256": "de9419e6d9c13537264e6c6309b35019fc050f6bae3c646c3ffb3e4282bdf77d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Ransomware Encryption Behavior:L59"]},
+      "components": [
+        {"componentId": "detecting-ransomware-encryption-behavior::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed file/process/telemetry evidence fields and deterministic encryption-behavior fixture predicates.", "notProved": ["No live detection, encryption execution, endpoint authority, attribution, or outcome proof."]},
+        {"componentId": "detecting-ransomware-encryption-behavior::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use EDR, endpoint, file, process, and SIEM detection authorities.", "notProved": ["No pinned adapter, runtime, live telemetry, or normalized evidence."]},
+        {"componentId": "detecting-ransomware-encryption-behavior::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain ransomware behavior-detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-ransomware-encryption-behavior::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized triage, legal, containment, and incident decisions.", "notProved": ["No live incident proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-ransomware-precursors-in-network",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-ransomware-precursors-in-network/SKILL.md", "sha256": "29925505b82958f5d2b7feac8b6a481c263a93e1ccdbf421019c4d26fe5b8711", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Ransomware Precursors in Network Traffic:L59"]},
+      "components": [
+        {"componentId": "detecting-ransomware-precursors-in-network::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Evaluate deterministic predicates over supplied typed network-event and precursor telemetry fields.", "notProved": ["No packet capture, NDR/SIEM run, live detection, attribution, or prevention outcome proof."]},
+        {"componentId": "detecting-ransomware-precursors-in-network::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use packet, NDR, SIEM, firewall, and network telemetry authorities.", "notProved": ["No pinned adapter, query runtime, or normalized evidence."]},
+        {"componentId": "detecting-ransomware-precursors-in-network::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain precursor-hunting guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-ransomware-precursors-in-network::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require hunt scope, legal, containment, and analyst decisions.", "notProved": ["No live network investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-anti-ransomware-group-policy",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-anti-ransomware-group-policy/SKILL.md", "sha256": "823b804ab37a27ade604cb02a088961e1898486e52877e0ebc539bf1289866f0", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Anti-Ransomware Group Policy:L59"]},
+      "components": [
+        {"componentId": "implementing-anti-ransomware-group-policy::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed group-policy, endpoint-control, scope, and exception manifest fields.", "notProved": ["No domain/policy execution, endpoint enforcement, prevention, or security outcome proof."]},
+        {"componentId": "implementing-anti-ransomware-group-policy::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use domain, endpoint, policy, EDR, and live infrastructure authorities.", "notProved": ["No pinned adapter, execution runtime, or normalized evidence."]},
+        {"componentId": "implementing-anti-ransomware-group-policy::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain anti-ransomware policy design guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-anti-ransomware-group-policy::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require policy-owner, legal, exception, and rollout decisions.", "notProved": ["No live policy proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-honeypot-for-ransomware-detection",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-honeypot-for-ransomware-detection/SKILL.md", "sha256": "973c6548106286c0f7a0ee3cf8aebc8b4dbc31417fe096fa6770803bac647e84", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Honeypot for Ransomware Detection:L70"]},
+      "components": [
+        {"componentId": "implementing-honeypot-for-ransomware-detection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed honeypot asset, placement, signal, logging, and evidence manifest fields.", "notProved": ["No honeypot deployment, attacker interaction, alerting, attribution, or detection outcome proof."]},
+        {"componentId": "implementing-honeypot-for-ransomware-detection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use honeypot, endpoint, network, SIEM, and alerting authorities.", "notProved": ["No pinned adapter, runtime, live interaction, or normalized evidence."]},
+        {"componentId": "implementing-honeypot-for-ransomware-detection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain honeypot design and detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-honeypot-for-ransomware-detection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require placement, legal, containment, and response decisions.", "notProved": ["No live honeypot proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-ransomware-backup-strategy",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ransomware-backup-strategy/SKILL.md", "sha256": "a7ba6707eba166dbf60ee5a89d58f437c836209cd4a47bfed654a05d7f2e0766", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Ransomware Backup Strategy:L68"]},
+      "components": [
+        {"componentId": "implementing-ransomware-backup-strategy::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed backup topology, retention, immutability, ownership, and recovery manifest fields.", "notProved": ["No backup provider, restore, integrity, RTO/RPO, or durability outcome proof."]},
+        {"componentId": "implementing-ransomware-backup-strategy::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use backup, storage, cloud, restore, and production infrastructure authorities.", "notProved": ["No pinned adapter, restore runtime, or normalized evidence."]},
+        {"componentId": "implementing-ransomware-backup-strategy::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain backup architecture and resilience guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-ransomware-backup-strategy::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require business-owner, legal, recovery, RTO/RPO, and restore decisions.", "notProved": ["No live recovery proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-ransomware-kill-switch-detection",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ransomware-kill-switch-detection/SKILL.md", "sha256": "c0dabbefe668b205d89db668ff42a9caccb2295209352ed19a0e8471f367e597", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Ransomware Kill Switch Detection:L58"]},
+      "components": [
+        {"componentId": "implementing-ransomware-kill-switch-detection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed kill-switch signal, policy, threshold, and response manifest fields.", "notProved": ["No endpoint execution, containment, prevention, or response outcome proof."]},
+        {"componentId": "implementing-ransomware-kill-switch-detection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use endpoint, EDR, process, network, and live infrastructure authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "implementing-ransomware-kill-switch-detection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain kill-switch and containment guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-ransomware-kill-switch-detection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized containment, legal, and incident decisions.", "notProved": ["No live prevention proof."]}
+      ]
+    },
+    {
+      "catalogId": "investigating-ransomware-attack-artifacts",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/investigating-ransomware-attack-artifacts/SKILL.md", "sha256": "69645e50cba741c61cc6e52316f5617224c44826bc1c699203d40cee81d25e1e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Investigating Ransomware Attack Artifacts:L57"]},
+      "components": [
+        {"componentId": "investigating-ransomware-attack-artifacts::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed artifact, evidence-chain, timestamp, host, and collection manifest fields.", "notProved": ["No forensic tool, attribution, chain-of-custody, or incident determination proof."]},
+        {"componentId": "investigating-ransomware-attack-artifacts::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use endpoint, forensic, memory, file, and SIEM authorities.", "notProved": ["No pinned adapter, collection runtime, or normalized evidence."]},
+        {"componentId": "investigating-ransomware-attack-artifacts::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain artifact investigation and evidence guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "investigating-ransomware-attack-artifacts::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require chain-of-custody, legal, analyst, and incident decisions.", "notProved": ["No live forensic proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-ransomware-response",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-ransomware-response/SKILL.md", "sha256": "ff78cb21bfdad3e925b261bba1ee522b40e81579590c6708394f639083ae6c32", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Ransomware Response:L62"]},
+      "components": [
+        {"componentId": "performing-ransomware-response::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed incident-state, containment, evidence, communication, and recovery-plan fields.", "notProved": ["No live response, containment, attribution, legal, or operational outcome proof."]},
+        {"componentId": "performing-ransomware-response::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use incident orchestration, EDR, network, backup, and production infrastructure authorities.", "notProved": ["No pinned adapter, response runtime, or normalized evidence."]},
+        {"componentId": "performing-ransomware-response::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain ransomware response and communications guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-ransomware-response::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require incident, legal, executive, containment, and restore decisions.", "notProved": ["No live incident proof."]}
+      ]
+    },
+    {
+      "catalogId": "recovering-from-ransomware-attack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/recovering-from-ransomware-attack/SKILL.md", "sha256": "4444d8ef7116fe7dd74f475d00c134f827a9c3f30bf7c711dfa6fcde955fe063", "availability": "available", "license": "Apache-2.0", "anchors": ["# Recovering from Ransomware Attack:L58"]},
+      "components": [
+        {"componentId": "recovering-from-ransomware-attack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed recovery-readiness, dependency, integrity, backup, and restore-plan fields.", "notProved": ["No restore, integrity, RTO/RPO, service recovery, or production outcome proof."]},
+        {"componentId": "recovering-from-ransomware-attack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use backup, storage, identity, production, and infrastructure recovery authorities.", "notProved": ["No pinned adapter, restore runtime, or normalized evidence."]},
+        {"componentId": "recovering-from-ransomware-attack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain recovery and business-continuity guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "recovering-from-ransomware-attack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require business, legal, restore, integrity, and validation decisions.", "notProved": ["No live recovery proof."]}
+      ]
+    },
+    {
+      "catalogId": "testing-ransomware-recovery-procedures",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-ransomware-recovery-procedures/SKILL.md", "sha256": "7ec755a155e6d0f8c2a3c8e26d89dc7fe2a8c0f16f4f247dcd91ab3c2b6b9a14", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing Ransomware Recovery Procedures:L53"]},
+      "components": [
+        {"componentId": "testing-ransomware-recovery-procedures::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed recovery exercise, dependency, evidence, acceptance, and RTO/RPO manifest fields.", "notProved": ["No restore execution, integrity, RTO/RPO, service recovery, or test outcome proof."]},
+        {"componentId": "testing-ransomware-recovery-procedures::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use backup, restore, infrastructure, and production test authorities.", "notProved": ["No pinned adapter, test runtime, or normalized evidence."]},
+        {"componentId": "testing-ransomware-recovery-procedures::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain recovery exercise and validation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "testing-ransomware-recovery-procedures::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require exercise owner, legal, business, validation, and acceptance decisions.", "notProved": ["No live recovery exercise proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "EDR, NDR, SIEM, packet, honeypot, backup, endpoint, live infrastructure, and execution authorities remain blocked external engines.",
+    "No live detection, attribution, prevention, containment, recovery, integrity, RTO/RPO, or operational outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

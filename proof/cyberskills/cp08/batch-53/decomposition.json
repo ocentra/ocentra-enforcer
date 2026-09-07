@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-53",
+  "baselineCommit": "aade76ae8508daff250b098ebac5e264952122bc",
+  "family": "Canonical-order log, domain, firmware, web, AI, smart-contract, MCP, infrastructure, and adversary-analysis skills",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "analyzing-security-logs-with-splunk",
+      "analyzing-typosquatting-domains-with-dnstwist",
+      "analyzing-uefi-bootkit-persistence",
+      "analyzing-web-server-logs-for-intrusion",
+      "assessing-vector-and-embedding-weaknesses",
+      "auditing-foundry-smart-contract-security",
+      "auditing-mcp-servers-for-tool-poisoning",
+      "auditing-terraform-infrastructure-for-security",
+      "auditing-uefi-firmware-with-chipsec",
+      "building-adversary-infrastructure-tracking-system"
+    ],
+    "reason": "Deterministic lexicographic selection of the next ten unaccepted vendor identities. The set is intentionally heterogeneous under canonical-order governance; each skill is decomposed independently into supplied-manifest-only native validation, blocked external authority, retained advisory guidance, and retained manual authority."
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-security-logs-with-splunk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-security-logs-with-splunk/SKILL.md",
+        "sha256": "2835c266b1ed47ff1f3b6b4d299f2ddcda236c77c0db08169f861a2bf2855342",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Security Logs with Splunk:L51"]
+      },
+      "components": [
+        {"componentId": "analyzing-security-logs-with-splunk::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied security-log, event, timestamp, source, host, identity, field, severity, confidence, owner, and evidence manifests.", "notProved": ["No live Splunk, log collection, event truth, detection, correlation, attribution, finding, or security outcome is proved."]},
+        {"componentId": "analyzing-security-logs-with-splunk::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Splunk, SIEM, log collectors, endpoints, hosts, networks, cloud APIs, event authorities, or production systems.", "notProved": ["No live log, collector, host, endpoint, correlation, alert, detection, finding, or normalized SIEM result."]},
+        {"componentId": "analyzing-security-logs-with-splunk::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive log onboarding, normalization, detection, correlation, privacy, triage, containment, and remediation guidance.", "notProved": ["Guidance is not log access and does not prove event completeness, detection, or compromise."]},
+        {"componentId": "analyzing-security-logs-with-splunk::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, log and asset ownership, legal/privacy/safety review, retention and data handling, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human log, detection, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-typosquatting-domains-with-dnstwist",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-typosquatting-domains-with-dnstwist/SKILL.md",
+        "sha256": "5f7907617b20023655794787a206f5a879fc05aa853d43ba79d69bfe5dd4fde8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Typosquatting Domains with DNSTwist:L61"]
+      },
+      "components": [
+        {"componentId": "analyzing-typosquatting-domains-with-dnstwist::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied domain, candidate, edit-distance, DNS, certificate, source, timestamp, ownership, confidence, and evidence manifests.", "notProved": ["No live DNSTwist, DNS, certificate, hosting, domain ownership, maliciousness, attribution, finding, or security outcome is proved."]},
+        {"componentId": "analyzing-typosquatting-domains-with-dnstwist::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use DNSTwist, live DNS, WHOIS, certificate transparency, hosting, browsers, web servers, threat feeds, or production authorities.", "notProved": ["No live candidate, resolver, certificate, host, content, ownership, finding, attribution, or normalized domain result."]},
+        {"componentId": "analyzing-typosquatting-domains-with-dnstwist::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive domain monitoring, source evaluation, brand protection, privacy, evidence, triage, and remediation guidance.", "notProved": ["Guidance is not domain collection and does not prove typosquatting, maliciousness, or ownership."]},
+        {"componentId": "analyzing-typosquatting-domains-with-dnstwist::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, domain and brand ownership, legal/privacy/ethics review, source terms, data handling, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human domain, ownership, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-uefi-bootkit-persistence",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-uefi-bootkit-persistence/SKILL.md",
+        "sha256": "6ae1b48d0b0d5f9e06239ec10b6c460422199a1d41a08b390ef6f3ce10f89f79",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing UEFI Bootkit Persistence:L43"]
+      },
+      "components": [
+        {"componentId": "analyzing-uefi-bootkit-persistence::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied UEFI, firmware, boot-chain, image, persistence, host, signature, provenance, owner, scope, and evidence manifests.", "notProved": ["No live firmware, boot chain, host, persistence, signature, implant, compromise, attribution, or security outcome is proved."]},
+        {"componentId": "analyzing-uefi-bootkit-persistence::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use UEFI firmware, hosts, memory, disks, bootloaders, endpoint tools, CHIPSEC, debuggers, or production systems.", "notProved": ["No live firmware, bootloader, host, disk, memory, signature, persistence, finding, or normalized boot result."]},
+        {"componentId": "analyzing-uefi-bootkit-persistence::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive boot integrity, firmware supply-chain, secure-boot, evidence, containment, recovery, and remediation guidance.", "notProved": ["Guidance is not firmware inspection and does not prove boot integrity or persistence."]},
+        {"componentId": "analyzing-uefi-bootkit-persistence::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, firmware and host ownership, legal/privacy/safety review, acquisition and data boundaries, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human firmware, host, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-web-server-logs-for-intrusion",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-web-server-logs-for-intrusion/SKILL.md",
+        "sha256": "c38e659c6294024622a52a0d6c5170742c636690bf1de42f26b0e479c0215ca6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Web Server Logs for Intrusion:L35"]
+      },
+      "components": [
+        {"componentId": "analyzing-web-server-logs-for-intrusion::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied web-log, request, response, route, client, timestamp, source, IOC, confidence, owner, and evidence manifests.", "notProved": ["No live web server, request, intrusion, attacker, log truth, attribution, finding, or security outcome is proved."]},
+        {"componentId": "analyzing-web-server-logs-for-intrusion::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use web servers, endpoints, browsers, WAFs, SIEM, log collectors, networks, scanners, threat intelligence, or production authorities.", "notProved": ["No live server, request, log, network, WAF, SIEM, detection, finding, attribution, or normalized intrusion result."]},
+        {"componentId": "analyzing-web-server-logs-for-intrusion::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive web-log normalization, request triage, IOC review, detection, containment, reporting, and remediation guidance.", "notProved": ["Guidance is not log access and does not prove intrusion, attribution, detection, or compromise."]},
+        {"componentId": "analyzing-web-server-logs-for-intrusion::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, server and log ownership, legal/privacy/safety review, retention and data handling, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human web-log, intrusion, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "assessing-vector-and-embedding-weaknesses",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/assessing-vector-and-embedding-weaknesses/SKILL.md",
+        "sha256": "6f6ec3f2c6210c68b469e414ff69d412b234d1a7b8739473aac7aebf8a8d7d58",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Assessing Vector and Embedding Weaknesses:L23"]
+      },
+      "components": [
+        {"componentId": "assessing-vector-and-embedding-weaknesses::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied model, embedding, vector, index, query, document, tenant, policy, provenance, owner, scope, and evidence manifests.", "notProved": ["No live model, embedding, vector database, retrieval, poisoning, leakage, inversion, exploitability, or security outcome is proved."]},
+        {"componentId": "assessing-vector-and-embedding-weaknesses::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use embedding APIs, vector databases, models, retrieval runtimes, AI services, cloud platforms, datasets, scanners, or production systems.", "notProved": ["No live model, vector, index, query, dataset, retrieval, leakage, poisoning, finding, or normalized AI-security result."]},
+        {"componentId": "assessing-vector-and-embedding-weaknesses::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive embedding governance, tenant isolation, data handling, evaluation, privacy, retrieval safety, and remediation guidance.", "notProved": ["Guidance is not model execution and does not prove embedding safety, retrieval isolation, or AI accuracy."]},
+        {"componentId": "assessing-vector-and-embedding-weaknesses::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, model and dataset ownership, legal/privacy/ethics review, tenant and data boundaries, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human model, data, retrieval, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "auditing-foundry-smart-contract-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-foundry-smart-contract-security/SKILL.md",
+        "sha256": "1d631c528d15c299be4e6446b31e0901484c2a89bbdcb95fd545e5e438db8259",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Auditing Foundry Smart Contract Security:L37"]
+      },
+      "components": [
+        {"componentId": "auditing-foundry-smart-contract-security::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied contract source, test, ABI, invariant, dependency, chain, address, owner, scope, provenance, finding, and evidence manifests.", "notProved": ["No live Foundry test, contract execution, chain, deployment, exploitability, vulnerability, asset loss, or security outcome is proved."]},
+        {"componentId": "auditing-foundry-smart-contract-security::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Foundry, EVM chains, nodes, RPC providers, wallets, contracts, fuzzers, exploit tools, deployments, or production assets.", "notProved": ["No live test, node, wallet, contract, transaction, deployment, exploit, asset, finding, or normalized audit result."]},
+        {"componentId": "auditing-foundry-smart-contract-security::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive smart-contract testing, invariants, access control, dependency, upgrade, evidence, and remediation guidance.", "notProved": ["Guidance is not chain execution and does not prove contract safety, vulnerability, or asset protection."]},
+        {"componentId": "auditing-foundry-smart-contract-security::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, contract and asset ownership, legal/privacy/safety review, key and wallet handling, test boundaries, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human contract, wallet, exploit, asset, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "auditing-mcp-servers-for-tool-poisoning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-mcp-servers-for-tool-poisoning/SKILL.md",
+        "sha256": "efcf2f5d77647dd44db2f9b181d5447107d5ee7cb94bfbedc5d04bb70596b579",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Auditing MCP Servers for Tool Poisoning:L23"]
+      },
+      "components": [
+        {"componentId": "auditing-mcp-servers-for-tool-poisoning::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied MCP server, tool, schema, prompt, instruction, permission, transport, provenance, owner, scope, and evidence manifests.", "notProved": ["No live MCP server, tool invocation, prompt injection, poisoning, data access, agent behavior, exploitability, or security outcome is proved."]},
+        {"componentId": "auditing-mcp-servers-for-tool-poisoning::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live MCP servers, tools, agents, models, transports, credentials, filesystems, networks, third-party APIs, or production authorities.", "notProved": ["No live server, tool, agent, prompt, transport, credential, filesystem, invocation, finding, or normalized MCP result."]},
+        {"componentId": "auditing-mcp-servers-for-tool-poisoning::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive MCP tool inventory, permission, prompt, schema, provenance, isolation, review, and remediation guidance.", "notProved": ["Guidance is not tool execution and does not prove server trust, model behavior, or poisoning resistance."]},
+        {"componentId": "auditing-mcp-servers-for-tool-poisoning::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, server and tool ownership, legal/privacy/ethics review, credential and data boundaries, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No human MCP, agent, tool, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "auditing-terraform-infrastructure-for-security",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-terraform-infrastructure-for-security/SKILL.md",
+        "sha256": "0ccb9490f13f53099ac90917cffb98e103efb080409c280c85184e0610c4e95a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Auditing Terraform Infrastructure for Security:L34"]
+      },
+      "components": [
+        {"componentId": "auditing-terraform-infrastructure-for-security::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Terraform, resource, module, provider, variable, state, policy, secret, owner, scope, provenance, and evidence manifests.", "notProved": ["No live Terraform plan, provider, cloud resource, state, secret, deployment, posture, finding, or security outcome is proved."]},
+        {"componentId": "auditing-terraform-infrastructure-for-security::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Terraform CLI, providers, cloud APIs, state backends, registries, scanners, CI runners, deployment systems, or production infrastructure.", "notProved": ["No live plan, provider, state, cloud resource, secret, scanner, deployment, finding, or normalized IaC result."]},
+        {"componentId": "auditing-terraform-infrastructure-for-security::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Terraform, provider, state, secret, least-privilege, policy, review, and remediation guidance.", "notProved": ["Guidance is not planning or deployment and does not prove infrastructure posture or security."]},
+        {"componentId": "auditing-terraform-infrastructure-for-security::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, infrastructure and cloud ownership, legal/privacy/safety review, state and secret handling, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human IaC, cloud, secret, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "auditing-uefi-firmware-with-chipsec",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-uefi-firmware-with-chipsec/SKILL.md",
+        "sha256": "48be885889e27dee2aea01adc9a855eb39d29377f1d90bedf7957ddee23a5b6f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Auditing UEFI Firmware with CHIPSEC:L23"]
+      },
+      "components": [
+        {"componentId": "auditing-uefi-firmware-with-chipsec::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied UEFI, firmware, platform, boot, register, image, signature, host, owner, scope, provenance, and evidence manifests.", "notProved": ["No live CHIPSEC audit, firmware, register, host, boot chain, implant, vulnerability, or security outcome is proved."]},
+        {"componentId": "auditing-uefi-firmware-with-chipsec::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CHIPSEC, firmware interfaces, hosts, registers, memory, buses, bootloaders, endpoint tools, debuggers, or production systems.", "notProved": ["No live firmware, register, bus, host, memory, bootloader, signature, finding, or normalized audit result."]},
+        {"componentId": "auditing-uefi-firmware-with-chipsec::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive firmware, secure-boot, platform integrity, supply-chain, evidence, recovery, and remediation guidance.", "notProved": ["Guidance is not firmware inspection and does not prove platform integrity or security."]},
+        {"componentId": "auditing-uefi-firmware-with-chipsec::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, firmware and host ownership, legal/privacy/safety review, acquisition and data boundaries, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human firmware, host, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "building-adversary-infrastructure-tracking-system",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-adversary-infrastructure-tracking-system/SKILL.md",
+        "sha256": "c8cbb72ee7e8c5b4b3784af88a75763dc6378374051d4fbcc6678025a5bee3fa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Adversary Infrastructure Tracking System:L32"]
+      },
+      "components": [
+        {"componentId": "building-adversary-infrastructure-tracking-system::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied infrastructure, domain, IP, certificate, hosting, actor, relationship, IOC, source, confidence, owner, scope, and evidence manifests.", "notProved": ["No live infrastructure collection, actor attribution, domain ownership, hosting, relationship, freshness, finding, or security outcome is proved."]},
+        {"componentId": "building-adversary-infrastructure-tracking-system::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live DNS, WHOIS, certificate, hosting, OSINT, threat-intelligence, network, dark-web, enrichment, graph, or production authorities.", "notProved": ["No live domain, IP, certificate, host, actor, source, enrichment, attribution, finding, or normalized infrastructure result."]},
+        {"componentId": "building-adversary-infrastructure-tracking-system::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive infrastructure tracking, source evaluation, relationship modeling, confidence, privacy, dissemination, and remediation guidance.", "notProved": ["Guidance is not collection and does not prove infrastructure ownership, actor attribution, or threat truth."]},
+        {"componentId": "building-adversary-infrastructure-tracking-system::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, source and asset ownership, legal/privacy/ethics review, provider terms, data handling, analyst validation, uncertainty, severity, containment, remediation, escalation, and disclosure decisions.", "notProved": ["No human collection, attribution, containment, remediation, escalation, or disclosure decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Canonical-order selection is intentionally heterogeneous; native proposals validate only supplied static typed manifests and have no live executor, fixtures, endpoint calls, third-party queries, exploit proof, CLI proof, MCP proof, or CI proof in this packet.",
+    "Splunk and SIEM, DNS and domain, UEFI and CHIPSEC, web server, AI and embedding, Foundry and EVM, MCP, Terraform and cloud, endpoint, OSINT, enrichment, network, and production authorities remain blocked external engines.",
+    "No live log truth, typosquatting, bootkit persistence, web intrusion, vector or embedding weakness, smart-contract vulnerability, MCP tool poisoning, Terraform posture, firmware finding, adversary infrastructure, attribution, detection, exploitation, remediation, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content; written authorization, scope, ownership, legal/privacy/safety review, data and credential handling, analyst interpretation, severity, containment, remediation, rollback, recovery, and disclosure decisions remain required."
+  ]
+}

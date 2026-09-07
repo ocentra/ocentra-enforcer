@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-44",
+  "baselineCommit": "10230eeaf81b3a190d40759a57836d9513d3b910",
+  "family": "SOC operations, SIEM use-case engineering, alert triage, and incident-response coordination",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "building-incident-response-dashboard",
+      "building-incident-response-playbook",
+      "building-soc-escalation-matrix",
+      "building-soc-metrics-and-kpi-tracking",
+      "building-threat-hunt-hypothesis-framework",
+      "implementing-alert-fatigue-reduction",
+      "implementing-siem-correlation-rules-for-apt",
+      "implementing-siem-use-case-tuning",
+      "implementing-siem-use-cases-for-detection",
+      "performing-alert-triage-with-elastic-siem"
+    ],
+    "reason": "Ten disjoint SOC and SIEM skills covering incident dashboards and playbooks, escalation, metrics, hunt hypotheses, alert fatigue, correlation rules, use-case tuning, detection use cases, and alert triage. Native checks are limited to static typed supplied manifests; live telemetry, detection, triage, and response outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "building-incident-response-dashboard",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-incident-response-dashboard/SKILL.md",
+        "sha256": "0af0957e9bf6fc313fe475849bccab88ac1ddedae19cd9dc57aee0d1cda899b0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Incident Response Dashboard:L35"]
+      },
+      "components": [
+        {"componentId": "building-incident-response-dashboard::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied incident, alert, timeline, metric, ownership, severity, status, escalation, and evidence manifests.", "notProved": ["No live telemetry, incident truth, dashboard freshness, classification, response, or security outcome proof."]},
+        {"componentId": "building-incident-response-dashboard::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, SOAR, EDR, NDR, cloud, ticketing, dashboards, live telemetry, SOC, or production response authorities.", "notProved": ["No live event, dashboard, ticket, endpoint, network, cloud, or normalized response result."]},
+        {"componentId": "building-incident-response-dashboard::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive incident dashboard, metrics, visualization, and analyst workflow guidance.", "notProved": ["Guidance is not enforcement and does not prove incident or metric truth."]},
+        {"componentId": "building-incident-response-dashboard::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human incident, escalation, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "building-incident-response-playbook",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-incident-response-playbook/SKILL.md",
+        "sha256": "a30ed65e7fa5cdfee8bd8411b1c3237c63b2e0b451f7fdb37a2ffe7d1edf5daf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Incident Response Playbooks:L35"]
+      },
+      "components": [
+        {"componentId": "building-incident-response-playbook::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied incident, phase, task, owner, decision, escalation, containment, remediation, recovery, and evidence manifests.", "notProved": ["No live incident, classification, containment, remediation, recovery, timing, authorization, or security outcome proof."]},
+        {"componentId": "building-incident-response-playbook::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, SOAR, EDR, NDR, ticketing, endpoints, networks, cloud, communications, or production response authorities.", "notProved": ["No live alert, ticket, endpoint, network, cloud, communication, or executed response result."]},
+        {"componentId": "building-incident-response-playbook::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive incident-response, playbook, coordination, and recovery guidance.", "notProved": ["Guidance is not enforcement and does not prove response readiness or outcome."]},
+        {"componentId": "building-incident-response-playbook::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human response, containment, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "building-soc-escalation-matrix",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-soc-escalation-matrix/SKILL.md",
+        "sha256": "6a2412892d1a764db13586b206c6e0672eab4715642119df8fa8fbe079bd6c22",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building SOC Escalation Matrix:L29"]
+      },
+      "components": [
+        {"componentId": "building-soc-escalation-matrix::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied alert, severity, owner, role, threshold, escalation path, notification, decision, and evidence manifests.", "notProved": ["No live alert truth, severity, ownership, notification, escalation, incident classification, or security outcome proof."]},
+        {"componentId": "building-soc-escalation-matrix::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, SOAR, ticketing, paging, email, chat, SOC, on-call, endpoints, networks, or production authorities.", "notProved": ["No live alert, notification, ticket, on-call action, endpoint, network, or normalized escalation result."]},
+        {"componentId": "building-soc-escalation-matrix::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SOC escalation, role, severity, notification, and coordination guidance.", "notProved": ["Guidance is not enforcement and does not prove escalation correctness."]},
+        {"componentId": "building-soc-escalation-matrix::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human escalation, notification, or response decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "building-soc-metrics-and-kpi-tracking",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-soc-metrics-and-kpi-tracking/SKILL.md",
+        "sha256": "cb7bb29628cb28c8402624ae76a3ed52e899488fa980f6a243efbc6aaca5ab1a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building SOC Metrics and KPI Tracking:L41"]
+      },
+      "components": [
+        {"componentId": "building-soc-metrics-and-kpi-tracking::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied SOC event, metric, KPI, timestamp, denominator, owner, target, trend, provenance, and evidence manifests.", "notProved": ["No live telemetry, metric completeness, KPI truth, detection efficacy, response timing, or security outcome proof."]},
+        {"componentId": "building-soc-metrics-and-kpi-tracking::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, SOAR, ticketing, dashboards, telemetry, EDR, NDR, cloud, SOC, or production measurement authorities.", "notProved": ["No live event stream, metric engine, ticket, endpoint, network, cloud, or normalized KPI result."]},
+        {"componentId": "building-soc-metrics-and-kpi-tracking::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SOC measurement, KPI, quality, and continuous-improvement guidance.", "notProved": ["Guidance is not enforcement and does not prove metric validity or performance."]},
+        {"componentId": "building-soc-metrics-and-kpi-tracking::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human KPI, performance, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "building-threat-hunt-hypothesis-framework",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-threat-hunt-hypothesis-framework/SKILL.md",
+        "sha256": "1770997eedfa06d4aa9a0d4afe8352cea106db89d785fde68fb4f77507075529",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Building Threat Hunt Hypothesis Framework:L29"]
+      },
+      "components": [
+        {"componentId": "building-threat-hunt-hypothesis-framework::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied hunt hypothesis, behavior, data source, query, indicator, confidence, owner, timestamp, provenance, and evidence manifests.", "notProved": ["No live hunt, telemetry, query execution, threat presence, attribution, detection, or security outcome proof."]},
+        {"componentId": "building-threat-hunt-hypothesis-framework::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, EDR, NDR, cloud, endpoint, network, query, threat-intelligence, or production hunting authorities.", "notProved": ["No live telemetry, query engine, endpoint, network, cloud, intelligence, or normalized hunt result."]},
+        {"componentId": "building-threat-hunt-hypothesis-framework::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive threat-hunting, hypothesis, analyst-review, and evidence guidance.", "notProved": ["Guidance is not enforcement and does not prove a threat or detection."]},
+        {"componentId": "building-threat-hunt-hypothesis-framework::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human hunt, attribution, escalation, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-alert-fatigue-reduction",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-alert-fatigue-reduction/SKILL.md",
+        "sha256": "dab041b8d8bf983c4ab9edcbbf234367f269d066db4458ae7583db29a24bd152",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Alert Fatigue Reduction:L35"]
+      },
+      "components": [
+        {"componentId": "implementing-alert-fatigue-reduction::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied alert, duplicate, priority, suppression, threshold, owner, exception, tuning, metric, and evidence manifests.", "notProved": ["No live alert volume, analyst burden, suppression behavior, missed detection, triage efficacy, or security outcome proof."]},
+        {"componentId": "implementing-alert-fatigue-reduction::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, SOAR, EDR, NDR, ticketing, telemetry, analysts, paging, or production alerting authorities.", "notProved": ["No live alert stream, suppression engine, analyst workflow, ticket, endpoint, or normalized result."]},
+        {"componentId": "implementing-alert-fatigue-reduction::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive alert-quality, prioritization, tuning, and analyst-wellbeing guidance.", "notProved": ["Guidance is not enforcement and does not prove fatigue reduction or detection quality."]},
+        {"componentId": "implementing-alert-fatigue-reduction::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human suppression, triage, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-siem-correlation-rules-for-apt",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-siem-correlation-rules-for-apt/SKILL.md",
+        "sha256": "523df3e0f90fca505ab5e72a999050682861e594eb53ea650d6c45ddcd2aa237",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SIEM Correlation Rules for APT:L34"]
+      },
+      "components": [
+        {"componentId": "implementing-siem-correlation-rules-for-apt::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied SIEM rule, event, sequence, threshold, tactic, technique, source, confidence, owner, and evidence manifests.", "notProved": ["No live SIEM correlation, APT activity, event truth, detection efficacy, attribution, or security outcome proof."]},
+        {"componentId": "implementing-siem-correlation-rules-for-apt::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, EDR, NDR, threat-intelligence, log sources, SOAR, endpoints, networks, or production detection authorities.", "notProved": ["No live event, SIEM engine, endpoint, network, intelligence, or normalized detection result."]},
+        {"componentId": "implementing-siem-correlation-rules-for-apt::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SIEM correlation, APT hunting, detection engineering, and analyst-review guidance.", "notProved": ["Guidance is not enforcement and does not prove APT detection or attribution."]},
+        {"componentId": "implementing-siem-correlation-rules-for-apt::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human rule approval, attribution, or response decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-siem-use-case-tuning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-siem-use-case-tuning/SKILL.md",
+        "sha256": "720a5d6677fde2ed96fcfd12dde89be7ce96c5150b38726bc2d438efb9bd1c40",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SIEM Use Case Tuning:L32"]
+      },
+      "components": [
+        {"componentId": "implementing-siem-use-case-tuning::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied SIEM use case, query, rule, threshold, source, false-positive, owner, change, and evidence manifests.", "notProved": ["No live tuning, event truth, false-positive rate, missed detection, analyst efficacy, or security outcome proof."]},
+        {"componentId": "implementing-siem-use-case-tuning::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, log sources, EDR, NDR, SOAR, ticketing, analysts, endpoints, networks, or production detection authorities.", "notProved": ["No live query, event, SIEM, analyst, endpoint, network, ticket, or normalized tuning result."]},
+        {"componentId": "implementing-siem-use-case-tuning::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SIEM tuning, quality, validation, and detection-engineering guidance.", "notProved": ["Guidance is not enforcement and does not prove tuning efficacy."]},
+        {"componentId": "implementing-siem-use-case-tuning::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human tuning, suppression, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-siem-use-cases-for-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-siem-use-cases-for-detection/SKILL.md",
+        "sha256": "02be5a584da3690a15d11ebcb21a4e4b41e927c7e1995569217d2d6cc5b422b7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SIEM Use Cases for Detection:L50"]
+      },
+      "components": [
+        {"componentId": "implementing-siem-use-cases-for-detection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied SIEM use case, event, source, rule, threshold, severity, owner, lifecycle, provenance, and evidence manifests.", "notProved": ["No live detection, event truth, coverage, efficacy, alert delivery, analyst action, or security outcome proof."]},
+        {"componentId": "implementing-siem-use-cases-for-detection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SIEM, EDR, NDR, log sources, SOAR, ticketing, endpoints, networks, cloud, or production detection authorities.", "notProved": ["No live telemetry, SIEM, endpoint, network, cloud, ticket, or normalized detection result."]},
+        {"componentId": "implementing-siem-use-cases-for-detection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive SIEM use-case, lifecycle, validation, and detection-engineering guidance.", "notProved": ["Guidance is not enforcement and does not prove use-case coverage or efficacy."]},
+        {"componentId": "implementing-siem-use-cases-for-detection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human use-case approval, detection, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-alert-triage-with-elastic-siem",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-alert-triage-with-elastic-siem/SKILL.md",
+        "sha256": "fba8437a251a00168d7cc54328000db0f554addf0882a25b11b15413152c0ae4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Alert Triage with Elastic SIEM:L37"]
+      },
+      "components": [
+        {"componentId": "performing-alert-triage-with-elastic-siem::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Elastic alert, event, severity, confidence, owner, timeline, disposition, escalation, provenance, and evidence manifests.", "notProved": ["No live Elastic SIEM, alert truth, triage, incident classification, attribution, response, or security outcome proof."]},
+        {"componentId": "performing-alert-triage-with-elastic-siem::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Elastic SIEM, EDR, NDR, log sources, SOAR, ticketing, endpoints, networks, cloud, analysts, or production response authorities.", "notProved": ["No live alert, SIEM, endpoint, network, cloud, ticket, analyst action, or normalized triage result."]},
+        {"componentId": "performing-alert-triage-with-elastic-siem::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Elastic SIEM, alert triage, validation, escalation, and incident-response guidance.", "notProved": ["Guidance is not enforcement and does not prove alert validity or classification."]},
+        {"componentId": "performing-alert-triage-with-elastic-siem::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human triage, escalation, containment, or remediation decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Elastic/Splunk/SIEM, SOAR, EDR, NDR, cloud, ticketing, live telemetry, SOC operations, and production response authorities remain blocked external engines.",
+    "No live alert truth, correlation, detection, tuning efficacy, false-positive reduction, incident classification, escalation, containment, remediation, recovery, response timing, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}

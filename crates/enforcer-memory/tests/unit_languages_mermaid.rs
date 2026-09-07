@@ -1,12 +1,12 @@
 //! Hard tests for Mermaid, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_mermaid`]). Mermaid is
+//! ([`enforcer_syntax::languages::generic::parse_mermaid`]). Mermaid is
 //! a Tier-0 nominal language (see
-//! [`enforcer_memory::languages::spec::LangSpec::mermaid`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::mermaid`]'s own doc
 //! comment): only its own real root node kind (`source_file`, matching
 //! baseline) is asserted.
 
-use enforcer_memory::languages::generic::parse_mermaid;
+use enforcer_syntax::languages::generic::parse_mermaid;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

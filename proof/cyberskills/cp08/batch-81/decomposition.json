@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-81",
+  "baselineCommit": "6ebece969589c9726f0575144e9755605f186c12",
+  "family": "Static authorized-assessment, exposure-control, and evidence manifests across identity, cloud, mobile, API, data, and AI boundaries",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "relaying-ntlm-for-adcs-esc8",
+      "remediating-s3-bucket-misconfiguration",
+      "reverse-engineering-ios-app-with-frida",
+      "scanning-infrastructure-with-nessus",
+      "securing-api-gateway-with-aws-waf",
+      "securing-azure-with-microsoft-defender",
+      "testing-android-intents-for-vulnerabilities",
+      "testing-api-security-with-owasp-top-10",
+      "testing-for-sensitive-data-exposure",
+      "testing-for-system-prompt-leakage"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-80."
+  },
+  "accounting": {"acceptedPrior": 800, "proposed": 10, "overlap": 0, "combined": 810, "protectedExcluded": 1},
+  "skills": [
+    {
+      "catalogId": "relaying-ntlm-for-adcs-esc8",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/relaying-ntlm-for-adcs-esc8/SKILL.md", "sha256": "f2cfc514b46f3fe648b133f8b504b9343a982cc63e42fb94dd3572a6d9160ff8", "availability": "available", "license": "Apache-2.0", "anchors": ["# Relaying NTLM for ADCS ESC8:L23"]},
+      "components": [
+        {"id": "relaying-ntlm-for-adcs-esc8::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed identity, NTLM, certificate-service, template, relay-scope, authorization, owner, and evidence-manifest fields without authentication or relay execution.", "notProved": ["NTLM relay", "ADCS escalation", "certificate issuance"]},
+        {"id": "relaying-ntlm-for-adcs-esc8::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep ADCS, domain controllers, SMB/HTTP listeners, credentials, relays, sessions, networks, and production identity infrastructure external.", "notProved": ["live relay", "privilege escalation", "access"]},
+        {"id": "relaying-ntlm-for-adcs-esc8::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain NTLM reduction, certificate-template hardening, EPA/signing, identity segmentation, and defensive assessment guidance as advisory.", "notProved": ["finding validity", "control efficacy", "remediation effectiveness"]},
+        {"id": "relaying-ntlm-for-adcs-esc8::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, identity ownership, legal and safety review, bounded scope, stop conditions, credential custody, analyst validation, and remediation decisions.", "notProved": ["authorization", "live attack", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "remediating-s3-bucket-misconfiguration",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/remediating-s3-bucket-misconfiguration/SKILL.md", "sha256": "746c501fe8345a7c8c7838c38b71c69063b07d95578acbce40ff586e267e61ca", "availability": "available", "license": "Apache-2.0", "anchors": ["# Remediating S3 Bucket Misconfiguration:L34"]},
+      "components": [
+        {"id": "remediating-s3-bucket-misconfiguration::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed bucket, account, region, policy, ACL, encryption, ownership, exposure, change-plan, and evidence-manifest fields without AWS access.", "notProved": ["bucket exposure", "policy truth", "remediation"]},
+        {"id": "remediating-s3-bucket-misconfiguration::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AWS APIs, S3, IAM, CloudTrail, scanners, objects, credentials, networks, and deployment systems external.", "notProved": ["live posture", "object access", "data exposure"]},
+        {"id": "remediating-s3-bucket-misconfiguration::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain S3 policy, public-access blocking, encryption, logging, lifecycle, and defensive remediation guidance as advisory.", "notProved": ["finding validity", "control efficacy", "remediation effectiveness"]},
+        {"id": "remediating-s3-bucket-misconfiguration::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, account and bucket ownership, legal/privacy/data review, change approval, rollback, validation, and disclosure decisions.", "notProved": ["authorization", "live change", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "reverse-engineering-ios-app-with-frida",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-ios-app-with-frida/SKILL.md", "sha256": "2bf855064781913c4176beeaeebec561d85e1cbdb537aa948c97d8a6276b223d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Reverse Engineering iOS App with Frida:L36"]},
+      "components": [
+        {"id": "reverse-engineering-ios-app-with-frida::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed app, binary, bundle, signing, entitlement, symbol, route, scope, owner, and evidence-manifest fields without runtime instrumentation.", "notProved": ["binary behavior", "runtime state", "vulnerability"]},
+        {"id": "reverse-engineering-ios-app-with-frida::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep iOS devices, simulators, Frida, jailbreaks, debuggers, processes, memory, apps, networks, and credentials external.", "notProved": ["live reverse engineering", "instrumentation", "data access"]},
+        {"id": "reverse-engineering-ios-app-with-frida::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain mobile secure storage, signing, entitlement review, privacy, binary analysis, and defensive testing guidance as advisory.", "notProved": ["finding validity", "exploitability", "remediation effectiveness"]},
+        {"id": "reverse-engineering-ios-app-with-frida::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, app and device ownership, legal/privacy/safety review, data handling, stop conditions, analyst interpretation, and remediation decisions.", "notProved": ["authorization", "live instrumentation", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "scanning-infrastructure-with-nessus",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/scanning-infrastructure-with-nessus/SKILL.md", "sha256": "43bc1850fe299c0ba0012cec8b1aca4be602b148cc636e6f51de10d0d78620d7", "availability": "available", "license": "Apache-2.0", "anchors": ["# Scanning Infrastructure with Nessus:L29"]},
+      "components": [
+        {"id": "scanning-infrastructure-with-nessus::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed asset, network, service, plugin, scan-plan, credential-policy, severity, owner, scope, and evidence-manifest fields without scanning.", "notProved": ["infrastructure vulnerability", "scan result", "priority truth"]},
+        {"id": "scanning-infrastructure-with-nessus::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Nessus, scanners, hosts, networks, credentials, CMDB, ticketing, packet tools, and production infrastructure external.", "notProved": ["live scan", "exploitability", "asset exposure"]},
+        {"id": "scanning-infrastructure-with-nessus::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain infrastructure scanning, asset inventory, severity review, patching, maintenance, and defensive assessment guidance as advisory.", "notProved": ["finding validity", "CVE/CVSS truth", "remediation effectiveness"]},
+        {"id": "scanning-infrastructure-with-nessus::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, infrastructure ownership, legal and maintenance-window review, bounded scope, stop conditions, severity validation, and remediation decisions.", "notProved": ["authorization", "live scan", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "securing-api-gateway-with-aws-waf",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/securing-api-gateway-with-aws-waf/SKILL.md", "sha256": "ea9a6357d74a3a95ab9b82737f887e2fc4a51f74bcd29bd9bf8032c3312f8a37", "availability": "available", "license": "Apache-2.0", "anchors": ["# Securing API Gateway with AWS WAF:L35"]},
+      "components": [
+        {"id": "securing-api-gateway-with-aws-waf::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed API route, gateway, WAF rule, method, header, rate, scope, owner, and evidence-manifest fields without AWS or endpoint calls.", "notProved": ["gateway exposure", "WAF behavior", "API security"]},
+        {"id": "securing-api-gateway-with-aws-waf::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AWS API Gateway, AWS WAF, cloud APIs, endpoints, requests, payloads, browsers, scanners, credentials, and production systems external.", "notProved": ["live enforcement", "bypass", "data exposure"]},
+        {"id": "securing-api-gateway-with-aws-waf::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain WAF rule design, API authentication, rate limiting, logging, monitoring, and defensive gateway hardening guidance as advisory.", "notProved": ["finding validity", "control efficacy", "remediation effectiveness"]},
+        {"id": "securing-api-gateway-with-aws-waf::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, account and API ownership, legal/privacy/safety review, change approval, stop conditions, rollback, and remediation decisions.", "notProved": ["authorization", "live enforcement", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "securing-azure-with-microsoft-defender",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/securing-azure-with-microsoft-defender/SKILL.md", "sha256": "369d38943684d6b81915abcc039aef4bbe41f3bb0cec730c93960da0f13483e4", "availability": "available", "license": "Apache-2.0", "anchors": ["# Securing Azure with Microsoft Defender:L42"]},
+      "components": [
+        {"id": "securing-azure-with-microsoft-defender::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed Azure subscription, resource, policy, Defender plan, alert, owner, scope, and evidence-manifest fields without cloud access.", "notProved": ["Azure posture", "alert truth", "threat detection"]},
+        {"id": "securing-azure-with-microsoft-defender::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Azure APIs, Microsoft Defender, Entra ID, Sentinel, resources, telemetry, credentials, endpoints, and production tenants external.", "notProved": ["live alert", "compromise", "cloud security outcome"]},
+        {"id": "securing-azure-with-microsoft-defender::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Azure hardening, Defender configuration, least privilege, logging, incident triage, and defensive cloud guidance as advisory.", "notProved": ["finding validity", "detection efficacy", "remediation effectiveness"]},
+        {"id": "securing-azure-with-microsoft-defender::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written tenant authorization, resource ownership, legal/privacy/data review, severity validation, change approval, containment, rollback, and disclosure decisions.", "notProved": ["authorization", "live response", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "testing-android-intents-for-vulnerabilities",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-android-intents-for-vulnerabilities/SKILL.md", "sha256": "ea3aba349b2dc4f8d65a1e3422cd49f20042dbba0750815af6f9cb99846b9df1", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing Android Intents for Vulnerabilities:L35"]},
+      "components": [
+        {"id": "testing-android-intents-for-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed Android app, component, intent, action, permission, exported-state, input, scope, and evidence-manifest fields without device execution.", "notProved": ["intent vulnerability", "component access", "runtime behavior"]},
+        {"id": "testing-android-intents-for-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Android devices, emulators, apps, adb, browsers, runtimes, payloads, credentials, and production endpoints external.", "notProved": ["live intent", "permission bypass", "data exposure"]},
+        {"id": "testing-android-intents-for-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Android component exposure, permission design, input validation, secure IPC, privacy, and defensive mobile testing guidance as advisory.", "notProved": ["finding validity", "exploitability", "remediation effectiveness"]},
+        {"id": "testing-android-intents-for-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, app and device ownership, legal/privacy/safety review, test scope, stop conditions, data handling, analyst validation, and remediation decisions.", "notProved": ["authorization", "live test", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "testing-api-security-with-owasp-top-10",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-api-security-with-owasp-top-10/SKILL.md", "sha256": "fdffd976a0587c262bd60b212a93928597004173e68c87280de3c96850ee4f57", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing API Security with OWASP Top 10:L30"]},
+      "components": [
+        {"id": "testing-api-security-with-owasp-top-10::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed API inventory, route, schema, request-response, identity, authorization, rate, scope, and evidence-manifest fields without calls or fuzzing.", "notProved": ["API vulnerability", "auth bypass", "security outcome"]},
+        {"id": "testing-api-security-with-owasp-top-10::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep endpoints, servers, browsers, Burp, ZAP, fuzzers, scanners, payloads, credentials, sessions, and production APIs external.", "notProved": ["live enumeration", "exploit", "data exposure"]},
+        {"id": "testing-api-security-with-owasp-top-10::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain OWASP API risk, secure schema design, authorization, rate limiting, logging, testing, and defensive remediation guidance as advisory.", "notProved": ["finding validity", "exploitability", "remediation effectiveness"]},
+        {"id": "testing-api-security-with-owasp-top-10::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, API ownership, legal/safety/data review, scope, severity validation, stop conditions, analyst interpretation, containment, and remediation decisions.", "notProved": ["authorization", "live API test", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-sensitive-data-exposure",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-sensitive-data-exposure/SKILL.md", "sha256": "086d5cf8fd640eb9aa5d66d6f983b992393edfb35c0932dad5203faed0c14b3f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing for Sensitive Data Exposure:L39"]},
+      "components": [
+        {"id": "testing-for-sensitive-data-exposure::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed data classification, field, route, storage, transport, masking, retention, owner, scope, and evidence-manifest fields without data access.", "notProved": ["sensitive data exposure", "data classification truth", "privacy impact"]},
+        {"id": "testing-for-sensitive-data-exposure::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep databases, APIs, endpoints, browsers, cloud storage, DLP, scanners, credentials, production data, and live traffic external.", "notProved": ["live exposure", "record access", "data loss"]},
+        {"id": "testing-for-sensitive-data-exposure::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain data minimization, masking, encryption, access control, retention, privacy, and defensive review guidance as advisory.", "notProved": ["finding validity", "privacy risk truth", "remediation effectiveness"]},
+        {"id": "testing-for-sensitive-data-exposure::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, data ownership, legal/privacy review, data-handling controls, severity validation, stop conditions, disclosure, and remediation decisions.", "notProved": ["authorization", "live data test", "privacy outcome"]}
+      ]
+    },
+    {
+      "catalogId": "testing-for-system-prompt-leakage",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-system-prompt-leakage/SKILL.md", "sha256": "3755ca9c9d01c6c58b4631f1a9db75696f8ca33a366d47b98b90d2bc17fb6167", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing for System Prompt Leakage:L23"]},
+      "components": [
+        {"id": "testing-for-system-prompt-leakage::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed model, prompt-policy, instruction, tool, output-class, disclosure, scope, owner, and evidence-manifest fields without model or agent execution.", "notProved": ["prompt leakage", "model behavior", "secret disclosure"]},
+        {"id": "testing-for-system-prompt-leakage::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep model providers, agents, chat sessions, tools, browsers, plugins, credentials, production prompts, and live inference external.", "notProved": ["live leakage", "prompt extraction", "tool abuse"]},
+        {"id": "testing-for-system-prompt-leakage::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain prompt confidentiality, instruction hierarchy, tool least privilege, output review, red-team planning, and defensive AI guidance as advisory.", "notProved": ["finding validity", "model safety", "remediation effectiveness"]},
+        {"id": "testing-for-system-prompt-leakage::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, model and prompt ownership, legal/privacy review, secret handling, safety scope, stop conditions, analyst validation, and disclosure decisions.", "notProved": ["authorization", "live model test", "AI security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "protectedExcludedSkills": 1, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, database, mail, SIEM, EDR, OT, wireless, scanner, mobile, API, model, or production state is proved.",
+    "No NTLM relay, ADCS escalation, S3 exposure, iOS or Android runtime behavior, infrastructure scan, WAF enforcement, Azure alert, API vulnerability, sensitive-data exposure, prompt leakage, compromise, detection, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No source truth, vulnerability or severity truth, attribution, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security, privacy, operational, compliance, mobile, cloud, or AI safety outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity was not read, touched, counted, proposed, or accepted in this batch."
+  ]
+}

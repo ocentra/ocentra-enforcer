@@ -191,6 +191,7 @@ pub enum ProofStatus {
     Failed,
     ManualRequired,
     Unavailable,
+    Waived,
 }
 
 impl ProofStatus {
@@ -300,6 +301,7 @@ serde_unit_enum!(ProofStatus, {
     ProofStatus::Failed => "failed",
     ProofStatus::ManualRequired => "manual-required",
     ProofStatus::Unavailable => "unavailable",
+    ProofStatus::Waived => "waived",
 });
 serde_unit_enum!(ClaimViolationCode, {
     ClaimViolationCode::MissingProofRun => "missing-proof-run",

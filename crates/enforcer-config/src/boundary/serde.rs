@@ -10,12 +10,14 @@ use std::num::NonZeroUsize;
 use std::path::Path;
 
 use enforcer_domain::config_types::{
-    CargoDependencyPolicy, CfgTestSkipping, ConfigField, ConfigJson, ConfigProfileName,
-    ConfigSource, CrateName, EffectiveConfig, EnforcerScope, Glob, HarnessArtifactByteLimit,
-    HarnessConfig, HarnessRetentionDays, HarnessRunLimit, InlineTestPolicy, NativeMode, NativeTie,
-    NativeTool, Platform, PolicyOwner, PolicyReason, PublicReexportPolicy, RegexPattern,
-    RuleEnabled, RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind,
-    SourceShapePolicy,
+    AgentRuleLineBudget, ArchitecturePolicyCheck, CargoDependencyPolicy, CfgTestSkipping,
+    ConfigField, ConfigJson, ConfigProfileName, ConfigSource, CrateName, EffectiveConfig,
+    EnforcerScope, GeneratedArtifactsMode, Glob, HarnessArtifactByteLimit, HarnessConfig,
+    HarnessRetentionDays, HarnessRunLimit, ImportBoundaryPolicy, InlineTestPolicy, NativeMode,
+    NativeTie, NativeTool, Platform, PolicyOwner, PolicyReason,
+    PrivateRustTestModuleAllowlistEntry, PublicReexportPolicy, RegexPattern, RuleEnabled,
+    RuntimeLiteralPolicy, RustScanScope, ShapeOwnershipGlobs, SourceShapeKind, SourceShapeOverride,
+    SourceShapePolicy, StrictEmptyTestTrees,
 };
 use enforcer_domain::{
     ids::RuleId, paths::RelPath, scan_types::IgnoreDirectorySegment, severity::Severity,
@@ -27,6 +29,9 @@ use crate::error::{ConfigLoadError, ConfigResult};
 use crate::profiles::KNOWN_PROFILE_NAMES;
 use crate::project_tie::ProjectConfig;
 use enforcer_domain::boundary::decode_error::DecodeError;
+
+#[path = "serde/diagnostics.rs"]
+pub mod diagnostics;
 
 const STRICT_JSON: &str = include_str!("../../profiles/strict.json");
 const DEFAULT_JSON: &str = include_str!("../../profiles/default.json");
@@ -148,6 +153,10 @@ impl From<Platform> for WirePlatform {
 
 fn default_supported_platforms() -> Vec<WirePlatform> {
     Platform::all().into_iter().map(Into::into).collect()
+}
+
+const fn default_agent_rule_max_lines() -> usize {
+    220
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -637,6 +646,39 @@ pub struct WireSourceShapePolicy {
     pub max_lines: Option<usize>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_types: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_nesting_depth: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_branches: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WireSourceShapeOverride {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub paths: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub glob: Option<WireGlob>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub globs: Vec<WireGlob>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_classes: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_exports: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_functions: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_function_lines: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_lines: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_types: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_nesting_depth: Option<usize>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_branches: Option<usize>,
 }
 fn optional_nonzero(
     value: Option<usize>,
@@ -672,6 +714,8 @@ impl TryFrom<WireSourceShapePolicy> for SourceShapePolicy {
             max_function_lines: optional_nonzero(value.max_function_lines, "maxFunctionLines")?,
             max_lines: optional_nonzero(value.max_lines, "maxLines")?,
             max_types: optional_nonzero(value.max_types, "maxTypes")?,
+            max_nesting_depth: optional_nonzero(value.max_nesting_depth, "maxNestingDepth")?,
+            max_branches: optional_nonzero(value.max_branches, "maxBranches")?,
         })
     }
 }
@@ -691,6 +735,56 @@ impl From<SourceShapePolicy> for WireSourceShapePolicy {
             max_function_lines: value.max_function_lines.map(NonZeroUsize::get),
             max_lines: value.max_lines.map(NonZeroUsize::get),
             max_types: value.max_types.map(NonZeroUsize::get),
+            max_nesting_depth: value.max_nesting_depth.map(NonZeroUsize::get),
+            max_branches: value.max_branches.map(NonZeroUsize::get),
+        }
+    }
+}
+
+impl TryFrom<WireSourceShapeOverride> for SourceShapeOverride {
+    type Error = DecodeError;
+
+    fn try_from(value: WireSourceShapeOverride) -> Result<Self, Self::Error> {
+        Ok(Self {
+            path: value.path.map(RelPath::try_from).transpose()?,
+            paths: value
+                .paths
+                .into_iter()
+                .map(RelPath::try_from)
+                .collect::<Result<_, _>>()?,
+            glob: value.glob.map(TryInto::try_into).transpose()?,
+            globs: value
+                .globs
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+            max_classes: optional_nonzero(value.max_classes, "maxClasses")?,
+            max_exports: optional_nonzero(value.max_exports, "maxExports")?,
+            max_functions: optional_nonzero(value.max_functions, "maxFunctions")?,
+            max_function_lines: optional_nonzero(value.max_function_lines, "maxFunctionLines")?,
+            max_lines: optional_nonzero(value.max_lines, "maxLines")?,
+            max_types: optional_nonzero(value.max_types, "maxTypes")?,
+            max_nesting_depth: optional_nonzero(value.max_nesting_depth, "maxNestingDepth")?,
+            max_branches: optional_nonzero(value.max_branches, "maxBranches")?,
+        })
+    }
+}
+
+impl From<SourceShapeOverride> for WireSourceShapeOverride {
+    fn from(value: SourceShapeOverride) -> Self {
+        Self {
+            path: value.path.map(String::from),
+            paths: value.paths.into_iter().map(String::from).collect(),
+            glob: value.glob.map(Into::into),
+            globs: value.globs.into_iter().map(Into::into).collect(),
+            max_classes: value.max_classes.map(NonZeroUsize::get),
+            max_exports: value.max_exports.map(NonZeroUsize::get),
+            max_functions: value.max_functions.map(NonZeroUsize::get),
+            max_function_lines: value.max_function_lines.map(NonZeroUsize::get),
+            max_lines: value.max_lines.map(NonZeroUsize::get),
+            max_types: value.max_types.map(NonZeroUsize::get),
+            max_nesting_depth: value.max_nesting_depth.map(NonZeroUsize::get),
+            max_branches: value.max_branches.map(NonZeroUsize::get),
         }
     }
 }
@@ -715,11 +809,73 @@ pub struct WireEffectiveConfig {
     #[serde(default)]
     pub source_shape_policies: Vec<WireSourceShapePolicy>,
     #[serde(default)]
+    pub source_shape_overrides: Vec<WireSourceShapeOverride>,
+    pub architecture_policy_checks: Option<Vec<String>>,
+    #[serde(default)]
+    pub import_boundary_policies: Vec<WireImportBoundaryPolicy>,
+    #[serde(default = "default_agent_rule_max_lines")]
+    pub agent_rule_max_lines: usize,
+    #[serde(default)]
+    pub strict_empty_test_trees: bool,
+    #[serde(default)]
+    pub private_rust_test_module_allowlist: Vec<WirePrivateRustTestModuleAllowlistEntry>,
+    #[serde(default)]
+    pub generated_artifacts_mode: WireGeneratedArtifactsMode,
+    #[serde(default)]
+    pub generated_artifacts_tracked: bool,
+    #[serde(default)]
+    pub generated_artifacts_allowlist: Vec<WireGlob>,
+    #[serde(default)]
     pub ignore_dirs: Vec<String>,
     #[serde(default)]
     pub ignore_file_globs: Vec<WireGlob>,
     #[serde(default)]
     pub boundary_owner_note: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WireImportBoundaryPolicy {
+    #[serde(default)]
+    pub roots: Vec<String>,
+    #[serde(default)]
+    pub forbidden_imports: Vec<WireGlob>,
+    #[serde(default)]
+    pub allowed_imports: Vec<WireGlob>,
+    #[serde(default)]
+    pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct WirePrivateRustTestModuleAllowlistEntry {
+    pub owner_file: String,
+    pub module_file: String,
+    pub module_name: String,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum WireGeneratedArtifactsMode {
+    #[default]
+    Scope,
+    Tracked,
+}
+impl From<WireGeneratedArtifactsMode> for GeneratedArtifactsMode {
+    fn from(value: WireGeneratedArtifactsMode) -> Self {
+        match value {
+            WireGeneratedArtifactsMode::Scope => Self::Scope,
+            WireGeneratedArtifactsMode::Tracked => Self::Tracked,
+        }
+    }
+}
+impl From<GeneratedArtifactsMode> for WireGeneratedArtifactsMode {
+    fn from(value: GeneratedArtifactsMode) -> Self {
+        match value {
+            GeneratedArtifactsMode::Scope => Self::Scope,
+            GeneratedArtifactsMode::Tracked => Self::Tracked,
+        }
+    }
 }
 
 impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
@@ -741,6 +897,67 @@ impl TryFrom<WireEffectiveConfig> for EffectiveConfig {
             rust_scan_scope: value.rust_scan_scope.try_into()?,
             source_shape_policies: value
                 .source_shape_policies
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+            source_shape_overrides: value
+                .source_shape_overrides
+                .into_iter()
+                .map(TryInto::try_into)
+                .collect::<Result<_, _>>()?,
+            architecture_policy_checks: value
+                .architecture_policy_checks
+                .map(|checks| {
+                    checks
+                        .into_iter()
+                        .map(ArchitecturePolicyCheck::try_new)
+                        .collect()
+                })
+                .transpose()?,
+            import_boundary_policies: value
+                .import_boundary_policies
+                .into_iter()
+                .map(|policy| {
+                    Ok(ImportBoundaryPolicy {
+                        roots: policy
+                            .roots
+                            .into_iter()
+                            .map(RelPath::try_from)
+                            .collect::<Result<_, _>>()?,
+                        forbidden_imports: policy
+                            .forbidden_imports
+                            .into_iter()
+                            .map(TryInto::try_into)
+                            .collect::<Result<_, DecodeError>>()?,
+                        allowed_imports: policy
+                            .allowed_imports
+                            .into_iter()
+                            .map(TryInto::try_into)
+                            .collect::<Result<_, DecodeError>>()?,
+                        message: policy.message.map(ConfigField::from_owned),
+                    })
+                })
+                .collect::<Result<_, DecodeError>>()?,
+            agent_rule_max_lines: AgentRuleLineBudget::from_config(value.agent_rule_max_lines),
+            strict_empty_test_trees: StrictEmptyTestTrees::from_wire(value.strict_empty_test_trees),
+            private_rust_test_module_allowlist: value
+                .private_rust_test_module_allowlist
+                .into_iter()
+                .map(|entry| {
+                    PrivateRustTestModuleAllowlistEntry::try_new(
+                        entry.owner_file.parse()?,
+                        entry.module_file.parse()?,
+                        entry.module_name,
+                    )
+                })
+                .collect::<Result<_, DecodeError>>()?,
+            generated_artifacts_mode: if value.generated_artifacts_tracked {
+                GeneratedArtifactsMode::Tracked
+            } else {
+                value.generated_artifacts_mode.into()
+            },
+            generated_artifacts_allowlist: value
+                .generated_artifacts_allowlist
                 .into_iter()
                 .map(TryInto::try_into)
                 .collect::<Result<_, _>>()?,
@@ -963,6 +1180,52 @@ impl From<EffectiveConfig> for WireEffectiveConfig {
             rust_scan_scope: value.rust_scan_scope.into(),
             source_shape_policies: value
                 .source_shape_policies
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            source_shape_overrides: value
+                .source_shape_overrides
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+            architecture_policy_checks: value.architecture_policy_checks.map(|checks| {
+                checks
+                    .into_iter()
+                    .map(|value| value.as_str().to_owned())
+                    .collect()
+            }),
+            import_boundary_policies: value
+                .import_boundary_policies
+                .into_iter()
+                .map(|policy| WireImportBoundaryPolicy {
+                    roots: policy.roots.into_iter().map(String::from).collect(),
+                    forbidden_imports: policy
+                        .forbidden_imports
+                        .into_iter()
+                        .map(Into::into)
+                        .collect(),
+                    allowed_imports: policy.allowed_imports.into_iter().map(Into::into).collect(),
+                    message: policy.message.map(|value| value.as_str().to_owned()),
+                })
+                .collect(),
+            agent_rule_max_lines: value.agent_rule_max_lines.get(),
+            strict_empty_test_trees: value.strict_empty_test_trees.into_wire(),
+            private_rust_test_module_allowlist: value
+                .private_rust_test_module_allowlist
+                .into_iter()
+                .map(|entry| WirePrivateRustTestModuleAllowlistEntry {
+                    owner_file: entry.owner_file().as_str().to_owned(),
+                    module_file: entry.module_file().as_str().to_owned(),
+                    module_name: entry.module_name().to_owned(),
+                })
+                .collect(),
+            generated_artifacts_mode: value.generated_artifacts_mode.into(),
+            generated_artifacts_tracked: matches!(
+                value.generated_artifacts_mode,
+                GeneratedArtifactsMode::Tracked
+            ),
+            generated_artifacts_allowlist: value
+                .generated_artifacts_allowlist
                 .into_iter()
                 .map(Into::into)
                 .collect(),
@@ -1236,8 +1499,11 @@ pub struct WireProjectConfig {
 
 #[cfg(test)]
 mod harness_config_tests {
-    use super::WireHarnessConfig;
-    use enforcer_domain::config_types::{HarnessConfig, HarnessRunLimit};
+    use super::{WireEffectiveConfig, WireHarnessConfig};
+    use enforcer_domain::config_types::{
+        ConfigJson, ConfigProfileName, ConfigSource, EffectiveConfig, HarnessConfig,
+        HarnessRunLimit,
+    };
 
     #[test]
     fn wire_harness_config_preserves_unlimited_and_explicit_zero() -> Result<(), serde_json::Error>
@@ -1264,6 +1530,23 @@ mod harness_config_tests {
         assert_eq!(encoded["maxRunsPerTool"], 0);
         assert_eq!(encoded["maxFailedRuns"], 0);
         assert_eq!(encoded["pruneAfterDays"], serde_json::Value::Null);
+        Ok(())
+    }
+
+    #[test]
+    fn wire_effective_config_defaults_and_preserves_agent_rule_line_budget(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let default_profile = ConfigProfileName::new("default".to_owned())?;
+        let absent = crate::resolve::resolve_profile_only(&default_profile)?;
+        assert_eq!(absent.agent_rule_max_lines.get(), 220);
+        let project = ConfigJson::from_owned(
+            r#"{"schemaVersion":2,"profileName":"default","agentRuleMaxLines":0}"#.to_owned(),
+        );
+        let source = ConfigSource::from_owned("test project config".to_owned());
+        let effective: EffectiveConfig = crate::resolve::resolve(Some(&project), &source)?;
+        assert_eq!(effective.agent_rule_max_lines.get(), 0);
+        let encoded = serde_json::to_value(WireEffectiveConfig::from(effective))?;
+        assert_eq!(encoded["agentRuleMaxLines"], 0);
         Ok(())
     }
 }

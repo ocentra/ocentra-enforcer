@@ -25,6 +25,20 @@ fn commit_ref_rejects_blank_input() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[test]
+fn commit_ref_rejects_git_option_shaped_input() -> Result<(), Box<dyn std::error::Error>> {
+    let error = "--output=outside.txt"
+        .parse::<CommitRef>()
+        .err()
+        .ok_or("option-shaped commit ref must be rejected")?;
+    assert_eq!(error.path, "scope.commitRef");
+    assert_eq!(
+        error.reason,
+        "must not begin with `-` because Git would interpret it as an option"
+    );
+    Ok(())
+}
+
+#[test]
 fn literal_numeric_values_preserve_validated_parts() -> Result<(), Box<dyn std::error::Error>> {
     let hash = LiteralStableHash::of_source(ValidationSource::from_text("stable"));
     assert_eq!(hash.to_string(), "3f63b56db2890a16fbd0d80afa5a93aa");

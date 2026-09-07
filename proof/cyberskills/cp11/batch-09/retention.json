@@ -1,0 +1,271 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-09",
+  "family": "IF/cloud-security",
+  "baselineCommit": "5bfe74b3a8b8a55dc218b7290dd987bd2fcf81fc",
+  "scope": "Retain advisory and manual content for the deterministic cloud-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-misconfigured-azure-storage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-misconfigured-azure-storage/SKILL.md",
+        "sha256": "91cbf338d7cbf2e7931dd73e79a892160c14f627eb600a0dda62fb6a6e48684a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Misconfigured Azure Storage:L42"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Azure storage configuration review, access-pattern analysis, exposure triage, telemetry quality, incident analysis, and remediation guidance.",
+        "notProved": ["Guidance is not Azure, storage, identity, provider, CSPM, scanner, SIEM, endpoint, or production execution and does not prove misconfiguration, exposure, access, detection, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, subscription, storage, data, and log scope; ownership, legal/privacy/safety review, provider terms, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, subscription, storage, identity, access, provider, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-oauth-token-theft",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-oauth-token-theft/SKILL.md",
+        "sha256": "ea091cd6dff283f6bad920f30fffbbe078825d5af34ab24de3e6fb331d66fb4e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting OAuth Token Theft:L67"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-09/decomposition.json",
+        "artifactSha256": "6e8649af278f30d2762bcaffaa3730386b5bee5396552c82527751ae833e4ee2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive OAuth token lifecycle review, consent and session telemetry analysis, incident triage, and credential-protection guidance.",
+        "notProved": ["Guidance is not an IdP, OAuth provider, browser, session, endpoint, SIEM, or production authority and does not prove token theft, validity, compromise, detection, revocation, or containment."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact identity, tenant, application, token, browser, and session scope; owner validation, legal/privacy/safety review, data handling, analyst interpretation, severity, revocation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human authorization, identity, application, token, session, revocation, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-s3-data-exfiltration-attempts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-s3-data-exfiltration-attempts/SKILL.md",
+        "sha256": "4eb4ecb1d87c68eccb40fdb565acc2e679b9406f065d95b0d318f543732794d7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["### Step 2: Query CloudTrail for Anomalous S3 Access Patterns:L83"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-04/decomposition.json",
+        "artifactSha256": "04cdd6b0cda44129373c802694deb5bf606b8a8910003663f52ced1ce7f41df9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive S3 access-pattern review, exfiltration triage, CloudTrail evidence interpretation, incident analysis, and data-protection guidance.",
+        "notProved": ["Guidance is not AWS, S3, CloudTrail, DLP, SIEM, network, endpoint, or production execution and does not prove exfiltration, access, attribution, detection, data loss, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, bucket, object, principal, trail, and data scope; owner validation, legal/privacy review, retention and handling controls, analyst interpretation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, bucket, object, principal, trail, access, exfiltration, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-serverless-function-injection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-serverless-function-injection/SKILL.md",
+        "sha256": "48437c12b9fb2d0b5ec2fa1ef29625e91abef9253b107ccdfe77dae03d932a71",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Serverless Function Injection:L38"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive serverless configuration and event-flow review, injection triage, telemetry quality, incident analysis, and remediation guidance.",
+        "notProved": ["Guidance is not a cloud runtime, function service, event bus, scanner, WAF, SIEM, endpoint, or production authority and does not prove injection, execution, compromise, detection, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, function, trigger, event, payload, data, and log scope; owner validation, legal/privacy/safety review, provider terms, analyst interpretation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, function, trigger, event, payload, execution, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-shadow-it-cloud-usage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-shadow-it-cloud-usage/SKILL.md",
+        "sha256": "08619d31e4d61e97d1ea262219a9ba46bed045245ef743037232fee377591a64",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Shadow IT Cloud Usage:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-37/decomposition.json",
+        "artifactSha256": "b29b08638121c875fabd8d5981376bdd96f2aabeb7c9f25ff12b43ffdd42d661"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud inventory, ownership, usage-pattern, tenant-boundary, and risk-triage guidance for unmanaged services.",
+        "notProved": ["Guidance is not live cloud discovery, DNS, identity, network, CASB, CSPM, SIEM, endpoint, or production execution and does not prove shadow usage, ownership, exposure, attribution, or risk outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, account, service, data, and user scope; business-owner validation, legal/privacy/ethics review, provider terms, analyst uncertainty, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, account, service, owner, user, discovery, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "detecting-suspicious-oauth-application-consent",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-suspicious-oauth-application-consent/SKILL.md",
+        "sha256": "00cbfe6cbce69e95668318733bae69462d7d79ceec26ef178ac748aa422463e6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Detecting Suspicious OAuth Application Consent:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-09/decomposition.json",
+        "artifactSha256": "6e8649af278f30d2762bcaffaa3730386b5bee5396552c82527751ae833e4ee2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive consent-review, OAuth scope analysis, identity telemetry triage, analyst uncertainty, and credential-protection guidance.",
+        "notProved": ["Guidance is not an IdP, OAuth provider, application registry, browser, session, SIEM, or production authority and does not prove suspicious consent, maliciousness, compromise, detection, revocation, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, identity, application, consent, scope, and session boundaries; owner validation, legal/privacy/safety review, data handling, analyst interpretation, severity, revocation, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, identity, application, consent, scope, session, revocation, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "emulating-cloud-attacks-with-stratus-red-team",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/emulating-cloud-attacks-with-stratus-red-team/SKILL.md",
+        "sha256": "9328fddce8fa8e43f07aa2e2c2b4db79995a21ded1bd92b4d50d1e10e593e545",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Emulating Cloud Attacks with Stratus Red Team:L24"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-37/decomposition.json",
+        "artifactSha256": "b29b08638121c875fabd8d5981376bdd96f2aabeb7c9f25ff12b43ffdd42d661"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-modeling, emulation planning, control validation design, telemetry review, and purple-team safety guidance.",
+        "notProved": ["Guidance is not Stratus Red Team, cloud, identity, network, endpoint, SIEM, or production execution and does not prove attack emulation, exploitability, control efficacy, detection, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, exact tenant/account/asset scope, safety limits, stop conditions, change windows, owner approval, legal/privacy review, analyst validation, containment, remediation, rollback, recovery, and disclosure decisions before any emulation.",
+        "notProved": ["No human authorization, emulation, cloud action, exploit, credential use, control validation, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "enumerating-cloud-with-cloudfox",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/enumerating-cloud-with-cloudfox/SKILL.md",
+        "sha256": "6e37d27733bd9db29d362068baf901609ef8efcdc0313ab44d9ab954975e4dbf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Enumerating Cloud with CloudFox:L24"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-37/decomposition.json",
+        "artifactSha256": "b29b08638121c875fabd8d5981376bdd96f2aabeb7c9f25ff12b43ffdd42d661"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive cloud asset-inventory, identity-boundary, exposure-review, threat-model, and assessment-planning guidance.",
+        "notProved": ["Guidance is not CloudFox, cloud APIs, sessions, IAM, network, endpoint, SIEM, or production execution and does not prove enumeration, asset truth, exposure, compromise, attribution, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact tenant, account, subscription, asset, identity, data, and network scope; ownership, legal/privacy/safety review, provider terms, analyst validation, severity, stop conditions, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, tenant, account, asset, identity, session, enumeration, finding, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "exploiting-aws-with-pacu",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-aws-with-pacu/SKILL.md",
+        "sha256": "13ecfee8a425bc0bfa48fa2ce881cf91e5240276440ebf1c092abdd0c33526e9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting AWS with Pacu:L23"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-37/decomposition.json",
+        "artifactSha256": "b29b08638121c875fabd8d5981376bdd96f2aabeb7c9f25ff12b43ffdd42d661"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive AWS threat-modeling, authorization review, attack-path analysis, assessment scoping, and remediation planning guidance.",
+        "notProved": ["Guidance is not Pacu, AWS, IAM, credentials, sessions, network, endpoint, scanner, or production execution and does not prove exploitation, privilege escalation, compromise, access, detection, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require explicit written authorization, exact account/tenant/asset scope, safety controls, stop conditions, owner approval, legal/privacy review, credential custody, analyst validation, containment, remediation, rollback, recovery, and disclosure decisions before any assessment activity.",
+        "notProved": ["No human authorization, AWS action, credential use, session, exploit, privilege change, compromise, containment, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-aws-config-rules-for-compliance",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-aws-config-rules-for-compliance/SKILL.md",
+        "sha256": "30503e9c7a4cf7367706f04fca842608258e84f16e9716300156cba2a9362473",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["### Step 2: Deploy Managed Config Rules for CIS Compliance:L86"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-04/decomposition.json",
+        "artifactSha256": "04cdd6b0cda44129373c802694deb5bf606b8a8910003663f52ced1ce7f41df9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive AWS configuration-review, compliance-control mapping, evidence-quality, exception, and remediation planning guidance.",
+        "notProved": ["Guidance is not AWS Config, CIS, cloud APIs, scanner, CSPM, SIEM, ticketing, or production enforcement and does not prove compliance, control execution, finding truth, remediation, or outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and exact account, region, resource, control, evidence, and data scope; owner validation, legal/privacy review, exception approval, analyst interpretation, severity, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No human authorization, account, region, resource, Config rule, control, compliance result, exception, remediation, rollback, recovery, or disclosure decision is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live cloud provider, tenant, identity, storage, workload, function, Kubernetes, Terraform, SIEM, scanner, endpoint, network, credential, session, containment, remediation, recovery, or production execution is proved.",
+    "No compliance, detection, exploitation, attribution, access, compromise, configuration, remediation, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

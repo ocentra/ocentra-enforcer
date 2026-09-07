@@ -1,14 +1,14 @@
 //! Hard tests for Jinja2, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_jinja2`]) -- grammar:
+//! ([`enforcer_syntax::languages::generic::parse_jinja2`]) -- grammar:
 //! `tree-sitter-jinja2` 0.0.16. Matches the baseline's own fully
 //! nominal row: no func/class/call/import concept modeled here at all
 //! -- these tests assert only "parses without panicking" plus the one
 //! real structural signal this crate can record, a module symbol for
 //! the file's own `source_file` root.
 
-use enforcer_memory::languages::generic::parse_jinja2;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_jinja2;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

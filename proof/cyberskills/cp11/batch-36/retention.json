@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-36",
+  "family": "IF/identity-access-management",
+  "baselineCommit": "42aa5d5713bf22bb5857123b88b85ddc75017cf1",
+  "scope": "Retain advisory and manual content for the deterministic identity-access-management packet from immutable CP08 evidence; no native implementation, live identity, authentication, access, session, directory, device, cloud, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-zero-standing-privilege-with-cyberark",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-standing-privilege-with-cyberark/SKILL.md",
+        "sha256": "e6a7d47c4bc27730c97e780bb5fa6f50a28b4ca3446a622a6f9387ade9bdf81a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero Standing Privilege with CyberArk:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain zero-standing-privilege and privileged-access guidance.",
+        "notProved": ["Guidance is not CyberArk or PAM enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require owner authorization, vault custody, duration, revocation, and exception decisions.",
+        "notProved": ["No live privileged access or credential proof."]
+      }
+    },
+    {
+      "catalogId": "performing-access-recertification-with-saviynt",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-access-recertification-with-saviynt/SKILL.md",
+        "sha256": "bb362438e6b2281fb5ae9df140ccae413360548b3fe287f47f1a6b124a3dc3d7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Access Recertification with Saviynt:L59"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-72/decomposition.json",
+        "artifactSha256": "59869f0a621f4eb61bd1c68ad48da9a9ee00098731becb3d46a2be43d15fa1e1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain access recertification and entitlement-review guidance.",
+        "notProved": ["Guidance is not Saviynt or access-certification enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require reviewer, owner, privacy, exception, revocation, and evidence decisions.",
+        "notProved": ["No live access review or certification proof."]
+      }
+    },
+    {
+      "catalogId": "performing-access-review-and-certification",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-access-review-and-certification/SKILL.md",
+        "sha256": "6154874c4d62033215054d307bd2e3c5949383e35e7cc2fa586418c640b2bb2f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Access Review and Certification:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain access-review, certification, and least-privilege guidance.",
+        "notProved": ["Guidance is not access certification or least-privilege enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written reviewer authority, owner validation, privacy, exceptions, and remediation decisions.",
+        "notProved": ["No live access review or certification outcome."]
+      }
+    },
+    {
+      "catalogId": "performing-entitlement-review-with-sailpoint-iiq",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-entitlement-review-with-sailpoint-iiq/SKILL.md",
+        "sha256": "ea3f8a549e8009b0604c02b08125867df17a12eafead6a0be20f69ca4232b25e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Entitlement Review with SailPoint IdentityIQ:L62"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-74/decomposition.json",
+        "artifactSha256": "3bcb86f48ec982e443eb42ede1d4d60c34bdf15543f4b1353f70aa3bce181ffe"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain entitlement review and identity-governance guidance.",
+        "notProved": ["Guidance is not SailPoint or entitlement enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require entitlement-owner, reviewer, privacy, exception, and revocation decisions.",
+        "notProved": ["No live entitlement review or certification proof."]
+      }
+    },
+    {
+      "catalogId": "performing-oauth-scope-minimization-review",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-oauth-scope-minimization-review/SKILL.md",
+        "sha256": "e0d6858d093e3a8d12377e0f9db7314405b2b95f95b4256b522acc1065ed3ad2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing OAuth Scope Minimization Review:L65"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-09/decomposition.json",
+        "artifactSha256": "6e8649af278f30d2762bcaffaa3730386b5bee5396552c82527751ae833e4ee2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain OAuth scope, consent, and least-privilege review guidance.",
+        "notProved": ["Guidance is not OAuth or authorization enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require application-owner, consent, privacy, data-scope, and revocation decisions.",
+        "notProved": ["No live OAuth scope or authorization outcome."]
+      }
+    },
+    {
+      "catalogId": "performing-privileged-account-access-review",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-privileged-account-access-review/SKILL.md",
+        "sha256": "2192a16cd840047015268883ad90f1f5e8aac72e8aaa4fd1c056a07a3768ff52",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Privileged Account Access Review:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-77/decomposition.json",
+        "artifactSha256": "d9f9a9708fd8337b1442e85b44e57ff030e166af4cf7dafc447c59583aa498f6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain privileged-account review and least-privilege guidance.",
+        "notProved": ["Guidance is not privileged-account enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require account owner, reviewer, authorization, privacy, and remediation decisions.",
+        "notProved": ["No live privileged-account access or certification proof."]
+      }
+    },
+    {
+      "catalogId": "performing-privileged-account-discovery",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-privileged-account-discovery/SKILL.md",
+        "sha256": "d789971532502f74e61b4b7b7384de14c524e95cfaaf81013f61ef90a7007180",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Privileged Account Discovery:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-77/decomposition.json",
+        "artifactSha256": "d9f9a9708fd8337b1442e85b44e57ff030e166af4cf7dafc447c59583aa498f6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain privileged-account inventory and discovery guidance.",
+        "notProved": ["Guidance is not directory discovery or account inventory truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require directory owner, scope, authorization, privacy, and analyst validation decisions.",
+        "notProved": ["No live directory, account, or privilege-discovery proof."]
+      }
+    },
+    {
+      "catalogId": "performing-service-account-audit",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-service-account-audit/SKILL.md",
+        "sha256": "54f2bf60cfcbcb6fd1c880b582c481ea2ed8cf6eebea3153e1235baf087e1de7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Service Account Audit:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-78/decomposition.json",
+        "artifactSha256": "c7dcfb9b43ceb0de51cbc7c4db5ead2dc8ca1cafe3b636689ad4c0e5f4cb126f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain service-account audit and ownership guidance.",
+        "notProved": ["Guidance is not service-account audit truth or directory enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require service owner, credential custodian, scope, privacy, and remediation decisions.",
+        "notProved": ["No live service-account or credential audit proof."]
+      }
+    },
+    {
+      "catalogId": "performing-service-account-credential-rotation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-service-account-credential-rotation/SKILL.md",
+        "sha256": "9d76acb1a44dccd8378bbfb2cb1e162abd347128e8b10d601623a097fa58a2b5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Service Account Credential Rotation:L58"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-78/decomposition.json",
+        "artifactSha256": "c7dcfb9b43ceb0de51cbc7c4db5ead2dc8ca1cafe3b636689ad4c0e5f4cb126f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain service-account credential rotation and key-custody guidance.",
+        "notProved": ["Guidance is not credential rotation or secret-management enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require credential owner, vault custody, change window, rollback, and disclosure decisions.",
+        "notProved": ["No live credential rotation or access proof."]
+      }
+    },
+    {
+      "catalogId": "post-exploiting-microsoft-graph-with-graphrunner",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/post-exploiting-microsoft-graph-with-graphrunner/SKILL.md",
+        "sha256": "8d184752d3e531eb0b68b7e27db717477963e9f9e2c5db42e1c03c1fff5211e7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Post-Exploiting Microsoft Graph with GraphRunner:L23"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-80/decomposition.json",
+        "artifactSha256": "2382fe1639cf1de5e723bbee340ad64b4c348530e9b43ee84bc630e808d1d924"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive identity, Microsoft Graph, and authorized-assessment guidance.",
+        "notProved": ["Guidance is not GraphRunner, Graph API, or identity enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, tenant ownership, legal and safety scope, data handling, and stop decisions.",
+        "notProved": ["No live Graph access, exploitation, credential, or account-compromise proof."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live identity, authentication, authorization, role, entitlement, federation, SAML, OAuth, MFA, session, directory, device, cloud, endpoint, or production execution is proved.",
+    "No credential capture, privilege escalation, access, revocation, certification, least-privilege, phishing, account compromise, attribution, remediation success, privacy, legal, safety, or security outcome is proved.",
+    "This packet contains identity-access-management skills 31 through 40; no additional skills remain in this family.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

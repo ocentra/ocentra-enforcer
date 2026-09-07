@@ -23,7 +23,6 @@ enforcer-domain = { path = "../enforcer-domain", version = "0.1.0" }
 # truth for `mcpServers[<name>]` — never a hardcoded literal). Additive,
 # non-conflicting dependency edit; enforcer-mcp does not depend on this
 # crate, so no cycle.
-enforcer-mcp = { path = "../enforcer-mcp", version = "0.1.0" }
 
 [dev-dependencies]
 # DEPENDENCY-JUSTIFICATION: isolated filesystem fixtures for installer integration tests.

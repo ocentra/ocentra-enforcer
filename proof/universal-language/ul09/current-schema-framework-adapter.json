@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "workpack": "EXT/UL09",
+  "kind": "schema-framework-adapter",
+  "baseCommit": "b983980b05f88bf6deaa7d450dec455105c43ee1",
+  "claimEvent": "evt_5efe7c276b244af480e08dc91fbcffbb",
+  "language": "typescript",
+  "selection": {
+    "requirement": "schema-required",
+    "frameworkFamilies": ["effect", "zod", "valibot"],
+    "batchLimit": "one language, one requirement, one framework family",
+    "packetFocus": "recognize the schema family and normalized boundary capability before doctrine resolution"
+  },
+  "adapter": {
+    "module": "crates/enforcer-lang-ts/src/rules/schema_framework.rs",
+    "evidenceType": "SchemaFrameworkEvidence",
+    "capabilities": ["boundary-decoder", "validated-model"],
+    "recognition": "comments and quoted string contents are excluded; import declarations and unquoted code markers produce a closed family plus capability, source line, and stable marker",
+    "policyOwner": "enforcer-domain::doctrine_profile_types::DoctrineProfile::resolve",
+    "compatibilityConsumer": "crates/enforcer-lang-ts/src/rules/frontend_react.rs::EffectNotZodValidator",
+    "existingSourceBoundaryReused": "crates/enforcer-lang-ts/src/boundary/source_text.rs",
+    "newDependencies": false,
+    "newParserOrFactContract": false,
+    "newExternalTool": false,
+    "sharedRegistryChanged": false
+  },
+  "fixtures": [
+    {
+      "path": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1/fail.ts",
+      "role": "Zod model and blocking compatibility-rule fixture"
+    },
+    {
+      "path": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1/pass.ts",
+      "role": "Effect model and clean compatibility-rule fixture"
+    },
+    {
+      "path": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1-form/fail.tsx",
+      "role": "Zod resolver form boundary fixture"
+    },
+    {
+      "path": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1-form/pass.tsx",
+      "role": "Effect resolver form boundary fixture"
+    },
+    {
+      "role": "inline negative fixture",
+      "proves": "misleading comments, quoted strings, and template strings do not become schema evidence"
+    }
+  ],
+  "sourceHashes": [
+    {
+      "path": "crates/enforcer-lang-ts/src/rules/mod.rs",
+      "sha256": "e9daea765b3868f3aeb271384794e02cb627f669ba4ebb6d175936c583042e17",
+      "bytes": 466
+    },
+    {
+      "path": "crates/enforcer-lang-ts/src/rules/schema_framework.rs",
+      "sha256": "7f3bac914c2a0511eb4cb27a4a3dc2f3810b81239dcf0b647ddf2797cb242077",
+      "bytes": 11407
+    },
+    {
+      "path": "crates/enforcer-lang-ts/src/rules/frontend_react.rs",
+      "sha256": "7e2b59e9fae8e724b0dba50e23724c43860b491f1064ae9f36bcec30233c783b",
+      "bytes": 46699
+    },
+    {
+      "path": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1/fail.ts",
+      "sha256": "68a904a17f43698868383a2c2910e9f3f6e631a83c6bfa19c0cfe0fea05d4b57",
+      "bytes": 107
+    },
+    {
+      "path": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1/pass.ts",
+      "sha256": "a6654d786af140880821eef225337c05d5664c925d86ec0c092ba5c97d1da60c",
+      "bytes": 134
+    },
+    {
+      "path": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1-form/fail.tsx",
+      "sha256": "c977957f14b90d90ffb266ef3ed8e737a0197ab88a364f01364097680537bc70",
+      "bytes": 250
+    },
+    {
+      "path": "crates/enforcer-lang-ts/tests/fixtures/frontend_react/effect-1.1-form/pass.tsx",
+      "sha256": "920eb23b949abacc5ecb670d59fc89ffdf2daeb11539f088a0a1d997e2a64b29",
+      "bytes": 254
+    },
+    {
+      "path": "crates/enforcer-config/profiles/doctrine/effect-default.json",
+      "sha256": "9ed1aff7f5c47e62d8fd2800e9e0e77a1e33b712c14adec1da11fa499e7355dd",
+      "bytes": 1330
+    },
+    {
+      "path": "crates/enforcer-config/profiles/doctrine/zod.json",
+      "sha256": "af493dec0c646dcfdde5620d1c9a8aa2e4ff216e4ce272fcb996e45deb2b219d",
+      "bytes": 1319
+    }
+  ],
+  "commands": [
+    {
+      "command": "cargo fmt -p enforcer-lang-ts",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --locked -p enforcer-lang-ts --lib -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 47,
+        "failed": 0
+      }
+    },
+    {
+      "command": "cargo check --locked -p enforcer-lang-ts",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --locked -p enforcer-config --test doctrine_profile -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 5,
+        "failed": 0
+      }
+    },
+    {
+      "command": "cargo test --locked -p enforcer-rules --test frontend_react_registry -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 7,
+        "failed": 0
+      }
+    },
+    {
+      "command": "cargo check --locked -p enforcer-lang-ts -p enforcer-config -p enforcer-rules -p enforcer-scan",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo fmt -p enforcer-lang-ts -p enforcer-config -p enforcer-rules -p enforcer-scan -- --check",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo test --locked -p enforcer-lang-ts --all-targets -- --nocapture",
+      "exitCode": 0,
+      "tests": {
+        "passed": 55,
+        "failed": 0
+      }
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "exitCode": 1,
+      "note": "Windows OS error 206 in the full-workspace formatter; the affected-package formatter above passed."
+    }
+  ],
+  "enforcer": {
+    "status": "passed-scoped",
+    "scope": [
+      "crates/enforcer-lang-ts/src/rules/mod.rs",
+      "crates/enforcer-lang-ts/src/rules/schema_framework.rs",
+      "crates/enforcer-lang-ts/src/rules/frontend_react.rs",
+      "proof/universal-language/ul09/current-schema-framework-adapter.json"
+    ],
+    "route": {
+      "profile": "strict",
+      "scope": "files",
+      "exitCode": 0
+    },
+    "strictScan": {
+      "exitCode": 0,
+      "findings": 0,
+      "violations": 0,
+      "warnings": 0
+    },
+    "reusableChecks": {
+      "source-shape": 0,
+      "secrets": 0,
+      "no-zod-source": 0,
+      "no-test-doubles": 0,
+      "weak-assertions": 0,
+      "validation-bypass": 0,
+      "placeholder-implementation": 0,
+      "reexports": 0
+    },
+    "workspaceFormatNote": "The full-workspace cargo fmt command returned Windows OS error 206; all four affected packages passed cargo fmt --check."
+  },
+  "protectedBoundary": {
+    "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md",
+    "existsInIsolatedWorktree": false,
+    "read": false,
+    "touched": false,
+    "counted": false
+  },
+  "proves": [
+    "The TypeScript adapter emits typed, profile-neutral Effect, Zod, or Valibot framework evidence from existing validator source text without adding a parser or fact contract.",
+    "The adapter records a closed framework family, normalized boundary-decoder or validated-model capability, source line, and stable marker while ignoring comments and quoted string contents.",
+    "The existing FE-EFFECT-1.1 compatibility consumer reuses the adapter and preserves its established fail/pass and resolver fixture behavior.",
+    "The same Zod observation resolves rejected or accepted solely through the existing DoctrineProfile data, demonstrating policy/evidence separation.",
+    "The focused TypeScript validator suite passes 47 tests with no failures and the package check is green."
+  ],
+  "doesNotProve": [
+    "The default production scan entry point is not rewired to select a doctrine profile for every framework adapter; the existing catalog compatibility rule remains the only consumer in this packet.",
+    "Universal parser coverage, all schema libraries, Python/Pydantic adapters, or every CyberSkills native capability.",
+    "Third-party tool execution, live endpoints, production security behavior, or security outcomes.",
+    "Native CyberSkills implementation or executable proof, CP08 decomposition promotion, overall CyberSkills parity, or overall plan completion.",
+    "The protected detecting-fileless-malware-techniques source, which remains excluded, unread, and untouched."
+  ]
+}

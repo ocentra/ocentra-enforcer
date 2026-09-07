@@ -1,16 +1,16 @@
 //! Hard tests for Smali (Android bytecode disassembly text format),
 //! onboarded directly through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_smali`]) -- grammar
+//! ([`enforcer_syntax::languages::generic::parse_smali`]) -- grammar
 //! VENDORED (`vendor/tree-sitter-smali-local/`). Asserts against the
 //! grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::smali`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::smali`]'s own doc
 //! comment: `class_definition` is claimed WHOLESALE by
-//! [`enforcer_memory::languages::generic::smali_quirk`] (every node kind
+//! [`enforcer_syntax::languages::generic::smali_quirk`] (every node kind
 //! in this grammar is completely fieldless), which resolves the class/
 //! method/field/import symbols and DEFINES edges in one pass.
 
-use enforcer_memory::languages::generic::parse_smali;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_smali;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_smali";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

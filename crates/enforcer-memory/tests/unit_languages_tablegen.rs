@@ -1,19 +1,19 @@
 //! Hard tests for LLVM TableGen, onboarded directly through the
 //! generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_tablegen`]) -- there
+//! ([`enforcer_syntax::languages::generic::parse_tablegen`]) -- there
 //! is no bespoke `languages::tablegen` extractor to prove
 //! zero-regression against (TableGen has never had one in this
 //! crate), so these tests assert against the grammar-shape ground
 //! truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::tablegen`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::tablegen`]'s own doc
 //! comment directly: `def`/`class`/`multiclass`/`defm` all genuinely
 //! carry a real `"name"` field (the one fully-correct baseline array
 //! set of this whole wave), and the positional (unfielded)
 //! `include_directive` path
-//! [`enforcer_memory::languages::generic::tablegen_quirk`] extracts.
+//! [`enforcer_syntax::languages::generic::tablegen_quirk`] extracts.
 
-use enforcer_memory::languages::generic::parse_tablegen;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_tablegen;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -23,7 +23,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_tablegen";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

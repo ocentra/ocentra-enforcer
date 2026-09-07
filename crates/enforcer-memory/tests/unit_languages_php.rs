@@ -1,8 +1,8 @@
-use enforcer_memory::languages::php::parse;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::php::parse;
+use enforcer_syntax::parsers::SymbolKind;
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

@@ -132,6 +132,16 @@ fn run_dogfood_command(root: &Path, baseline_store: &Path, mode: ToolchainMode) 
     match dogfood::run_dogfood(root, baseline_store, mode) {
         Ok(outcome) => {
             render_scan_summary(&outcome.rust_rule_scan);
+            let manifest = match dogfood::boundary::NativeDogfoodManifestDto::from_outcome(&outcome)
+                .to_json()
+            {
+                Ok(value) => value,
+                Err(err) => {
+                    emit(&format!("dogfood manifest failed: {err}"));
+                    return ExitCode::from(EXIT_INTERNAL);
+                }
+            };
+            emit(&format!("native-dogfood-manifest: {manifest}"));
             let mut toolchain_green = true;
             if let Some(toolchain) = &outcome.toolchain {
                 emit(&format!("toolchain: {toolchain:?}"));

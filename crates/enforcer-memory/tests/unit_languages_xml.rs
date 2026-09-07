@@ -1,17 +1,17 @@
 //! Hard tests for XML, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_xml`]).
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_xml`]).
 //! Grammar: `tree-sitter-xml` 0.7.0's own `LANGUAGE_XML` entry point, a
 //! real crates.io crate. Matches the baseline's own `CBM_LANG_XML` row's
 //! `module_types = {"document"}`/`class_types = {"element"}` -- `element`
 //! is entirely fieldless in this real grammar, so
-//! [`enforcer_memory::languages::generic::xml_quirk`] finds the tag name
+//! [`enforcer_syntax::languages::generic::xml_quirk`] finds the tag name
 //! two levels down (`element` -> `STag`/`EmptyElemTag` -> `Name`) rather
 //! than the generic engine's own field-based fallback, see
-//! [`enforcer_memory::languages::spec::LangSpec::xml`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::xml`]'s own doc
 //! comment.
 
-use enforcer_memory::languages::generic::parse_xml;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_xml;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_xml";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

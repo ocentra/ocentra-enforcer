@@ -1,0 +1,134 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-26",
+  "baselineCommit": "4eac93b6f956f922d84bc03f1a8201775738e7e7",
+  "family": "Cobalt Strike/C2 infrastructure, beaconing, and traffic analysis",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "analyzing-cobalt-strike-beacon-configuration",
+      "analyzing-cobaltstrike-malleable-c2-profiles",
+      "analyzing-command-and-control-communication",
+      "building-c2-infrastructure-with-sliver-framework",
+      "building-c2-redirector-infrastructure",
+      "building-red-team-c2-infrastructure-with-havoc",
+      "hunting-for-beaconing-with-frequency-analysis",
+      "hunting-for-cobalt-strike-beacons",
+      "hunting-for-command-and-control-beaconing",
+      "hunting-for-domain-fronting-c2-traffic"
+    ],
+    "reason": "Ten disjoint Cobalt Strike/C2 configuration and traffic-analysis skills. Native checks are limited to static typed manifests, profile fields, supplied telemetry records, and deterministic fixture predicates; construction, execution, delivery, evasion, attribution, and operational outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-cobalt-strike-beacon-configuration",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-cobalt-strike-beacon-configuration/SKILL.md", "sha256": "ce44cb3f75aa06b92fde37828ac5bf361a30c871ebf9a2fd01101af38f128e7b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Analyzing Cobalt Strike Beacon Configuration:L31"]},
+      "components": [
+        {"componentId": "analyzing-cobalt-strike-beacon-configuration::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate bounded typed beacon configuration/profile fields and deterministic fixture values.", "notProved": ["No executor, beacon sample, runtime, attribution, or operational outcome proof."]},
+        {"componentId": "analyzing-cobalt-strike-beacon-configuration::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Cobalt Strike, live beacon, EDR, or SIEM authorities.", "notProved": ["No pinned adapter, runtime, live telemetry, or normalized evidence."]},
+        {"componentId": "analyzing-cobalt-strike-beacon-configuration::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain beacon configuration and analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "analyzing-cobalt-strike-beacon-configuration::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized analyst interpretation and response decisions.", "notProved": ["No live authorization or response proof."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-cobaltstrike-malleable-c2-profiles",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-cobaltstrike-malleable-c2-profiles/SKILL.md", "sha256": "2438c6e267f75442abae2e6ae719d312f2358e689ddf905daaf4b5dfed43dcb1", "availability": "available", "license": "Apache-2.0", "anchors": ["# Analyzing CobaltStrike Malleable C2 Profiles:L31"]},
+      "components": [
+        {"componentId": "analyzing-cobaltstrike-malleable-c2-profiles::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed profile structure and required/prohibited option fields.", "notProved": ["No profile execution, evasion, delivery, or detection proof."]},
+        {"componentId": "analyzing-cobaltstrike-malleable-c2-profiles::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Cobalt Strike or live C2 tooling authorities.", "notProved": ["No pinned tool/runtime adapter or normalized evidence."]},
+        {"componentId": "analyzing-cobaltstrike-malleable-c2-profiles::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain profile analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "analyzing-cobaltstrike-malleable-c2-profiles::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized threat-model and analyst decisions.", "notProved": ["No live operational proof."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-command-and-control-communication",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-command-and-control-communication/SKILL.md", "sha256": "2ca93af31f3cb0633cf8b5d0da45d0c25058944c0796434af503bbf6cd307046", "availability": "available", "license": "Apache-2.0", "anchors": ["# Analyzing Command-and-Control Communication:L34"]},
+      "components": [
+        {"componentId": "analyzing-command-and-control-communication::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate bounded typed communication-event metadata and protocol indicator fields.", "notProved": ["No traffic capture, attribution, live communication, or outcome proof."]},
+        {"componentId": "analyzing-command-and-control-communication::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live network, EDR, SIEM, or C2 telemetry authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "analyzing-command-and-control-communication::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain C2 communication analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "analyzing-command-and-control-communication::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized incident scope and analyst interpretation.", "notProved": ["No live incident proof."]}
+      ]
+    },
+    {
+      "catalogId": "building-c2-infrastructure-with-sliver-framework",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-c2-infrastructure-with-sliver-framework/SKILL.md", "sha256": "d2e8215bf87e3f0f99d3fcefce273ca5d6a6eb225db7f496ba9ecd02fd2f0f74", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building C2 Infrastructure with Sliver Framework:L37"]},
+      "components": [
+        {"componentId": "building-c2-infrastructure-with-sliver-framework::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate declarative static C2 infrastructure/configuration manifest fields.", "notProved": ["No C2 construction, implant, listener, execution, delivery, or operational proof."]},
+        {"componentId": "building-c2-infrastructure-with-sliver-framework::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Sliver, live servers, implants, or external network services.", "notProved": ["No pinned runtime adapter or live evidence."]},
+        {"componentId": "building-c2-infrastructure-with-sliver-framework::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Sliver architecture guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-c2-infrastructure-with-sliver-framework::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require rules-of-engagement and infrastructure ownership authorization.", "notProved": ["No authorized deployment proof."]}
+      ]
+    },
+    {
+      "catalogId": "building-c2-redirector-infrastructure",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-c2-redirector-infrastructure/SKILL.md", "sha256": "c60077de210ad413bd3ac378fbe574ebfe080aadca0174b839b198668c1aa648", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building C2 Redirector Infrastructure:L24"]},
+      "components": [
+        {"componentId": "building-c2-redirector-infrastructure::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static redirector topology, routing, TLS, and logging manifest fields.", "notProved": ["No live routing, concealment, evasion, or network outcome proof."]},
+        {"componentId": "building-c2-redirector-infrastructure::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use DNS, CDN, proxy, TLS, or live C2 authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "building-c2-redirector-infrastructure::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain redirector deployment guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-c2-redirector-infrastructure::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require legal, ownership, and rollout decisions.", "notProved": ["No live deployment proof."]}
+      ]
+    },
+    {
+      "catalogId": "building-red-team-c2-infrastructure-with-havoc",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-red-team-c2-infrastructure-with-havoc/SKILL.md", "sha256": "ec141e88be91eab1681ab2711a76bf14f9985b07a0ba75ee495a9185771aa859", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Red Team C2 Infrastructure with Havoc:L40"]},
+      "components": [
+        {"componentId": "building-red-team-c2-infrastructure-with-havoc::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static Havoc infrastructure/profile manifest fields.", "notProved": ["No payload, listener, exploit delivery, execution, evasion, or operational proof."]},
+        {"componentId": "building-red-team-c2-infrastructure-with-havoc::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Havoc runtime, payloads, listeners, or live network authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "building-red-team-c2-infrastructure-with-havoc::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Havoc infrastructure guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-red-team-c2-infrastructure-with-havoc::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require rules-of-engagement and authorization decisions.", "notProved": ["No authorized operational proof."]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-beaconing-with-frequency-analysis",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-beaconing-with-frequency-analysis/SKILL.md", "sha256": "79c3e65d9d101f9a1f1777f75fdd9e6487d3afe81da3fd85edb00938661168f0", "availability": "available", "license": "Apache-2.0", "anchors": ["# Hunting for Beaconing with Frequency Analysis:L39"]},
+      "components": [
+        {"componentId": "hunting-for-beaconing-with-frequency-analysis::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Evaluate deterministic interval, jitter, and time-window fields in supplied typed events.", "notProved": ["No packet capture, attribution, telemetry completeness, or detection outcome proof."]},
+        {"componentId": "hunting-for-beaconing-with-frequency-analysis::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live network telemetry or SIEM hunt engines.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "hunting-for-beaconing-with-frequency-analysis::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain frequency-analysis hunting guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "hunting-for-beaconing-with-frequency-analysis::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require hunt scope and analyst interpretation.", "notProved": ["No live hunt proof."]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-cobalt-strike-beacons",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-cobalt-strike-beacons/SKILL.md", "sha256": "99a9ae22bcb28a69ea2d6115267925a0e6e45188ee7a0aea5f5374fa298472ec", "availability": "available", "license": "Apache-2.0", "anchors": ["# Hunting for Cobalt Strike Beacons:L35"]},
+      "components": [
+        {"componentId": "hunting-for-cobalt-strike-beacons::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate bounded typed beacon indicators and deterministic fixture records.", "notProved": ["No beacon attribution, EDR/SIEM run, or telemetry completeness proof."]},
+        {"componentId": "hunting-for-cobalt-strike-beacons::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Cobalt Strike, EDR, SIEM, or live network authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "hunting-for-cobalt-strike-beacons::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain beacon hunting guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "hunting-for-cobalt-strike-beacons::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized triage and response decisions.", "notProved": ["No live incident proof."]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-command-and-control-beaconing",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-command-and-control-beaconing/SKILL.md", "sha256": "52ae196df47447d6e73a0c063b77109319f0197cff315d0cb3c68ff4457f34ba", "availability": "available", "license": "Apache-2.0", "anchors": ["# Hunting for Command and Control Beaconing:L37"]},
+      "components": [
+        {"componentId": "hunting-for-command-and-control-beaconing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Evaluate deterministic beacon-pattern thresholds over supplied typed flow/event windows.", "notProved": ["No live hunt, attribution, or network outcome proof."]},
+        {"componentId": "hunting-for-command-and-control-beaconing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live network, EDR, or SIEM authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "hunting-for-command-and-control-beaconing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain C2 beaconing hunt guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "hunting-for-command-and-control-beaconing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized hunt scope and analyst response decisions.", "notProved": ["No live hunt proof."]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-domain-fronting-c2-traffic",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-domain-fronting-c2-traffic/SKILL.md", "sha256": "cf12736da6dd5f52ff3c4d04c5728e28085a090065de7008fba12fbcade6c2e0", "availability": "available", "license": "Apache-2.0", "anchors": ["# Hunting for Domain Fronting C2 Traffic:L38"]},
+      "components": [
+        {"componentId": "hunting-for-domain-fronting-c2-traffic::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate bounded typed host, SNI, HTTP-routing, and evidence fields for deterministic inconsistency checks.", "notProved": ["No live domain-fronting determination, evasion, attribution, or network outcome proof."]},
+        {"componentId": "hunting-for-domain-fronting-c2-traffic::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use DNS, CDN, proxy, packet, or SIEM authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "hunting-for-domain-fronting-c2-traffic::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain domain-fronting hunt guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "hunting-for-domain-fronting-c2-traffic::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require legal, incident-scope, and analyst response decisions.", "notProved": ["No live operational proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "No C2 construction or execution, exploit delivery, live beaconing, evasion, attribution, or operational outcome is proved.",
+    "Sliver, Havoc, Cobalt Strike, live network, EDR, and SIEM authorities remain blocked external engines.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

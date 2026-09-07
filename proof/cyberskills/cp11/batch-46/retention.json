@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-46",
+  "family": "IF/network-security",
+  "baselineCommit": "b435bf61d6a700fca56e5596b47a6e2f523d7a5f",
+  "scope": "Retain advisory and manual content for the deterministic first network-security packet from immutable CP08 evidence; native predicates are limited to static supplied route, protocol, DNS, packet, flow, segmentation, wireless, control, and evidence manifests; no live network, host, DNS, packet capture, scanner, exploit, credential, session, or production execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-network-flow-data-with-netflow",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-network-flow-data-with-netflow/SKILL.md",
+        "sha256": "7b6478574765d594a9d6afec89be21abfedb41dac8bf45e5032f3a17e207f8e6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Network Flow Data with Netflow:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-13/decomposition.json",
+        "artifactSha256": "3afbaad52b35c81b2bb1c6aa9150cc405d59449346a9bb61e73e21b195940aea"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-network-packets-with-scapy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-network-packets-with-scapy/SKILL.md",
+        "sha256": "d1435795bdd2ec00342c23eac0cd0bcf04a18756e6fdea396b968f9d441e5db1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Network Packets with Scapy:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-13/decomposition.json",
+        "artifactSha256": "3afbaad52b35c81b2bb1c6aa9150cc405d59449346a9bb61e73e21b195940aea"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-network-traffic-with-wireshark",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-network-traffic-with-wireshark/SKILL.md",
+        "sha256": "79f1843a33814eaf38639249a2f6165805a2ae6bf35db286eb9afca45f680ba5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Network Traffic with Wireshark:L30"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-13/decomposition.json",
+        "artifactSha256": "3afbaad52b35c81b2bb1c6aa9150cc405d59449346a9bb61e73e21b195940aea"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "conducting-man-in-the-middle-attack-simulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/conducting-man-in-the-middle-attack-simulation/SKILL.md",
+        "sha256": "e15514bfe8bcb35c8ab4f246cf368cca1e1e6167cd9145de615a01733a6af1fb",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Conducting Man-in-the-Middle Attack Simulation:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-56/decomposition.json",
+        "artifactSha256": "5731959bc5bf97804672c8a5d360bc8f54aa1b0e6c0670d4c9ee8fab7a5aabb1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-network-segmentation-with-vlans",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-network-segmentation-with-vlans/SKILL.md",
+        "sha256": "7d6a8bca975a331ef294c8a23b187672eb133f75d2d55000d023ef4d959c862c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring Network Segmentation with VLANs:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-13/decomposition.json",
+        "artifactSha256": "3afbaad52b35c81b2bb1c6aa9150cc405d59449346a9bb61e73e21b195940aea"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-pfsense-firewall-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-pfsense-firewall-rules/SKILL.md",
+        "sha256": "634f33a293b277d0393d53df116be2c21fbaa3d25fb599f8f16154041ffdde64",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring pfSense Firewall Rules:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-snort-ids-for-intrusion-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-snort-ids-for-intrusion-detection/SKILL.md",
+        "sha256": "b3ba125665d77fdb2086a45ff8b3e15e4f5c2ceb4bfa5184c0479bf299136baf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring Snort IDS for Intrusion Detection:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-suricata-for-network-monitoring",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-suricata-for-network-monitoring/SKILL.md",
+        "sha256": "f591a4eb2c7800c9ec347cf12b3c6315212056557a2ce7d49be31ccd7e71c390",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring Suricata for Network Monitoring:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-13/decomposition.json",
+        "artifactSha256": "3afbaad52b35c81b2bb1c6aa9150cc405d59449346a9bb61e73e21b195940aea"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-arp-poisoning-in-network-traffic",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-arp-poisoning-in-network-traffic/SKILL.md",
+        "sha256": "c935d3b289bf6c3964b897d4d284cfaaff9fe8d47bf3c82eccba3c8340638dd2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting ARP Poisoning in Network Traffic:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-13/decomposition.json",
+        "artifactSha256": "3afbaad52b35c81b2bb1c6aa9150cc405d59449346a9bb61e73e21b195940aea"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-command-and-control-over-dns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-command-and-control-over-dns/SKILL.md",
+        "sha256": "c1d29e4be8ec087303491f4fd7b00cba3e04f00090905d8189bd7a95b046a7d8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Command and Control Over DNS:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-24/decomposition.json",
+        "artifactSha256": "ef2acf25cfe2f31c4fd2622b570b0c043e293b4aa8026f0fcd280427f038ad37"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network flow, packet, protocol, DNS, segmentation, wireless, monitoring, and network-control guidance.",
+        "notProved": [
+          "Guidance is not live network observation, capture, discovery, detection, attribution, or security outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network scope, legal/privacy/safety controls, stop conditions, data handling, analyst validation, and containment/remediation decisions.",
+        "notProved": [
+          "No live host, network, packet, credential, session, scanner, exploit, or production action is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live network, host, DNS, packet capture, scanner, exploit, credential, session, wireless interface, or production action is proved.",
+    "No network discovery truth, traffic truth, detection efficacy, intrusion attribution, segmentation enforcement, firewall correctness, or security outcome is proved.",
+    "This packet contains the first 10 network-security skills; the remaining 33 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

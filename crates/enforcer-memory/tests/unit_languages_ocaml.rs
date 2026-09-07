@@ -1,9 +1,9 @@
 //! Hard tests for OCaml, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_ocaml`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_ocaml`])
 //! -- there is no bespoke `languages::ocaml` extractor to prove
 //! zero-regression against (OCaml has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::ocaml`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::ocaml`]'s own doc
 //! comment directly: `value_definition` -> `let_binding` -> `pattern`
 //! name recovery, `constructor_declaration`/`method_definition`'s own
 //! unfielded-child naming (a real gap this row closes past the
@@ -15,8 +15,8 @@
 //! reconstruction.
 
 use enforcer_domain::memory_types::ReceiverHint;
-use enforcer_memory::languages::generic::parse_ocaml;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_ocaml;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -26,7 +26,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_ocaml";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

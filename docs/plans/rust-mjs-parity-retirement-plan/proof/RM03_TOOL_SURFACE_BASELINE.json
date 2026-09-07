@@ -1,0 +1,117 @@
+{
+  "schemaVersion": 1,
+  "workpackId": "RM03",
+  "artifactKind": "tool-surface-baseline-repair",
+  "candidateSourceSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+  "managerHeadBeforeRepair": "ec743ec27b1910cbd9d6d96edf5c529d2f2bba5b",
+  "publicOracleSha": "267af94b701bd592e01a47649e3c18c26ee04239",
+  "overlayShas": [
+    "2661144460e2ba42131ba1ffeea5e4d118da40c0",
+    "9d21780f9a4f5a498fb16a6b1ae1c05ac2d83e36"
+  ],
+  "observed": {
+    "toolCount": 102,
+    "previousBaselineTotalBytes": 145039,
+    "measuredTotalBytes": 145179,
+    "estimatedTokensFormula": "floor(totalBytes / 4)",
+    "estimatedTokens": 36294,
+    "tolerancePct": 10.0,
+    "addedEnumValues": [
+      "mutation-risk",
+      "docs-completeness",
+      "config-lockdown",
+      "waiver-policy"
+    ],
+    "affectedDescriptors": [
+      "ocentra_enforcer_check",
+      "rust_rules_check"
+    ],
+    "addedEnumOccurrenceCount": 8,
+    "perDescriptorDeltaBytes": {
+      "ocentra_enforcer_check": 70,
+      "rust_rules_check": 70
+    },
+    "aggregateDeltaBytes": 140
+  },
+  "evidence": [
+    {
+      "runId": "20260803010100-8646c211",
+      "command": "cargo test -p enforcer-mcp --test tool_surface live_registry_currently_passes_the_committed_baseline -- --exact --nocapture",
+      "status": "failed-before-repair",
+      "exitCode": 101,
+      "observed": "left observed 145179; right expected 145039"
+    },
+    {
+      "runId": "20260803010438-c6d8e3e5",
+      "command": "node byte-analysis over exact-e190 tools/list descriptors",
+      "status": "passed",
+      "exitCode": 0,
+      "observed": "currentBytes 145179; oldLikeBytes 145039; delta 140"
+    },
+    {
+      "runId": "20260803010509-b70ab48b",
+      "command": "node normalized public-267 versus Rust schema comparison",
+      "status": "passed",
+      "exitCode": 0,
+      "observed": "one raw mismatch consisting only of four documented Rust check enum additions; zero mismatches after filtering those additions"
+    },
+    {
+      "runId": "20260803011032-b577efd7",
+      "command": "cargo test -p enforcer-mcp --test tool_surface -- --nocapture",
+      "status": "passed-after-repair",
+      "exitCode": 0
+    },
+    {
+      "runId": "20260803011035-b9db1212",
+      "command": "cargo test -p enforcer-mcp --tests -- --nocapture",
+      "status": "passed-after-repair",
+      "exitCode": 0
+    },
+    {
+      "runId": "20260803010959-c916fbb0",
+      "command": "cargo fmt --all -- --check",
+      "status": "blocked-by-harness",
+      "exitCode": 1,
+      "observed": "Windows OS error 206: The filename or extension is too long"
+    },
+    {
+      "runId": null,
+      "command": "rustfmt --edition 2024 --check crates/enforcer-mcp/tests/tool_surface.rs",
+      "status": "passed",
+      "exitCode": 0,
+      "observed": "direct file-level formatting check"
+    }
+  ],
+  "enforcerValidation": {
+    "scan": {
+      "scope": "three changed files",
+      "violations": 0,
+      "warnings": 0
+    },
+    "check": {
+      "name": "source-shape",
+      "scope": "three changed files",
+      "violations": 0,
+      "warnings": 0
+    }
+  },
+  "changedFiles": [
+    "crates/enforcer-mcp/context-budget-baseline.json",
+    "crates/enforcer-mcp/tests/tool_surface.rs",
+    "docs/plans/rust-mjs-parity-retirement-plan/proof/RM03_TOOL_SURFACE_BASELINE.json"
+  ],
+  "proves": [
+    "The reviewed baseline now matches the exact measured 102-tool Rust descriptor surface at 145179 bytes.",
+    "The derived estimatedTokens value is 145179 divided by four with integer flooring: 36294.",
+    "The 140-byte increase is caused by the four intentional enum values occurring in two descriptors, with a 70-byte delta per descriptor.",
+    "Focused and full enforcer-mcp test targets pass after the bounded repair.",
+    "Direct rustfmt checking of the changed Rust test file passes."
+  ],
+  "doesNotProve": [
+    "Full RM03 behavioral parity.",
+    "The separate typed no-zod error-shape gap.",
+    "The workspace-wide cargo fmt gate, which is blocked by Windows OS error 206 in this environment.",
+    "RM02, RM04, RM05, RM06, or RM07 closure.",
+    "Exact-SHA aggregate parity, cutover readiness, or retirement authorization."
+  ]
+}

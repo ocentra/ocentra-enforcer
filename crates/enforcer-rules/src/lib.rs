@@ -42,6 +42,8 @@
 //! modules directly, e.g. `enforcer_rules::registry::RuleRegistry`.
 
 pub mod boundary;
+#[path = "boundary/cyberskills_disposition.rs"]
+pub mod cyberskills_disposition;
 pub mod loader;
 pub mod registry;
 pub mod rules;

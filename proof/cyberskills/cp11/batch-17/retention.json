@@ -1,0 +1,343 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-17",
+  "family": "IF/container-security",
+  "baselineCommit": "98a8c269aa77ac15da8dc6fdb436209ad138af64",
+  "scope": "Retain advisory and manual content for the next deterministic container-security packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-runtime-security-with-tetragon",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-runtime-security-with-tetragon/SKILL.md",
+        "sha256": "fa43c3899e4f4f765e4b23987954b2c719d2405bfa3d85f163b19aca155cb457",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Runtime Security with Tetragon:L41"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Tetragon, eBPF runtime, policy, event, action, tuning, privacy, and rollback guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove runtime visibility, detection, or blocking."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, kernel and hook approval, data handling, validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human runtime, hook, action, containment, remediation, rollback, or recovery decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-supply-chain-security-with-in-toto",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-supply-chain-security-with-in-toto/SKILL.md",
+        "sha256": "4934298a2df5e0462a212418fe8ecd5125452cb5d35d63164e9b043c22291438",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Supply Chain Security with in-toto:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json",
+        "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain layout, key, attestation, delegation, and verification guidance.",
+        "notProved": [
+          "No attestation-policy completeness claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Choose key ownership, trusted builders, delegations, rotations, and release approvals.",
+        "notProved": [
+          "No live key, builder, or release proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-container-escape-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-container-escape-detection/SKILL.md",
+        "sha256": "ed1ce908f56819d4aed8f1042ebb4c75bc200450533d52543596f016703628f6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Container Escape Detection:L33",
+          "## Instructions:L50",
+          "## Examples:L75"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain escape-detection workflow and investigation guidance.",
+        "notProved": [
+          "No detection coverage claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Inspect Docker socket, namespaces, mounts, and host context under explicit authorization.",
+        "notProved": [
+          "No live host or lab proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-container-security-scanning-with-trivy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-container-security-scanning-with-trivy/SKILL.md",
+        "sha256": "3eebef09eadcd6eef63e6da8622874a00f81019b36a5e894704bd82db4dcf8c5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Container Security Scanning with Trivy:L33",
+          "## Steps:L55",
+          "### Step 1: Scan Container Images:L57"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Trivy installation, target selection, severity triage, and remediation guidance.",
+        "notProved": [
+          "No scanner coverage claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Choose scan targets and thresholds, review findings, and approve remediation in context.",
+        "notProved": [
+          "No live Trivy run or CI proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-docker-bench-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-docker-bench-security-assessment/SKILL.md",
+        "sha256": "9b9c86a61881a82e7fd349a7c975517978591fef66f3c3149c6bb5d34c0fa511",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Docker Bench Security Assessment:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Docker Bench, host, daemon, image, container, control-assessment, and remediation guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove Docker posture or finding validity."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, host and workload ownership, legal/privacy/safety review, scan approval, data handling, analyst validation, severity, exception, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human scan, finding, exception, remediation, rollback, or recovery decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-kubernetes-cis-benchmark-with-kube-bench",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-kubernetes-cis-benchmark-with-kube-bench/SKILL.md",
+        "sha256": "168d29fe2b712d892e9ec091a257e5161bc012ce601ed82727985f5f5355e177",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Kubernetes CIS Benchmark with kube-bench:L29",
+          "## Running Benchmarks:L65",
+          "### Full Benchmark:L67"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain target selection, CIS interpretation, remediation, and CI guidance.",
+        "notProved": [
+          "No CIS completeness claim independent of kube-bench."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Choose benchmark target and apply platform-specific remediation with operator review.",
+        "notProved": [
+          "No cluster or node proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-kubernetes-etcd-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-kubernetes-etcd-security-assessment/SKILL.md",
+        "sha256": "cd4b155585459b0127b5eae1af1b7a79059815efd50c83cafa57de6078e4b408",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Kubernetes etcd Security Assessment:L33",
+          "## Assessment Areas:L54",
+          "### 1. Encryption at Rest:L56"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-02/decomposition.json",
+        "artifactSha256": "d47c11f569d0376cf9a6b9eb7e1a2ae1a7e29c74fe10c8bddbf259b8096db03b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain etcd hardening, backup, key-rotation, and remediation guidance.",
+        "notProved": [
+          "No complete hardening claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Obtain controlled etcd access, preserve backups, and review certificate/key-rotation impact.",
+        "notProved": [
+          "No control-plane or backup proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-kubernetes-penetration-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-kubernetes-penetration-testing/SKILL.md",
+        "sha256": "82d0f2907966322b9377eec2619bbbbc60355240a50d078e374884d4f0a73227",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Kubernetes Penetration Testing:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-49/decomposition.json",
+        "artifactSha256": "aa11e22b2d33928a7814b4d79a6cf504c813a05f81a4d8d5b66d1fd7fb2d3dc1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive Kubernetes assessment, scope, test planning, isolation, evidence, reporting, and remediation guidance.",
+        "notProved": [
+          "Guidance is not execution and does not prove a finding, exploitability, or cluster security."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, tenant and data boundaries, test approval, stop conditions, severity, containment, remediation, rollback, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human penetration-test, stop, finding, containment, remediation, rollback, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "scanning-container-images-with-grype",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-container-images-with-grype/SKILL.md",
+        "sha256": "fb99537ebd10628a75c5035c42362455989730b7010f1cbba71b7a1a76c6729c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Scanning Container Images with Grype:L30",
+          "## Core Commands:L51",
+          "### Install Grype:L53"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Grype installation, SBOM usage, severity triage, and remediation guidance.",
+        "notProved": [
+          "No vulnerability-coverage or policy-completeness claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Select image or SBOM, preserve digest/provenance, and review remediation impact.",
+        "notProved": [
+          "No live Grype run or CI proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "scanning-docker-images-with-trivy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/scanning-docker-images-with-trivy/SKILL.md",
+        "sha256": "a4836e207d11ce990d96172cbd593adbe6fa32afcdfd5389278e9201abce50eb",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Scanning Docker Images with Trivy:L29",
+          "## Core Concepts:L50",
+          "### Scanner Types:L52"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain scanner modes, severity triage, CI integration, and remediation guidance.",
+        "notProved": [
+          "No scanner-coverage claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Select a digest-pinned image, choose thresholds, and review remediation in context.",
+        "notProved": [
+          "No live Trivy run or CI proof."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live Kubernetes, Docker, Calico, Cosign, OPA/Gatekeeper, kube-bench, Trivy, Grype, Tetragon/eBPF, etcd, cluster, node, pod, container, host, kernel, runtime, registry, image, SIEM, cloud, endpoint, network, or production execution is proved.",
+    "No policy correctness, provenance, signature, access, isolation, admission, benchmark, vulnerability coverage, detection efficacy, hardening, remediation, containment, recovery, attribution, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

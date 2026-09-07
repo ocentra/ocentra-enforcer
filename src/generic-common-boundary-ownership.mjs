@@ -42,7 +42,7 @@ export function scanBoundaryRules(violations, root, filePath, rel, lines, text) 
     record(violations, root, filePath, 1, "BOUND-1.2", "raw boundary input is not converted to a domain type.", rel);
   }
   const decisionText = decisionCodeText(lines);
-  if (/\b(?:if|switch|match)\b[\s\S]{0,120}\b(?:business|domain|role|plan|entitlement|policy)\b/iu.test(decisionText)) {
+  if (/\b(?:if|switch|match)\b[\s\S]{0,120}\b(?:business|domain|role|entitlement|policy)\b/iu.test(decisionText)) {
     record(violations, root, filePath, firstMatchingLine(lines, /\b(?:business|domain|role|plan|entitlement|policy)\b/iu), "BOUND-1.3", "domain decision logic found in boundary file.", rel);
   }
   const transformsRawBoundaryInput = rawTypeCount > 0

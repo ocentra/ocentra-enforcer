@@ -1,16 +1,16 @@
 //! Hard tests for Puppet, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_puppet`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_puppet`])
 //! -- there is no bespoke `languages::puppet` extractor to prove
 //! zero-regression against (Puppet has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::puppet`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::puppet`]'s own doc
 //! comment directly: this grammar is entirely field-free for definitions,
 //! `defined_resource_type` (the real, confirmed baseline gap this row
 //! fills), `node_definition`'s own `node_name` child, and
 //! `include_statement`'s dual CALLS+IMPORTS recording off one node visit.
 
-use enforcer_memory::languages::generic::parse_puppet;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_puppet;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_puppet";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

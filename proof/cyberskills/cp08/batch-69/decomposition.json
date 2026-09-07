@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-69",
+  "baselineCommit": "4c14b2ee8a7d2b9267af225f28c04a2b72c043ef",
+  "family": "Preventive infrastructure, policy, platform resilience, secrets, and security-control evidence predicates",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "implementing-patch-management-workflow",
+      "implementing-policy-as-code-with-open-policy-agent",
+      "implementing-purdue-model-network-segmentation",
+      "implementing-rapid7-insightvm-for-scanning",
+      "implementing-runtime-application-self-protection",
+      "implementing-scim-provisioning-with-okta",
+      "implementing-secret-scanning-with-gitleaks",
+      "implementing-secrets-management-with-vault",
+      "implementing-security-chaos-engineering",
+      "implementing-security-information-sharing-with-stix2"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-68."
+  },
+  "accounting": {
+    "acceptedPrior": 680,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 690,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-patch-management-workflow",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-patch-management-workflow/SKILL.md",
+        "sha256": "6929ede1a11539ddf7f305938184e33fe0501b31f916cd34a6c2f280d3957fdf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Patch Management Workflow:L28"]
+      },
+      "components": [
+        {"id": "implementing-patch-management-workflow::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed asset, patch, version, vulnerability, owner, scope, priority, approval, schedule, and evidence-manifest fields without endpoint or deployment access.", "notProved": ["patch state", "vulnerability status", "remediation outcome"]},
+        {"id": "implementing-patch-management-workflow::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep patch systems, scanners, CMDBs, ticketing, endpoints, repositories, package managers, and production deployment authorities external.", "notProved": ["asset inventory", "patch applicability", "deployment completion"]},
+        {"id": "implementing-patch-management-workflow::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain patch prioritization, testing, maintenance-window, rollback, exception, and defensive remediation guidance as advisory.", "notProved": ["coverage", "patch efficacy", "risk reduction"]},
+        {"id": "implementing-patch-management-workflow::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and service ownership, legal/privacy/safety review, change approval, analyst validation, exception, rollback, and disclosure decisions.", "notProved": ["authorization", "remediation approval", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-policy-as-code-with-open-policy-agent",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-policy-as-code-with-open-policy-agent/SKILL.md",
+        "sha256": "f2fced8c007915ffac26e8ee40993991522b754c3d1f7df6079b3c1ffb85c971",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Policy as Code with Open Policy Agent:L39"]
+      },
+      "components": [
+        {"id": "implementing-policy-as-code-with-open-policy-agent::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed policy, rule, input, decision, resource, subject, version, owner, scope, and evidence-manifest fields without policy-engine execution.", "notProved": ["policy decision", "policy coverage", "enforcement state"]},
+        {"id": "implementing-policy-as-code-with-open-policy-agent::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Open Policy Agent, admission controllers, CI runners, cloud APIs, gateways, workloads, and production enforcement authorities external.", "notProved": ["engine behavior", "runtime admission", "policy enforcement"]},
+        {"id": "implementing-policy-as-code-with-open-policy-agent::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain policy design, rule review, test strategy, exception handling, versioning, and defensive governance guidance as advisory.", "notProved": ["completeness", "decision efficacy", "risk reduction"]},
+        {"id": "implementing-policy-as-code-with-open-policy-agent::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, policy and resource ownership, legal/privacy/safety review, approver validation, release control, rollback, and disclosure decisions.", "notProved": ["authorization", "policy validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-purdue-model-network-segmentation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-purdue-model-network-segmentation/SKILL.md",
+        "sha256": "0a3ca09d5164f13c9223fc841f556700f5f1144077a5e5c76802ad61da339eb9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Purdue Model Network Segmentation:L36"]
+      },
+      "components": [
+        {"id": "implementing-purdue-model-network-segmentation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed zone, level, asset, conduit, protocol, flow, owner, scope, safety, and evidence-manifest fields without operational network access.", "notProved": ["OT segmentation", "network flow", "safety state"]},
+        {"id": "implementing-purdue-model-network-segmentation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep PLCs, SCADA, historians, firewalls, routers, packet sensors, controllers, and production OT networks external.", "notProved": ["topology state", "protocol behavior", "enforcement efficacy"]},
+        {"id": "implementing-purdue-model-network-segmentation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Purdue zoning, conduits, least privilege, safety review, monitoring, change control, and defensive segmentation guidance as advisory.", "notProved": ["coverage", "segmentation efficacy", "safety outcome"]},
+        {"id": "implementing-purdue-model-network-segmentation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and network ownership, legal/privacy/safety review, operational approval, stop conditions, containment, rollback, and disclosure decisions.", "notProved": ["authorization", "segmentation finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-rapid7-insightvm-for-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-rapid7-insightvm-for-scanning/SKILL.md",
+        "sha256": "e9d0f4a8b69d2f0671f895cdfe30a368ee3903ef04bd0426a69fee6240b55810",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Rapid7 InsightVM for Scanning:L28"]
+      },
+      "components": [
+        {"id": "implementing-rapid7-insightvm-for-scanning::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed asset, scan, credential, vulnerability, severity, owner, scope, schedule, and evidence-manifest fields without scanner execution.", "notProved": ["scan result", "vulnerability", "risk score"]},
+        {"id": "implementing-rapid7-insightvm-for-scanning::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Rapid7 InsightVM, scanners, credentials, endpoints, networks, CMDBs, ticketing, and production systems external.", "notProved": ["asset discovery", "scanner coverage", "exploitability"]},
+        {"id": "implementing-rapid7-insightvm-for-scanning::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized scanning, credential handling, triage, severity review, exception, and defensive remediation guidance as advisory.", "notProved": ["completeness", "finding accuracy", "remediation efficacy"]},
+        {"id": "implementing-rapid7-insightvm-for-scanning::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, target and data ownership, legal/privacy/safety review, scope approval, analyst validation, severity, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-runtime-application-self-protection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-runtime-application-self-protection/SKILL.md",
+        "sha256": "54161a1a0f868a2535f344c0b46be7260c66034cb16673ed95d224a97800701b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Runtime Application Self-Protection:L36"]
+      },
+      "components": [
+        {"id": "implementing-runtime-application-self-protection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed application, runtime, request, rule, policy, version, owner, scope, and evidence-manifest fields without application execution or runtime instrumentation.", "notProved": ["runtime protection", "application behavior", "attack blocking"]},
+        {"id": "implementing-runtime-application-self-protection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep RASP agents, application runtimes, servers, WAFs, endpoints, sessions, requests, and production enforcement external.", "notProved": ["runtime state", "attack detection", "blocking efficacy"]},
+        {"id": "implementing-runtime-application-self-protection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain runtime threat modeling, rule tuning, secure coding, alert triage, compatibility, and defensive hardening guidance as advisory.", "notProved": ["coverage", "detection efficacy", "risk reduction"]},
+        {"id": "implementing-runtime-application-self-protection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application and service ownership, legal/privacy/safety review, release approval, analyst validation, containment, rollback, and disclosure decisions.", "notProved": ["authorization", "runtime finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-scim-provisioning-with-okta",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-scim-provisioning-with-okta/SKILL.md",
+        "sha256": "f4bbcc458409186a0e88d833a5be93c2775482c4f7541af7abd4a7fea9dadce4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SCIM Provisioning with Okta:L57"]
+      },
+      "components": [
+        {"id": "implementing-scim-provisioning-with-okta::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed identity, user, group, attribute, lifecycle, mapping, owner, scope, and evidence-manifest fields without IdP or directory access.", "notProved": ["provisioning state", "identity state", "revocation"]},
+        {"id": "implementing-scim-provisioning-with-okta::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Okta, SCIM endpoints, directories, IdPs, applications, sessions, devices, and production identity authorities external.", "notProved": ["account state", "attribute delivery", "access outcome"]},
+        {"id": "implementing-scim-provisioning-with-okta::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain identity lifecycle, least privilege, mapping, deprovisioning, exception, and defensive governance guidance as advisory.", "notProved": ["coverage", "provisioning efficacy", "identity security"]},
+        {"id": "implementing-scim-provisioning-with-okta::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, identity and application ownership, legal/privacy/safety review, approver validation, enrollment, revocation, rollback, and disclosure decisions.", "notProved": ["authorization", "identity finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-secret-scanning-with-gitleaks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-secret-scanning-with-gitleaks/SKILL.md",
+        "sha256": "b4edc041a407d5b88dc54de6085088c797cd97a63d82de605c39436346ff4cc4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Secret Scanning with Gitleaks:L35"]
+      },
+      "components": [
+        {"id": "implementing-secret-scanning-with-gitleaks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed repository, commit, secret-pattern, finding, owner, scope, redaction, and evidence-manifest fields without repository or scanner execution.", "notProved": ["secret presence", "credential exposure", "scan coverage"]},
+        {"id": "implementing-secret-scanning-with-gitleaks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Gitleaks, repositories, CI runners, secret stores, credentials, ticketing, and production code authorities external.", "notProved": ["scanner result", "secret validity", "credential compromise"]},
+        {"id": "implementing-secret-scanning-with-gitleaks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain secret hygiene, pattern tuning, redaction, rotation, triage, and defensive remediation guidance as advisory.", "notProved": ["completeness", "finding accuracy", "remediation efficacy"]},
+        {"id": "implementing-secret-scanning-with-gitleaks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository and secret ownership, key custody, legal/privacy/safety review, analyst validation, rotation, containment, disclosure, and remediation decisions.", "notProved": ["authorization", "secret finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-secrets-management-with-vault",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-secrets-management-with-vault/SKILL.md",
+        "sha256": "ed7d934e4eaea426d0575c127a113b32e38a1ce8ca27b85655844778907c339a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Secrets Management with Vault:L34"]
+      },
+      "components": [
+        {"id": "implementing-secrets-management-with-vault::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed secret, lease, policy, role, namespace, rotation, owner, scope, and evidence-manifest fields without Vault or credential access.", "notProved": ["secret storage", "credential validity", "lease state"]},
+        {"id": "implementing-secrets-management-with-vault::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Vault, HSMs, KMS, databases, applications, credentials, sessions, and production secret authorities external.", "notProved": ["vault state", "secret delivery", "access outcome"]},
+        {"id": "implementing-secrets-management-with-vault::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain secret lifecycle, least privilege, rotation, key custody, recovery, audit, and defensive governance guidance as advisory.", "notProved": ["coverage", "secret-management efficacy", "risk reduction"]},
+        {"id": "implementing-secrets-management-with-vault::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, secret and system ownership, key custody, legal/privacy/safety review, approval, revocation, recovery, rollback, and disclosure decisions.", "notProved": ["authorization", "secret finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-security-chaos-engineering",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-security-chaos-engineering/SKILL.md",
+        "sha256": "c162759cb4af9e246409929366075f4646d0374fc41de0a9fda3b45bd38c6125",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Security Chaos Engineering:L42"]
+      },
+      "components": [
+        {"id": "implementing-security-chaos-engineering::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed experiment, hypothesis, asset, dependency, control, stop-condition, owner, scope, and evidence-manifest fields without experiment execution.", "notProved": ["resilience", "control behavior", "security experiment outcome"]},
+        {"id": "implementing-security-chaos-engineering::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep chaos platforms, production systems, endpoints, networks, workloads, credentials, fault injection, and monitoring authorities external.", "notProved": ["experiment execution", "service impact", "recovery efficacy"]},
+        {"id": "implementing-security-chaos-engineering::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain threat modeling, experiment design, blast-radius control, resilience review, observability, and defensive improvement guidance as advisory.", "notProved": ["coverage", "resilience efficacy", "risk reduction"]},
+        {"id": "implementing-security-chaos-engineering::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, service ownership, legal/privacy/safety review, scope and stop-condition approval, analyst validation, containment, recovery, rollback, and disclosure decisions.", "notProved": ["authorization", "experiment validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-security-information-sharing-with-stix2",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-security-information-sharing-with-stix2/SKILL.md",
+        "sha256": "ed0e1cb5dcfd6a727bd8c0dd8f1db488209ce0141737c143f148f0cc3d5fd0f0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Security Information Sharing with STIX 2.1:L37"]
+      },
+      "components": [
+        {"id": "implementing-security-information-sharing-with-stix2::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed STIX object, indicator, relationship, marking, source, timestamp, confidence, owner, scope, and evidence-manifest fields without feed or exchange access.", "notProved": ["STIX validity", "indicator truth", "sharing outcome"]},
+        {"id": "implementing-security-information-sharing-with-stix2::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep STIX/TAXII servers, threat-intelligence platforms, feeds, enrichment, SOAR, network services, and production sharing authorities external.", "notProved": ["feed freshness", "enrichment truth", "dissemination"]},
+        {"id": "implementing-security-information-sharing-with-stix2::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain information-sharing design, markings, confidence, source validation, dissemination, privacy, and defensive intelligence guidance as advisory.", "notProved": ["completeness", "indicator efficacy", "attribution"]},
+        {"id": "implementing-security-information-sharing-with-stix2::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source and data ownership, legal/privacy/ethics review, terms and handling approval, analyst validation, dissemination, escalation, remediation, and disclosure decisions.", "notProved": ["authorization", "intelligence validity", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, OT, or production telemetry is proved.",
+    "No patch deployment, policy evaluation, OT segmentation, vulnerability scan, runtime protection, identity provisioning, secret scan, secret access, chaos experiment, STIX exchange, execution, compromise, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, containment, remediation, recovery, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}

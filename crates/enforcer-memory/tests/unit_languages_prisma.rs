@@ -1,17 +1,17 @@
 //! Hard tests for Prisma, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_prisma`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_prisma`])
 //! -- there is no bespoke `languages::prisma` extractor to prove
 //! zero-regression against (Prisma has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::prisma`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::prisma`]'s own doc
 //! comment directly: `model_declaration`/`enum_declaration`/... all
 //! resolve their own name through a bare positional leading `identifier`
 //! child, `column_declaration` DEFINES-edges into its enclosing model, and
 //! `enum_declaration` is classified Enum (not folded into Class the way
 //! baseline's own flat array does).
 
-use enforcer_memory::languages::generic::parse_prisma;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_prisma;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_prisma";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

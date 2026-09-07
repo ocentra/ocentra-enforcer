@@ -1,7 +1,7 @@
 //! Hard tests for CUDA, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_cuda`])
-//! by reusing [`enforcer_memory::languages::spec::LangSpec::cpp`]/
-//! [`enforcer_memory::languages::generic::cpp_quirks`] verbatim -- there
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_cuda`])
+//! by reusing [`enforcer_syntax::languages::spec::LangSpec::cpp`]/
+//! [`enforcer_syntax::languages::generic::cpp_quirks`] verbatim -- there
 //! is no bespoke `languages::cuda` extractor to prove zero-regression
 //! against (CUDA has never had one in this crate, and the baseline
 //! itself has no dedicated CUDA extractor either -- it reuses C++'s node-
@@ -13,8 +13,8 @@
 //! `kernel_call_syntax` launch-configuration clause must not disturb the
 //! ordinary callee/argument extraction C++'s own quirk already performs.
 
-use enforcer_memory::languages::generic::parse_cuda;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_cuda;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -24,7 +24,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_cuda";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

@@ -1,5 +1,5 @@
 //! Hard tests for Solidity onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_solidity`]
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_solidity`]
 //! -- language-parity wave G2.1d). Solidity has no pre-existing bespoke
 //! `languages::solidity` extractor (unlike Go/Rust/TypeScript/Python/
 //! Java/C/C++/C#/PHP, each migrated from one during earlier waves), so
@@ -12,14 +12,14 @@
 //! byte-for-byte parity with prior behavior.
 
 use enforcer_domain::memory_types::ReceiverHint;
-use enforcer_memory::languages::generic::parse_solidity;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_solidity;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

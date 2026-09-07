@@ -1,13 +1,13 @@
 //! Hard tests for SOQL (Salesforce Object Query Language), onboarded
 //! directly through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_soql`]). Grammar:
+//! ([`enforcer_syntax::languages::generic::parse_soql`]). Grammar:
 //! `tree-sitter-sfapex` 3.0.0's own `soql` module, the same crate
 //! already a dependency for Apex. Matches the baseline's own
 //! `CBM_LANG_SOQL` row -- `empty_types` for every array except
 //! `module_types = {"source_file"}`.
 
-use enforcer_memory::languages::generic::parse_soql;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_soql;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 

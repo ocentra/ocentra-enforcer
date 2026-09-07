@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-45",
+  "baselineCommit": "ae08f1a30f74db8949ac395c0109490c43cfc517",
+  "family": "Cryptographic protection, key management, protocol assurance, and hardware-rooted trust",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "implementing-aes-encryption-for-data-at-rest",
+      "implementing-digital-signatures-with-ed25519",
+      "implementing-end-to-end-encryption-for-messaging",
+      "implementing-jwt-signing-and-verification",
+      "implementing-rsa-key-pair-management",
+      "implementing-zero-knowledge-proof-for-authentication",
+      "migrating-to-post-quantum-cryptography",
+      "performing-hardware-security-module-integration",
+      "performing-post-quantum-cryptography-migration",
+      "validating-tpm-measured-boot-attestation"
+    ],
+    "reason": "Ten disjoint cryptographic and trust skills covering symmetric encryption, signatures, secure messaging, token signing, key pairs, zero-knowledge authentication, post-quantum migration, HSM integration, and TPM measured-boot attestation. Native checks are limited to static typed supplied manifests; live cryptographic, authentication, custody, migration, and attestation outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-aes-encryption-for-data-at-rest",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-aes-encryption-for-data-at-rest/SKILL.md",
+        "sha256": "7a1c78a8d8e6945d84b98c583295b6f2a584d4649b7f9579f8c9cb82393cf221",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing AES Encryption for Data at Rest:L27"]
+      },
+      "components": [
+        {"componentId": "implementing-aes-encryption-for-data-at-rest::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied data-at-rest encryption, algorithm, mode, key identifier, storage scope, ownership, rotation, provenance, and evidence manifests.", "notProved": ["No live encryption, decryption, confidentiality, algorithm strength, key custody, rotation, or security outcome proof."]},
+        {"componentId": "implementing-aes-encryption-for-data-at-rest::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cryptographic libraries, KMS, HSM, TPM, operating systems, filesystems, storage services, or production data authorities.", "notProved": ["No live ciphertext, plaintext, key, storage, cryptographic operation, or normalized encryption result."]},
+        {"componentId": "implementing-aes-encryption-for-data-at-rest::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive AES selection, data-at-rest protection, key-management, rotation, and validation guidance.", "notProved": ["Guidance is not enforcement and does not prove confidentiality or cryptographic strength."]},
+        {"componentId": "implementing-aes-encryption-for-data-at-rest::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, key custody, legal/privacy/safety review, data handling, algorithm approval, validation, rotation, revocation, recovery, and disclosure decisions.", "notProved": ["No human encryption, key-custody, rotation, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-digital-signatures-with-ed25519",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-digital-signatures-with-ed25519/SKILL.md",
+        "sha256": "32475fb6bf39692a605fb120a2500c84771386077c9ff26736fd8097e4054417",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Digital Signatures with Ed25519:L26"]
+      },
+      "components": [
+        {"componentId": "implementing-digital-signatures-with-ed25519::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied signature, algorithm, key identifier, artifact digest, signer, verifier, timestamp, provenance, and evidence manifests.", "notProved": ["No live signing, verification, authenticity, key custody, artifact integrity, or security outcome proof."]},
+        {"componentId": "implementing-digital-signatures-with-ed25519::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cryptographic libraries, CAs, HSMs, KMS, signing services, artifact registries, deployment systems, or live verification authorities.", "notProved": ["No live private key, signature operation, verifier, artifact, trust chain, or normalized signing result."]},
+        {"componentId": "implementing-digital-signatures-with-ed25519::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive signature, key lifecycle, artifact integrity, verification, and trust-chain guidance.", "notProved": ["Guidance is not enforcement and does not prove authenticity or integrity."]},
+        {"componentId": "implementing-digital-signatures-with-ed25519::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, key custody, legal/privacy/safety review, signer approval, trust validation, rotation, revocation, release, recovery, and disclosure decisions.", "notProved": ["No human signing, trust, release, revocation, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-end-to-end-encryption-for-messaging",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-end-to-end-encryption-for-messaging/SKILL.md",
+        "sha256": "b3c497542f0c8910d7e1b7af5d22397bead328c6fdee7df477fa9bef74f18f3d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing End-to-End Encryption for Messaging:L27"]
+      },
+      "components": [
+        {"componentId": "implementing-end-to-end-encryption-for-messaging::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied messaging, participant, key-exchange, cipher, session, retention, ownership, provenance, and evidence manifests.", "notProved": ["No live message encryption, decryption, key exchange, endpoint confidentiality, delivery, or security outcome proof."]},
+        {"componentId": "implementing-end-to-end-encryption-for-messaging::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use messaging clients, endpoints, servers, networks, cryptographic libraries, identity providers, key services, or production communications authorities.", "notProved": ["No live message, endpoint, session, key exchange, transport, participant, or normalized confidentiality result."]},
+        {"componentId": "implementing-end-to-end-encryption-for-messaging::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive secure-messaging, participant verification, key lifecycle, metadata, and recovery guidance.", "notProved": ["Guidance is not enforcement and does not prove message confidentiality or authenticity."]},
+        {"componentId": "implementing-end-to-end-encryption-for-messaging::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, participant ownership, legal/privacy/safety review, data handling, key custody, enrollment, recovery, validation, revocation, and disclosure decisions.", "notProved": ["No human participant, key, recovery, privacy, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-jwt-signing-and-verification",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-jwt-signing-and-verification/SKILL.md",
+        "sha256": "2a21f1cb82ab50da3e2ddceb37ef6ae2c999243b3d78ff9415fd03980e303231",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing JWT Signing and Verification:L26"]
+      },
+      "components": [
+        {"componentId": "implementing-jwt-signing-and-verification::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied JWT header, claims, algorithm, issuer, audience, key identifier, expiry, scope, ownership, and evidence manifests.", "notProved": ["No live token signing, verification, authentication, authorization, session validity, or security outcome proof."]},
+        {"componentId": "implementing-jwt-signing-and-verification::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use IdPs, token services, cryptographic libraries, signing keys, APIs, browsers, sessions, endpoints, or production authorization authorities.", "notProved": ["No live token, key, issuer, verifier, session, endpoint, API call, or normalized auth result."]},
+        {"componentId": "implementing-jwt-signing-and-verification::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive JWT algorithm, claim, key lifecycle, validation, issuer, audience, and session guidance.", "notProved": ["Guidance is not enforcement and does not prove token validity or authorization."]},
+        {"componentId": "implementing-jwt-signing-and-verification::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, owner approval, legal/privacy/safety review, data handling, claim validation, key custody, rotation, revocation, session, and disclosure decisions.", "notProved": ["No human token, authorization, key, revocation, or session decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-rsa-key-pair-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-rsa-key-pair-management/SKILL.md",
+        "sha256": "eb4a37b4d46fe5409fde7de535f28697df38fc8758cd082a7d7b76860b2f2932",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing RSA Key Pair Management:L27"]
+      },
+      "components": [
+        {"componentId": "implementing-rsa-key-pair-management::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied RSA key-pair, algorithm, size, owner, certificate, purpose, lifecycle, custody, rotation, revocation, and evidence manifests.", "notProved": ["No live key generation, private-key protection, certificate validity, rotation, revocation, or security outcome proof."]},
+        {"componentId": "implementing-rsa-key-pair-management::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cryptographic libraries, HSMs, KMS, CAs, certificate stores, IdPs, endpoints, or production key authorities.", "notProved": ["No live private key, public key, certificate, key operation, trust chain, or normalized custody result."]},
+        {"componentId": "implementing-rsa-key-pair-management::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive RSA key generation, storage, certificate, rotation, revocation, backup, and recovery guidance.", "notProved": ["Guidance is not enforcement and does not prove key protection or trust."]},
+        {"componentId": "implementing-rsa-key-pair-management::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, key custody, legal/privacy/safety review, purpose approval, validation, rotation, revocation, recovery, and disclosure decisions.", "notProved": ["No human key-custody, certificate, rotation, revocation, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-knowledge-proof-for-authentication",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-knowledge-proof-for-authentication/SKILL.md",
+        "sha256": "0173432187bfcea2a239a240780d8f4c78ae67a654370d2afef94168197b2c74",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Zero-Knowledge Proof for Authentication:L26"]
+      },
+      "components": [
+        {"componentId": "implementing-zero-knowledge-proof-for-authentication::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied proof-system, statement, challenge, verifier, credential, protocol, owner, policy, and evidence manifests.", "notProved": ["No live proof generation, verification, authentication, zero-knowledge property, credential protection, or security outcome proof."]},
+        {"componentId": "implementing-zero-knowledge-proof-for-authentication::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use proof runtimes, cryptographic libraries, authenticators, IdPs, endpoints, sessions, networks, or production authentication authorities.", "notProved": ["No live prover, verifier, witness, credential, session, endpoint, protocol execution, or normalized auth result."]},
+        {"componentId": "implementing-zero-knowledge-proof-for-authentication::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive zero-knowledge, protocol, credential, verifier, privacy, and recovery guidance.", "notProved": ["Guidance is not enforcement and does not prove zero-knowledge or authentication properties."]},
+        {"componentId": "implementing-zero-knowledge-proof-for-authentication::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, participant ownership, legal/privacy/safety review, data handling, protocol approval, enrollment, recovery, revocation, validation, and disclosure decisions.", "notProved": ["No human proof, enrollment, authentication, revocation, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "migrating-to-post-quantum-cryptography",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/migrating-to-post-quantum-cryptography/SKILL.md",
+        "sha256": "854586d906963dc1afbbdb9ed3653dc5266913941cf25e21f469e0c44ff20b5e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Migrating to Post-Quantum Cryptography:L23"]
+      },
+      "components": [
+        {"componentId": "migrating-to-post-quantum-cryptography::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied cryptographic inventory, algorithm, dependency, asset, risk, migration phase, owner, compatibility, and evidence manifests.", "notProved": ["No live cryptographic inventory, quantum risk, interoperability, migration completeness, performance, or security outcome proof."]},
+        {"componentId": "migrating-to-post-quantum-cryptography::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cryptographic libraries, KMS, HSM, CAs, endpoints, applications, CI/CD, networks, or production migration authorities.", "notProved": ["No live algorithm, key, application, dependency, endpoint, deployment, compatibility, or normalized migration result."]},
+        {"componentId": "migrating-to-post-quantum-cryptography::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive post-quantum inventory, prioritization, hybrid design, testing, migration, and lifecycle guidance.", "notProved": ["Guidance is not enforcement and does not prove migration readiness or cryptographic protection."]},
+        {"componentId": "migrating-to-post-quantum-cryptography::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, algorithm approval, dependency review, rollout, rollback, validation, and disclosure decisions.", "notProved": ["No human migration, release, rollback, validation, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-hardware-security-module-integration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-hardware-security-module-integration/SKILL.md",
+        "sha256": "50e0dfe37f023202437d91e876d01728d1661a1fc78cf2dc0946e1060cf02f6d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Hardware Security Module Integration:L39"]
+      },
+      "components": [
+        {"componentId": "performing-hardware-security-module-integration::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied HSM, key, role, policy, interface, slot, certificate, custody, backup, rotation, owner, and evidence manifests.", "notProved": ["No live HSM connection, key generation, signing, extraction resistance, availability, custody, or security outcome proof."]},
+        {"componentId": "performing-hardware-security-module-integration::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use HSMs, KMS, PKCS#11 providers, CAs, cryptographic libraries, network links, facilities, operators, or production key authorities.", "notProved": ["No live HSM, slot, key, operator, interface, facility, cryptographic operation, or normalized custody result."]},
+        {"componentId": "performing-hardware-security-module-integration::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive HSM architecture, key custody, role separation, integration, backup, recovery, and validation guidance.", "notProved": ["Guidance is not enforcement and does not prove HSM security, custody, or availability."]},
+        {"componentId": "performing-hardware-security-module-integration::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, key custody, legal/privacy/safety review, operator approval, facility controls, backup, recovery, rotation, revocation, and disclosure decisions.", "notProved": ["No human HSM, operator, custody, recovery, rotation, or revocation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-post-quantum-cryptography-migration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-post-quantum-cryptography-migration/SKILL.md",
+        "sha256": "5306f1b76b9a9af4df2cfce66f9d50ec4cc7d5d16b71d2f86ef49862b8aa7845",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Post-Quantum Cryptography Migration:L38"]
+      },
+      "components": [
+        {"componentId": "performing-post-quantum-cryptography-migration::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied migration plan, algorithm, key, protocol, application, dependency, owner, phase, compatibility, rollback, and evidence manifests.", "notProved": ["No live migration, algorithm deployment, interoperability, performance, rollback, cryptographic protection, or security outcome proof."]},
+        {"componentId": "performing-post-quantum-cryptography-migration::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cryptographic libraries, KMS, HSM, CAs, applications, CI/CD, endpoints, networks, deployment systems, or production migration authorities.", "notProved": ["No live key, application, protocol, deployment, endpoint, compatibility test, rollback, or normalized migration result."]},
+        {"componentId": "performing-post-quantum-cryptography-migration::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive post-quantum migration, hybrid transition, testing, dependency, rollout, and recovery guidance.", "notProved": ["Guidance is not enforcement and does not prove migration completion or protection."]},
+        {"componentId": "performing-post-quantum-cryptography-migration::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, ownership, legal/privacy/safety review, data handling, algorithm approval, rollout, rollback, compatibility validation, remediation, and disclosure decisions.", "notProved": ["No human migration, release, rollback, validation, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "validating-tpm-measured-boot-attestation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/validating-tpm-measured-boot-attestation/SKILL.md",
+        "sha256": "4e48b2d1150ed9a9d7cce4d28fb9eef81665b1f5e9338028c832cdf9068b35bc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Validating TPM Measured Boot and Attestation:L23"]
+      },
+      "components": [
+        {"componentId": "validating-tpm-measured-boot-attestation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied TPM, measurement, PCR, firmware, boot component, nonce, quote, verifier, device, owner, and evidence manifests.", "notProved": ["No live TPM quote, firmware state, boot measurement, device identity, verifier decision, or security outcome proof."]},
+        {"componentId": "validating-tpm-measured-boot-attestation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use TPM hardware, firmware, bootloaders, operating systems, attestation services, device management, networks, endpoints, or production trust authorities.", "notProved": ["No live device, TPM, PCR, quote, firmware, boot chain, verifier, endpoint, or normalized attestation result."]},
+        {"componentId": "validating-tpm-measured-boot-attestation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive measured-boot, TPM, attestation, device trust, verifier, enrollment, and recovery guidance.", "notProved": ["Guidance is not enforcement and does not prove platform integrity or device trust."]},
+        {"componentId": "validating-tpm-measured-boot-attestation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, device ownership, legal/privacy/safety review, data handling, firmware approval, enrollment, verifier validation, exception, recovery, revocation, and disclosure decisions.", "notProved": ["No human device, firmware, attestation, exception, recovery, or revocation decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Cryptographic libraries, KMS, HSM, TPM, CAs, IdPs, messaging endpoints, applications, devices, networks, deployment systems, and production trust or authentication authorities remain blocked external engines.",
+    "No live encryption, decryption, signing, verification, authentication, authorization, key generation, key custody, rotation, revocation, migration, HSM operation, TPM measurement, attestation, confidentiality, authenticity, integrity, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}

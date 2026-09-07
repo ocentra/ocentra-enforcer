@@ -15,29 +15,63 @@ use std::collections::BTreeSet;
 use crate::boundary::router::{NativeToolRouteResponse, RoutePlanResponse};
 use enforcer_config::project_tie::ResolvedProjectTie;
 use enforcer_domain::paths::RelPath;
-use enforcer_domain::scan_types::{DetectedLanguage, RouteScope, RulePack};
+use enforcer_domain::scan_types::{DetectedLanguage, LanguageFamily, RouteScope, RulePack};
 
 use super::detect::detect_languages;
+use super::identity::{detect_language_identities, DetectedLanguageRoute, UnknownLanguagePolicy};
 use super::native_tie::native_tools_for;
 use super::scope::narrow;
 
 /// Map a [`DetectedLanguage`] to the [`RulePack`]s it routes to (excluding
 /// the universal [`RulePack::LiteralScanFloor`], which [`build_route_plan`]
 /// attaches once, unconditionally, whenever any language is detected).
-/// [`DetectedLanguage::Dart`], [`DetectedLanguage::Go`],
-/// [`DetectedLanguage::Cfml`], and [`DetectedLanguage::Other`] have no
+/// [`DetectedLanguage::Go`], [`DetectedLanguage::Cfml`], and
+/// [`DetectedLanguage::Other`] have no
 /// dedicated `enforcer-lang-*` pack landed yet — they route to zero rule
 /// packs (still get the floor + their native tool where f03 has one).
 fn rule_packs_for(language: DetectedLanguage) -> Vec<RulePack> {
-    match language {
-        DetectedLanguage::Rust => vec![RulePack::Rust, RulePack::Security],
-        DetectedLanguage::TypeScript => vec![RulePack::TypeScript, RulePack::Security],
-        DetectedLanguage::Python => vec![RulePack::Python, RulePack::Security],
-        DetectedLanguage::Dart
-        | DetectedLanguage::Go
-        | DetectedLanguage::Cfml
-        | DetectedLanguage::Other => Vec::new(),
+    let family = match language {
+        DetectedLanguage::Rust => LanguageFamily::Rust,
+        DetectedLanguage::TypeScript => LanguageFamily::TypeScript,
+        DetectedLanguage::Python => LanguageFamily::Python,
+        DetectedLanguage::Dart => LanguageFamily::Dart,
+        DetectedLanguage::Go | DetectedLanguage::Cfml | DetectedLanguage::Other => {
+            LanguageFamily::Unknown
+        }
+    };
+    rule_packs_for_scan_family(family).to_vec()
+}
+
+/// Return the existing identity-specific rule-pack mapping for one scan family.
+///
+/// This is a route-selection projection only. It does not prove that a pack's
+/// rules can execute, that their facts are available, or that their findings
+/// are correct. The route-level literal floor and security audit packs are
+/// intentionally absent because they are universal, not identity-specific.
+pub(crate) const fn rule_packs_for_scan_family(family: LanguageFamily) -> &'static [RulePack] {
+    match family {
+        LanguageFamily::Rust => &[RulePack::Rust, RulePack::Security],
+        LanguageFamily::TypeScript => &[RulePack::TypeScript, RulePack::Security],
+        LanguageFamily::Python => &[RulePack::Python, RulePack::Security],
+        LanguageFamily::Dart => &[RulePack::Dart, RulePack::Security],
+        LanguageFamily::Terraform | LanguageFamily::YamlOrConfig | LanguageFamily::Unknown => &[],
     }
+}
+
+/// Build the identity-preserving route projection for a walked path list.
+///
+/// This is intentionally separate from [`build_route_plan`]. The latter is
+/// the existing stable wire-compatible coarse plan consumed by current MCP
+/// and CLI adapters; P1B supplies the canonical identity result that those
+/// consumers will adopt in P1C without changing their wire enums here.
+pub fn build_canonical_route_plan(
+    paths: &[RelPath],
+    scope: &RouteScope,
+    unknown_policy: UnknownLanguagePolicy,
+) -> Vec<DetectedLanguageRoute> {
+    let narrowed = narrow(paths, scope);
+    let narrowed_paths: Vec<RelPath> = narrowed.into_iter().cloned().collect();
+    detect_language_identities(&narrowed_paths, unknown_policy)
 }
 
 // ROUNDTRIP-TEST: `tests/router.rs::route_plan_is_data_driven_and_round_trips_through_json`

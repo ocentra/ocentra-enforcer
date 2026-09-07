@@ -1,15 +1,15 @@
 //! Hard tests for Assembly, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_assembly`]). Tier-0
-//! (see [`enforcer_memory::languages::spec::LangSpec::assembly`]'s own
+//! ([`enforcer_syntax::languages::generic::parse_assembly`]). Tier-0
+//! (see [`enforcer_syntax::languages::spec::LangSpec::assembly`]'s own
 //! doc comment): `label` has no real `name` field (confirmed via a
 //! real `node-types.json` dump), so
-//! [`enforcer_memory::languages::generic::assembly_quirk`] reads its
+//! [`enforcer_syntax::languages::generic::assembly_quirk`] reads its
 //! name positionally; labels have no call/branch extraction at all
 //! (they do not wrap the following instructions as children).
 
-use enforcer_memory::languages::generic::parse_assembly;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_assembly;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_assembly";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

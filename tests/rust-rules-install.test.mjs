@@ -300,6 +300,11 @@ test('adapter templates cover POSIX pre-commit, GitHub Actions, CodeQL, dependen
   assert.match(hook, /^#!\/bin\/sh/u);
   assert.doesNotMatch(hook, /\[\[|declare -a|function\s+[A-Za-z_]/u);
   assert.match(hook, /precommit-ratchet\.mjs/u);
+  assert.match(
+    hook,
+    /fi\nrun_scoped_scan\n/u,
+    'local project mode must run the staged or workspace scan after the ratchet',
+  );
 
   const workflowNames = [
     'ocentra-enforcer.yml',

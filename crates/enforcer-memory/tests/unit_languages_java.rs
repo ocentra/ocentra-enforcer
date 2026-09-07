@@ -1,5 +1,5 @@
 //! Hard tests for the Java extractor
-//! ([`enforcer_memory::languages::java`]): symbol labels (class/
+//! ([`enforcer_syntax::languages::java`]): symbol labels (class/
 //! interface/enum/method/constant/module), every edge kind Java
 //! supports (IMPORTS, CALLS, INHERITS via `extends`, IMPLEMENTS via
 //! `implements`, DECORATES via annotations, TYPE_REF, DEFINES),
@@ -9,9 +9,9 @@
 use enforcer_domain::memory_types::ReceiverHint;
 use enforcer_domain::memory_types::ResolutionConfidence;
 use enforcer_memory::code_graph::{CodeGraph, Manifest};
-use enforcer_memory::languages::java::parse;
-use enforcer_memory::parsers::SymbolKind;
 use enforcer_memory::resolution::{self};
+use enforcer_syntax::languages::java::parse;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::{Path, PathBuf};

@@ -1,13 +1,13 @@
 //! Hard tests for Astro, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_astro`]). Tier-0 (see
-//! [`enforcer_memory::languages::spec::LangSpec::astro`]'s own doc
+//! ([`enforcer_syntax::languages::generic::parse_astro`]). Tier-0 (see
+//! [`enforcer_syntax::languages::spec::LangSpec::astro`]'s own doc
 //! comment): only its own real root node kind (`document`, matching
 //! baseline) is asserted -- the baseline's own frontmatter/`<script>`
 //! embedded-import re-parse has no equivalent in this crate's engine
 //! yet, a documented gap, not asserted here.
 
-use enforcer_memory::languages::generic::parse_astro;
+use enforcer_syntax::languages::generic::parse_astro;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

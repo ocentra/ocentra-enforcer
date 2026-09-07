@@ -1,15 +1,15 @@
 //! Hard tests for Just, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_just`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_just`])
 //! -- there is no bespoke `languages::just` extractor to prove
 //! zero-regression against (Just has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::just`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::just`]'s own doc comment
 //! directly: `recipe`'s nested `recipe_header`/`recipe_body` naming,
 //! `function_call`'s real `"name"`/`"arguments"` fields, and
 //! `dependency`'s own bare-name CALLS-edge convention.
 
-use enforcer_memory::languages::generic::parse_just;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_just;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_just";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

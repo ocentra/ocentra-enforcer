@@ -1,15 +1,15 @@
 //! Hard tests for Markdown, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_markdown`]). Asserts
+//! ([`enforcer_syntax::languages::generic::parse_markdown`]). Asserts
 //! against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::markdown`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::markdown`]'s own doc
 //! comment: neither `atx_heading` nor `setext_heading` has a
 //! `name`-named field, so both are claimed directly by
-//! [`enforcer_memory::languages::generic::markdown_quirk`] via their
+//! [`enforcer_syntax::languages::generic::markdown_quirk`] via their
 //! own `heading_content` field.
 
-use enforcer_memory::languages::generic::parse_markdown;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_markdown;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

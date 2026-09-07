@@ -1,17 +1,17 @@
 //! Hard tests for Move, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_move`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_move`])
 //! -- there is no bespoke `languages::move` extractor to prove
 //! zero-regression against (Move has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::move_lang`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::move_lang`]'s own doc
 //! comment directly: the real `function_definition`/`struct_definition`
 //! name fields (a confirmed IMPROVEMENT over the baseline's own stale
 //! "struct/enum are anonymous keyword tokens" claim), the positional
 //! `name_expression` callee `move_call_override` must read, and the
 //! `use_declaration`'s own unfielded four-shape import path.
 
-use enforcer_memory::languages::generic::parse_move;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_move;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_move";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

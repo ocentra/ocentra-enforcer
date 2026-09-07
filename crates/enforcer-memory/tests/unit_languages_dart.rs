@@ -1,15 +1,15 @@
 //! Hard tests for Dart, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_dart`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_dart`])
 //! -- there is no bespoke `languages::dart` extractor to prove
 //! zero-regression against (Dart has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::dart`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::dart`]'s own doc
 //! comment directly: symbol kinds (function/method/class/enum/
 //! type-alias), `extends`/`implements` heritage (INHERITS/IMPLEMENTS),
 //! call edges, and import/export URI extraction.
 
-use enforcer_memory::languages::generic::parse_dart;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_dart;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_dart";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

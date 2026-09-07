@@ -1,13 +1,13 @@
 //! Hard tests for CSV, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_csv`]). Tier-0 (see
-//! [`enforcer_memory::languages::spec::LangSpec::csv`]'s own doc
+//! ([`enforcer_syntax::languages::generic::parse_csv`]). Tier-0 (see
+//! [`enforcer_syntax::languages::spec::LangSpec::csv`]'s own doc
 //! comment): only its own real root node kind (`document`, matching
 //! baseline) is asserted. This grammar's own `field` node only accepts
 //! quoted-string or numeric tokens (confirmed via a real parse-tree
 //! dump), so fixtures here use quoted/numeric fields to parse cleanly.
 
-use enforcer_memory::languages::generic::parse_csv;
+use enforcer_syntax::languages::generic::parse_csv;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

@@ -1,6 +1,6 @@
 //! Hard tests for gitignore, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_gitignore`]) --
+//! ([`enforcer_syntax::languages::generic::parse_gitignore`]) --
 //! grammar VENDORED (`vendor/tree-sitter-gitignore-local/`). Matches
 //! the baseline's own fully nominal row: a `.gitignore` file has no
 //! func/class/call/import concept this crate's own [`LangSpec`] shape
@@ -8,10 +8,10 @@
 //! plus the one real structural signal this crate can record, a
 //! module symbol for the file's own `document` root.
 //!
-//! [`LangSpec`]: enforcer_memory::languages::spec::LangSpec
+//! [`LangSpec`]: enforcer_syntax::languages::spec::LangSpec
 
-use enforcer_memory::languages::generic::parse_gitignore;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_gitignore;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

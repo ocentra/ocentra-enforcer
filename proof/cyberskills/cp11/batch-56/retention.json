@@ -1,0 +1,104 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-56",
+  "family": "IF/penetration-testing",
+  "baselineCommit": "1bc630f038c98fe0dda24cb7a936130bc46dc161",
+  "scope": "Retain advisory and manual content for the final penetration-testing packet from immutable CP08 evidence; native predicates are limited to static supplied authorization, scope, target, route, application, protocol, wireless, payload, finding, severity, ownership, safety, and evidence manifests; no live endpoint, host, cloud, device, packet, browser, server, credential, session, exploit, payload, scanner, wireless interface, production infrastructure, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-web-application-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-web-application-penetration-test/SKILL.md",
+        "sha256": "0c1f45f85bdd2ce34bfa2a476cbda205fa2746e41bf50acce9a06d9543ceed99",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Web Application Penetration Test:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-80/decomposition.json",
+        "artifactSha256": "2382fe1639cf1de5e723bbee340ad64b4c348530e9b43ee84bc630e808d1d924"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain web-application assessment, route and input review, authorization, evidence, severity, reporting, and defensive remediation guidance.",
+        "notProved": ["Guidance is not live endpoint behavior, exploitability, payload execution, finding validity, data exposure, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application and data ownership, legal/privacy/safety review, bounded scope, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No browser, server, request, session, payload, exploit, credential, production action, or remediation result is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-wireless-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-wireless-network-penetration-test/SKILL.md",
+        "sha256": "4039c7e917cc773ab1704ec6037a10ed8046ac19b10bd1bad6c0d02275371d4c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Wireless Network Penetration Test:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain wireless assessment, encryption, access, monitoring, safe-lab, privacy, evidence, and defensive hardening guidance.",
+        "notProved": ["Guidance is not radio access, packet capture, password validity, device state, exploitability, finding validity, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owned wireless and lab scope, legal/privacy/safety review, radio limits, stop conditions, analyst validation, data handling, rollback, and disclosure decisions.",
+        "notProved": ["No live radio, access point, endpoint, credential, packet, session, exploit, production action, or remediation result is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-for-xss-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-xss-vulnerabilities/SKILL.md",
+        "sha256": "0bcc31f06c8869cba47dcf440421c8a87fbebd50f03d41b921eb9f6f10be79aa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for XSS Vulnerabilities:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-41/decomposition.json",
+        "artifactSha256": "9985625651fb85c2569fdf5fcbf6425e13719537d8c450aff2ec619a23f33193"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain output encoding, input handling, browser security, secure development, defensive testing, evidence, and remediation guidance.",
+        "notProved": ["Guidance is not script execution, browser behavior, exploitability, data exposure, finding validity, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application and data ownership, legal/privacy/safety review, payload limits, stop conditions, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No browser, endpoint, payload, session, credential, script execution, production action, or remediation result is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 3,
+    "advisoryRetained": 3,
+    "manualRetained": 3,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, host, cloud, device, packet, browser, server, credential, session, exploit, payload, scanner, wireless interface, or production action is proved.",
+    "No exploitability, credential capture, compromise, attribution, detection efficacy, remediation success, safety outcome, or security outcome is proved.",
+    "This packet contains the final 3 penetration-testing skills; the family is now catalog-covered but not natively implemented or executable-proof complete.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

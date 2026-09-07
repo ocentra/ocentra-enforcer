@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "workpack": "EXT/UL04",
+  "kind": "fact-contract-gates",
+  "sourceOwner": "crates/enforcer-syntax/src/facts/function_facts.rs",
+  "generator": "cargo test --locked -p enforcer-syntax --tests plus deterministic evidence emission",
+  "sourceHash": "f6fda2f3710e6e2b551f9f463bcfae6db54f8dcb67e4f592bd42a79da71fd248",
+  "contractHash": "9e8d32f54f3b8685eebad27fe8f67b2abfb10b0feef1a17ba8767e99b15551da",
+  "enforcerMetadata": "sourceOwner: crates/enforcer-syntax/src/facts/function_facts.rs; generator: deterministic UL04 evidence emitter; sourceHash: f6fda2f3710e6e2b551f9f463bcfae6db54f8dcb67e4f592bd42a79da71fd248; reproducibilityHash: 9081ac7902af9300d15b6fa6ba67105b2b0b19ecf63de246907e297c22d4cd67",
+  "reproducibility": {
+    "algorithm": "sha256",
+    "inputs": [
+      "crates/enforcer-domain/src/syntax_types.rs",
+      "crates/enforcer-syntax/src/facts/function_facts.rs",
+      "crates/enforcer-syntax/tests/fact_contract.rs"
+    ],
+    "canonicalization": "repository bytes in listed order; hashes are independent of this artifact",
+    "sourceHashes": [
+      "9081ac7902af9300d15b6fa6ba67105b2b0b19ecf63de246907e297c22d4cd67",
+      "f6fda2f3710e6e2b551f9f463bcfae6db54f8dcb67e4f592bd42a79da71fd248",
+      "953c6fc14e44d9ad0f14653ee7f381d24ee6eb119a14ec8d763f8053379293cd"
+    ]
+  },
+  "baseCommit": "28994115f104cca0d290ad5a2a3511159ce0950e",
+  "implementationCommit": "bb7e2a71260842847fd3aed7d54fcd541d87b5db",
+  "source": {
+    "factSlice": "function-declaration",
+    "providers": [
+      { "language": "Rust", "provider": "tree-sitter-rust", "version": "0.23" },
+      { "language": "Python", "provider": "tree-sitter-python", "version": "0.23" },
+      { "language": "TypeScript", "provider": "tree-sitter-typescript", "version": "0.23" },
+      { "language": "Dart", "provider": "unavailable", "version": "0.25" }
+    ],
+    "paths": [
+      "crates/enforcer-domain/src/lib.rs",
+      "crates/enforcer-domain/src/syntax_types.rs",
+      "crates/enforcer-syntax/src/facts/function_facts.rs",
+      "crates/enforcer-syntax/src/facts/mod.rs",
+      "crates/enforcer-syntax/src/lib.rs",
+      "crates/enforcer-syntax/tests/fact_contract.rs",
+      "crates/enforcer-syntax/tests/fixtures/facts/negative/malformed_rust.rs",
+      "crates/enforcer-syntax/tests/fixtures/facts/negative/unsupported.txt",
+      "crates/enforcer-syntax/tests/fixtures/facts/positive/python_function.py",
+      "crates/enforcer-syntax/tests/fixtures/facts/positive/rust_function.rs",
+      "crates/enforcer-syntax/tests/fixtures/facts/positive/typescript_function.ts",
+      "proof/universal-language/ul04/inventory.json",
+      "proof/universal-language/ul04/provenance.json"
+    ]
+  },
+  "commands": [
+    {
+      "command": "cargo test --locked -p enforcer-syntax --tests",
+      "exitCode": 0,
+      "tests": { "passed": 30, "failed": 0, "ignored": 0 }
+    },
+    {
+      "command": "cargo check --locked -p enforcer-syntax",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo clippy --locked -p enforcer-syntax --all-targets -- -D warnings",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo fmt -p enforcer-domain -p enforcer-syntax -- --check",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "outcomes": [
+    "ParsedClean",
+    "ParsedWithErrors",
+    "UnsafeInputRefused",
+    "ProviderUnavailable",
+    "Unsupported"
+  ],
+  "invariants": [
+    "language and repository-relative file identity are required",
+    "provider and locked version are recorded as typed provenance",
+    "function facts expose checked byte and one-based line spans",
+    "empty or default fact output never represents a clean parse",
+    "raw tree-sitter nodes and parser-owned source strings do not cross the public fact boundary"
+  ],
+  "proves": [
+    "the bounded function-declaration fact slice passes positive Rust, Python, and TypeScript fixtures",
+    "malformed input is reported as recovered rather than clean",
+    "unsupported, provider-unavailable, and unsafe-input outcomes remain distinct",
+    "span constructors reject reversed byte ranges and zero-based line ranges",
+    "the existing ParsedFile nine-collection model remains unchanged; UL04 adds a separate normalized consumer fact"
+  ],
+  "doesNotProve": [
+    "all language identities have a provider or this fact slice",
+    "lossless extraction of every ParsedFile collection beyond the declared function fact",
+    "validator or rule migration, native CyberSkills implementation, executable proof, or security outcomes",
+    "overall Universal Language or CyberSkills plan completion",
+    "protected vendor source, which remains excluded and untouched"
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "workpack": "UL03",
+  "baselineCommit": "e61b274ac3003af79ba24043037b5c9de942c325",
+  "coordinationHub": "enforcer-rust-build",
+  "lane": "ul03-syntax-extraction-manager",
+  "claimGroup": "ul03-syntax-move",
+  "sourceOfTruth": "git objects at baselineCommit plus live worktree gates",
+  "commands": [
+    {
+      "command": "git rev-parse HEAD",
+      "result": "e61b274ac3003af79ba24043037b5c9de942c325 before UL03 edits"
+    },
+    {
+      "command": "git ls-tree -r --name-only e61b274ac3003af79ba24043037b5c9de942c325 crates/enforcer-memory/src/parsers crates/enforcer-memory/src/languages crates/enforcer-memory/vendor",
+      "result": "489 source/vendor files; pre-move byte total 192054161; vendor license files 51"
+    },
+    {
+      "command": "git ls-tree -r -l --full-tree e61b274ac3003af79ba24043037b5c9de942c325 -- crates/enforcer-memory/src/parsers crates/enforcer-memory/src/languages crates/enforcer-memory/vendor",
+      "result": "parser tree 1392a727c805827f8946e3c0fc1a2637f661dae6; language tree ebfa44a82ffa83a271189f45dc703721d23d4bd5; vendor tree 0f368343dd6d7b7ebf4276ad84b54f08358b965f"
+    },
+    {
+      "command": "PowerShell baseline-blob versus destination hash comparison",
+      "result": "489 destination files; 3 intentional source-code mismatches; 0 vendor mismatches; source parser/language/vendor directories absent"
+    },
+    {
+      "command": "cargo check -p enforcer-syntax -j 2",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo check -p enforcer-memory --message-format short -j 2",
+      "result": "PASS; external ts-rs serde-attribute warnings only"
+    },
+    {
+      "command": "cargo check -p enforcer-memory --tests -j 2",
+      "result": "PASS; external ts-rs serde-attribute warnings only"
+    },
+    {
+      "command": "cargo test -p enforcer-memory --test property_parser_contracts --test generic_syntax_children_regression --test generic_go_syntax_children_regression --test code_graph_indexer --test unit_parsers --test unit_lang_spec_engine -- --test-threads=1",
+      "result": "PASS; 156 tests passed across six targeted binaries"
+    },
+    {
+      "command": "$env:RUN_LIVE_PARITY='1'; cargo test -p enforcer-memory --test feature_parity_harness run_live_parity_comparison_and_emit_proof -- --test-threads=1",
+      "result": "PASS; 1 test passed in 10.39s; 23/23 rows runnable; 15 equal, 8 better, 0 worse, 0 incomparable"
+    },
+    {
+      "command": "cargo tree -p enforcer-syntax --depth 1 and cargo tree -p enforcer-memory --depth 1",
+      "result": "PASS; syntax owns grammar/provider dependencies; memory retains tree-sitter core plus consumer/runtime dependencies and has no grammar binding dependencies"
+    },
+    {
+      "command": "cargo metadata --format-version 1 --no-deps",
+      "result": "PASS"
+    },
+    {
+      "command": "cargo fmt -p enforcer-syntax --check; cargo fmt -p enforcer-memory --check",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    },
+    {
+      "command": "ocentra_enforcer_scan files: UL03 core changed paths",
+      "result": "0 violations, 0 warnings"
+    },
+    {
+      "command": "ocentra_enforcer_scan files: property_parser_contracts.rs, generic_syntax_children_regression.rs, generic_go_syntax_children_regression.rs",
+      "result": "0 violations, 0 warnings"
+    }
+  ],
+  "generatedEvidence": [
+    "proof/memory/x06-kg-parity.json",
+    "proof/memory/x06-parity/tool-results.ndjson",
+    "proof/memory/x06-parity/tool-diffs.ndjson"
+  ],
+  "notes": [
+    "The parity harness documentation mentions --ignored, but the test is not marked #[ignore]; the recorded command runs the named test directly.",
+    "A prior full enforcer-memory --tests attempt timed out without failure output; it is not represented as a pass.",
+    "Broad fixture scanning reports existing weak assertions and is intentionally not a UL03 source-cleanliness gate."
+  ]
+}

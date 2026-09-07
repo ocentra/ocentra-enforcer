@@ -1,9 +1,9 @@
 //! Hard tests for Gleam, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_gleam`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_gleam`])
 //! -- there is no bespoke `languages::gleam` extractor to prove
 //! zero-regression against (Gleam has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::gleam`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::gleam`]'s own doc
 //! comment directly: `function`/`external_function` ordinary name-field
 //! naming (no quirk needed), `type_definition`/`type_alias` positional
 //! `type_name` naming, `import`'s `module`-field IMPORTS, and
@@ -11,8 +11,8 @@
 //! one of this wave's three languages needing zero call-override quirk
 //! at all).
 
-use enforcer_memory::languages::generic::parse_gleam;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_gleam;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_gleam";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

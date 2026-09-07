@@ -4,6 +4,12 @@
 use crate::{boundary::decode_error::DecodeError, hashes::Sha256};
 use std::path::Path;
 
+/// The canonical MCP server identity used by installers and transport.
+///
+/// This product value belongs to the dependency-light domain crate so that
+/// installation does not depend on the MCP transport merely to register it.
+pub const SERVER_NAME: &str = "enforcer";
+
 /// JSON-RPC server error codes supported by the MCP transport.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[doc = "Canonical domain representation for RpcErrorCode."]

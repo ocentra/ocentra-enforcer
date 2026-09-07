@@ -1,0 +1,112 @@
+{
+  "schemaVersion": "ul00.current-reconciliation.v1",
+  "sourceSha": "5b86d0074b75dc8d97f0a53e6effc62345363bcf",
+  "generatedAtUtc": "2026-08-09T18:34:57.931Z",
+  "snapshotKind": "read-only post-UL03 source-authority reconciliation",
+  "authority": {
+    "ownerCrate": "enforcer-syntax",
+    "registryManifest": "crates/enforcer-syntax/registry/languages.json",
+    "parserPath": "crates/enforcer-syntax/src/parsers/mod.rs",
+    "registryRuntime": "crates/enforcer-syntax/src/registry.rs",
+    "grammarManifest": "crates/enforcer-syntax/Cargo.toml",
+    "languageSpec": "crates/enforcer-syntax/src/languages/spec.rs",
+    "grammarVendorRoot": "crates/enforcer-syntax/vendor/",
+    "authorityReason": "UL03 transferred shared syntax, parser, grammar, and normalized-language ownership from enforcer-memory to enforcer-syntax."
+  },
+  "historicalSnapshot": {
+    "path": "proof/universal-language/ul00/inventory.json",
+    "sourceSha": "e19076353d8cfc945b138311de9d4738021ec05d",
+    "status": "historical-pre-UL03-authority",
+    "policy": "preserve as immutable historical evidence; do not treat its enforcer-memory paths as current authority"
+  },
+  "denominators": {
+    "parserVariants": {
+      "count": 160,
+      "definition": "Canonical identities in the reviewed enforcer-syntax language registry and Language::ALL projection."
+    },
+    "structuralLanguages": {
+      "count": 156,
+      "definition": "Registry identities whose structural disposition is ParseFile."
+    },
+    "explicitNoneDispatch": {
+      "count": 4,
+      "identities": ["ConfigToml", "ConfigJson", "ConfigYaml", "TextOnly"],
+      "definition": "Registry identities whose structural disposition is NoParseFile."
+    },
+    "grammarCargoDeclarations": {
+      "count": 146,
+      "coreCount": 1,
+      "grammarBindingCount": 145,
+      "definition": "Direct tree-sitter declarations in the current syntax owner Cargo manifest."
+    },
+    "grammarBindings": {
+      "count": 145,
+      "definition": "Distinct grammar bindings excluding the tree-sitter core crate."
+    },
+    "vendoredGrammarFiles": {
+      "count": 473,
+      "definition": "Tracked files below the current syntax owner's vendor root."
+    },
+    "vendorGrammarTopLevelDirs": {
+      "count": 51,
+      "definition": "Distinct first-level grammar directories below the current syntax owner's vendor root."
+    },
+    "langSpecRows": {
+      "count": 155,
+      "definition": "Language specification rows in the current syntax owner's LangSpec source."
+    }
+  },
+  "drift": {
+    "countsPreserved": true,
+    "authorityPathChanges": [
+      {
+        "from": "crates/enforcer-memory/src/parsers/mod.rs",
+        "to": "crates/enforcer-syntax/src/parsers/mod.rs",
+        "role": "parser identities and parse-shape dispatch"
+      },
+      {
+        "from": "crates/enforcer-memory/Cargo.toml",
+        "to": "crates/enforcer-syntax/Cargo.toml",
+        "role": "grammar dependency declarations"
+      },
+      {
+        "from": "crates/enforcer-memory/src/languages/spec.rs",
+        "to": "crates/enforcer-syntax/src/languages/spec.rs",
+        "role": "language grammar/provider specification"
+      },
+      {
+        "from": "crates/enforcer-memory/vendor/",
+        "to": "crates/enforcer-syntax/vendor/",
+        "role": "vendored grammar assets"
+      }
+    ],
+    "sourcePathPolicy": "Current evidence must use enforcer-syntax paths; old enforcer-memory paths remain only in the historical snapshot or explicit migration records."
+  },
+  "testEvidence": {
+    "runId": "20260809-ul00-current-source-reconciliation",
+    "command": "cargo test --locked -p enforcer-rules --test language_capability_inventory -- --nocapture",
+    "status": "passed",
+    "exitCode": 0,
+    "testedCommit": "5b86d0074b75dc8d97f0a53e6effc62345363bcf",
+    "proves": [
+      "the current canonical registry retains 160 identities",
+      "the current registry retains 156 ParseFile and four NoParseFile identities",
+      "current reconciliation counts and authority paths are machine-validated"
+    ],
+    "doesNotProve": [
+      "semantic rule coverage or complete parser facts",
+      "native CyberSkills implementation or executable proof",
+      "external tool availability or live security outcomes"
+    ]
+  },
+  "proves": [
+    "UL00 current source authority is enforcer-syntax after UL03",
+    "the historical e190 snapshot is preserved without being silently treated as current",
+    "the current parser, structural, grammar, vendor, and LangSpec denominators are explicit and reproducible"
+  ],
+  "doesNotProve": [
+    "UL00 status promotion, UL01-UL14 completion, or any boss-only plan decision",
+    "semantic language capability, validator reachability, native CyberSkills coverage, or executable proof",
+    "third-party tool execution, production behavior, or security outcomes"
+  ]
+}

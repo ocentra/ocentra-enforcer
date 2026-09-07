@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-35",
+  "family": "IF/identity-access-management",
+  "baselineCommit": "d874da355d03de8754291f13eb8aec9929ac07ec",
+  "scope": "Retain advisory and manual content for the deterministic identity-access-management packet from immutable CP08 evidence; no native implementation, live identity, authentication, access, session, directory, device, cloud, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-identity-governance-with-sailpoint",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-identity-governance-with-sailpoint/SKILL.md",
+        "sha256": "7f4889a7df09a8e39eda14d76cbbd3af40439d255994b0989899bb8b4428ca2a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Identity Governance with SailPoint:L57"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity lifecycle and governance guidance.",
+        "notProved": ["Guidance is not identity lifecycle enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require entitlement-owner, privacy, review, and exception decisions.",
+        "notProved": ["No live governance proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-just-in-time-access-provisioning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-just-in-time-access-provisioning/SKILL.md",
+        "sha256": "f03f027b03c2f0eee4617ecc9be497d396afb67dbd3e553913c072f2b23ac85f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Just-In-Time Access Provisioning:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain just-in-time access and least-privilege guidance.",
+        "notProved": ["Guidance is not live access provisioning."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require owner authorization, duration, revocation, and exception decisions.",
+        "notProved": ["No live provisioning or revocation proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-pam-for-database-access",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-pam-for-database-access/SKILL.md",
+        "sha256": "da283609029de9bb10b33092e346419fbbbfcc089709241238553b9dd82b94b4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing PAM for Database Access:L58"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-68/decomposition.json",
+        "artifactSha256": "e2226d0c0dd63876748f7fd414ad8ff2d18563358dd5de54805ccb63bf234f5e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain privileged database-access governance guidance.",
+        "notProved": ["Guidance is not database or PAM enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require database owner, credential custody, scope, and approval decisions.",
+        "notProved": ["No live database access or credential proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-passwordless-authentication-with-fido2",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-passwordless-authentication-with-fido2/SKILL.md",
+        "sha256": "488b72aaa73beb7a08f2722039305d23bcd33fc637a93107f55b28d6d004076a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Passwordless Authentication with FIDO2:L39"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain phishing-resistant authentication guidance.",
+        "notProved": ["Guidance is not FIDO2 or authentication enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require enrollment, recovery, authorization, privacy, and safety decisions.",
+        "notProved": ["No live authentication, enrollment, or recovery proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-passwordless-auth-with-microsoft-entra",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-passwordless-auth-with-microsoft-entra/SKILL.md",
+        "sha256": "66bb68a13a84fe19f1c12431ec922c52fd7c19882b6589745c85db84dfcb82c5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Passwordless Auth with Microsoft Entra:L64"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-06/decomposition.json",
+        "artifactSha256": "60b0609032666c033137b7bbca6cb081cbbf9557e16fab46841446b515a068b5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain passwordless identity and tenant-configuration guidance.",
+        "notProved": ["Guidance is not Entra or passwordless authentication enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require tenant ownership, enrollment, recovery, privacy, and approval decisions.",
+        "notProved": ["No live tenant, identity, or authentication proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-privileged-access-management-with-cyberark",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-privileged-access-management-with-cyberark/SKILL.md",
+        "sha256": "c3a66ba51fc0c491f98c4f54dc8dc9883dba7fdb5b98d8775e85e3c5193e48c1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Privileged Access Management with CyberArk:L57"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain privileged-access and credential-governance guidance.",
+        "notProved": ["Guidance is not CyberArk or PAM enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require owner authorization, vault custody, approval, session, and exception decisions.",
+        "notProved": ["No live privileged access or credential proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-privileged-access-workstation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-privileged-access-workstation/SKILL.md",
+        "sha256": "05415412da8319a535a4fea4748c31930e7f2d2d7655e5e759d4f78b1cfd175b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Privileged Access Workstation:L29"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain privileged-workstation isolation and administrative safety guidance.",
+        "notProved": ["Guidance is not workstation isolation or access enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require endpoint ownership, enrollment, authorization, safety, and exception decisions.",
+        "notProved": ["No live endpoint or privileged-session proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-privileged-session-monitoring",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-privileged-session-monitoring/SKILL.md",
+        "sha256": "54d4f973490c9c8b1528fc405aee4324251051ee7c7847d88a1d75726ae374ff",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Privileged Session Monitoring:L37"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain privileged-session review and monitoring guidance.",
+        "notProved": ["Guidance is not session monitoring or detection efficacy."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written scope, consent, privacy, analyst validation, and escalation decisions.",
+        "notProved": ["No live session capture, monitoring, or outcome proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-saml-sso-with-okta",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-saml-sso-with-okta/SKILL.md",
+        "sha256": "04cd9c49c15846547f288b0bcd4b2ba4b310321ded5836282b6b596529fd443a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SAML SSO with Okta:L58"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain SAML federation and single-sign-on guidance.",
+        "notProved": ["Guidance is not SAML, Okta, or session enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require IdP and service-owner authorization, certificate custody, privacy, and rollback decisions.",
+        "notProved": ["No live federation, authentication, or access proof."]
+      }
+    },
+    {
+      "catalogId": "implementing-scim-provisioning-with-okta",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-scim-provisioning-with-okta/SKILL.md",
+        "sha256": "f4bbcc458409186a0e88d833a5be93c2775482c4f7541af7abd4a7fea9dadce4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing SCIM Provisioning with Okta:L57"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json",
+        "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity provisioning, deprovisioning, and lifecycle guidance.",
+        "notProved": ["Guidance is not SCIM or Okta provisioning enforcement."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require application-owner, data-minimization, privacy, revocation, and rollback decisions.",
+        "notProved": ["No live provisioning, deprovisioning, or access proof."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live identity, authentication, authorization, role, entitlement, federation, SAML, OAuth, MFA, session, directory, device, cloud, endpoint, or production execution is proved.",
+    "No credential capture, privilege escalation, access, revocation, certification, least-privilege, phishing, account compromise, attribution, remediation success, privacy, legal, safety, or security outcome is proved.",
+    "This packet contains identity-access-management skills 21 through 30; the remaining ten family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

@@ -1,18 +1,18 @@
 //! Hard tests for Racket, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_racket`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_racket`]) -- there is
 //! no bespoke `languages::racket` extractor to prove zero-regression
 //! against (Racket has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::racket`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::racket`]'s own doc
 //! comment directly: def-form recognition (including `(struct ...)` as
 //! a Struct symbol, via the SAME `list`-based head-keyword quirk -- NOT
 //! the grammar's unrelated `structure` node kind, which is `#s(...)`
 //! prefab-literal syntax, see that const's own doc comment), the
 //! baseline's UNFILTERED call-callee recording, and `require` IMPORTS.
 
-use enforcer_memory::languages::generic::parse_racket;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_racket;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_racket";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

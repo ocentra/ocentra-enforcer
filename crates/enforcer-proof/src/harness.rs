@@ -6,7 +6,6 @@
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use enforcer_core::error::Result;
 use enforcer_domain::ids::RuleId;
@@ -230,6 +229,56 @@ pub fn route_proofs<'a>(
         .collect()
 }
 
+/// Frozen-compatible projection of the authoritative proof-route selector.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProofRouteScopeResponse {
+    pub mode: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proof_id: Option<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub files: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub plan: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub capability: Option<String>,
+}
+
+/// Select the route dimension in the same precedence order as proof routing.
+#[must_use]
+pub fn route_scope(
+    query: &crate::boundary::proof_query::ProofRouteQuery,
+) -> ProofRouteScopeResponse {
+    let mut scope = ProofRouteScopeResponse {
+        mode: query
+            .scope
+            .clone()
+            .unwrap_or_else(|| "workspace".to_owned()),
+        proof_id: None,
+        files: Vec::new(),
+        plan: None,
+        capability: None,
+    };
+    if let Some(proof_id) = &query.proof_id {
+        scope.mode = "proof".to_owned();
+        scope.proof_id = Some(proof_id.as_str().to_owned());
+    } else if !query.files.is_empty() {
+        scope.mode = "files".to_owned();
+        scope.files = query
+            .files
+            .iter()
+            .map(|path| path.as_str().to_owned())
+            .collect();
+    } else if let Some(plan) = &query.plan {
+        scope.mode = "plan".to_owned();
+        scope.plan = Some(plan.clone());
+    } else if let Some(capability) = &query.capability {
+        scope.mode = "capability".to_owned();
+        scope.capability = Some(capability.as_str().to_owned());
+    }
+    scope
+}
+
 /// Arguments to run one proof.
 #[derive(Debug, Clone)]
 pub struct RunProofArgs {
@@ -360,17 +409,38 @@ pub fn run_proof(
         });
     }
 
-    let Some((program, command_args)) = args.command.split_first() else {
+    let Some((_program, _command_args)) = args.command.split_first() else {
         return Err(enforcer_core::error::Error::InvalidConfig(
             "proof command must include a program".to_owned(),
         ));
     };
-    let output = Command::new(program)
-        .args(command_args)
-        .current_dir(&args.root)
-        .output()?;
+    let repo_root = enforcer_domain::paths::RepoRoot::try_from(args.root.as_path())?;
+    let command = args
+        .command
+        .iter()
+        .map(|value| {
+            enforcer_domain::harness_types::HarnessCommandArgument::try_new(value.clone())
+                .map_err(enforcer_core::error::Error::Decode)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    let execution = enforcer_harness::execution::execute_unrecorded_bounded(
+        &enforcer_harness::execution::ExecuteRequest {
+            repo_root,
+            cwd: None,
+            run_id: enforcer_domain::harness_types::HarnessRunId::from_adapter(
+                args.run_id.as_str(),
+            ),
+            tool: enforcer_domain::harness_types::HarnessToolName::from_adapter("proof"),
+            language: None,
+            command,
+            crate_name: None,
+            package_name: None,
+            domain: None,
+            tags: Vec::new(),
+        },
+    )?;
     let ended_at = now_iso();
-    let exit_code = output.status.code().unwrap_or(1);
+    let exit_code = execution.exit_code().map_or(1, |code| code.get());
     let status = if exit_code == 0 {
         ProofStatus::Passed
     } else {
@@ -573,9 +643,9 @@ pub fn collect_artifact_records(
 #[cfg(test)]
 mod tests {
     use super::{
-        merge_proof_definitions, prune_runs, resolve_capability, route_proofs, run_proof,
-        ManifestRowEnvelope, ProofDefinitionEnvelope, ProofRegistryEnvelope, ProofStatus,
-        RouteRequest, RunProofArgs,
+        merge_proof_definitions, prune_runs, resolve_capability, route_proofs, route_scope,
+        run_proof, ManifestRowEnvelope, ProofDefinitionEnvelope, ProofRegistryEnvelope,
+        ProofStatus, RouteRequest, RunProofArgs,
     };
     use crate::envelope::DEFAULT_PROOF_RETENTION;
     use enforcer_core::error::Result;
@@ -659,6 +729,29 @@ mod tests {
         let routed = route_proofs(&registry, &request);
         assert_eq!(routed.len(), 1);
         assert_eq!(routed[0].id.as_str(), "rust.proof");
+        Ok(())
+    }
+
+    #[test]
+    fn route_scope_preserves_frozen_selector_precedence_and_default() -> Result<()> {
+        let query = crate::boundary::proof_query::ProofRouteQuery {
+            proof_id: Some(proof_id("proof-1")?),
+            files: vec![path("src/lib.rs")?],
+            plan: Some("plan-a".to_owned()),
+            capability: Some(capability("ci")?),
+            scope: Some("diff".to_owned()),
+            profile: None,
+        };
+        assert_eq!(
+            serde_json::to_value(route_scope(&query))?,
+            serde_json::json!({"mode":"proof","proofId":"proof-1"})
+        );
+        assert_eq!(
+            serde_json::to_value(route_scope(
+                &crate::boundary::proof_query::ProofRouteQuery::default()
+            ))?,
+            serde_json::json!({"mode":"workspace"})
+        );
         Ok(())
     }
 

@@ -1,12 +1,12 @@
 //! Hard tests for gitattributes, onboarded directly through the
 //! generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_gitattributes`]).
+//! ([`enforcer_syntax::languages::generic::parse_gitattributes`]).
 //! Tier-0 (see
-//! [`enforcer_memory::languages::spec::LangSpec::gitattributes`]'s own
+//! [`enforcer_syntax::languages::spec::LangSpec::gitattributes`]'s own
 //! doc comment): only its own real root node kind (`file`, NOT
 //! baseline's stale `source`) is asserted.
 
-use enforcer_memory::languages::generic::parse_gitattributes;
+use enforcer_syntax::languages::generic::parse_gitattributes;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

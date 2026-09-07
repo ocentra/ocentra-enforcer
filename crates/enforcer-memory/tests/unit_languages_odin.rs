@@ -1,17 +1,17 @@
 //! Hard tests for Odin, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_odin`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_odin`])
 //! -- there is no bespoke `languages::odin` extractor to prove
 //! zero-regression against (Odin has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::odin`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::odin`]'s own doc comment
 //! directly: positional `procedure_declaration`/`struct_declaration`
 //! naming, the `using`-prefixed composition field as an INHERITS edge,
 //! `call_expression`'s repeated `"argument"` field, and
 //! `selector_call_expression`'s pointer-dereference method-call syntax.
 
 use enforcer_domain::memory_types::ReceiverHint;
-use enforcer_memory::languages::generic::parse_odin;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_odin;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_odin";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

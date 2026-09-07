@@ -62,7 +62,7 @@ use enforcer_domain::install_types::{
     ConfigFormat, FindingKind, InstallReportText, InstallTargetPath, MigrationFinding,
     MigrationOutcome, RewrittenFile,
 };
-use enforcer_mcp::name::SERVER_NAME;
+use enforcer_domain::mcp_types::SERVER_NAME;
 
 /// The legacy product-identity MCP server registration key this migration
 /// retires. Distinct from [`SERVER_NAME`] (the x01-owned, already-neutral
@@ -638,7 +638,7 @@ mod tests {
         LEGACY_ALIAS_TOOL_PREFIX, LEGACY_CANONICAL_TOOL_PREFIX, LEGACY_SERVER_NAME,
     };
     use crate::error::{InstallError, InstallResult};
-    use enforcer_mcp::name::SERVER_NAME;
+    use enforcer_domain::mcp_types::SERVER_NAME;
     use std::fs;
 
     fn copy_fixture(name: &str) -> Result<tempfile::TempDir, Box<dyn std::error::Error>> {

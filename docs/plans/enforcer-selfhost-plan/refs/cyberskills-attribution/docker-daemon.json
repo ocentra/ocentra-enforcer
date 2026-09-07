@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "hardening-docker-daemon-configuration",
+  "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/hardening-docker-daemon-configuration/SKILL.md",
+  "sourceSha256": "56a5cb91d14ca7820d4887772e3e7d083665f92d16196e794f432f097e70a894",
+  "sourceAnchors": ["\"userns-remap\": \"default\"", "\"tls\": true", "\"tlsverify\": true"],
+  "nativeRuleId": "CYBER-DOCKER-DAEMON.1",
+  "nativeValidatorPath": "crates/enforcer-lang-security/src/rules/cyberskills/docker_daemon.rs",
+  "failFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.docker-daemon/bad/daemon.json",
+  "passFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/container.docker-daemon/good/daemon.json",
+  "coverage": "narrowed-predicate",
+  "predicate": "daemon.json requires the selected user namespace, TLS, and hardening controls.",
+  "notProved": "Host-level Docker deployment, certificate provisioning, and every CIS control in the vendor workflow."
+}

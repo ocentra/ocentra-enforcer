@@ -1,5 +1,5 @@
-use enforcer_memory::languages::typescript::parse;
-use enforcer_memory::parsers::Language;
+use enforcer_syntax::languages::typescript::parse;
+use enforcer_syntax::parsers::Language;
 
 #[test]
 fn extracts_function_class_interface_symbols() {

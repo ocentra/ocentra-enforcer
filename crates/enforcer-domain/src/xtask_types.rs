@@ -54,6 +54,50 @@ pub enum ToolchainMode {
     Skip,
 }
 
+/// The execution implementation recorded by a machine-readable dogfood run.
+///
+/// This is deliberately a closed domain value: a manifest must never imply a
+/// mixed or legacy execution path when its evidence came from the native Rust
+/// scanner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[doc = "Canonical execution identity recorded by native dogfood manifests."]
+pub enum DogfoodExecution {
+    NativeRust,
+}
+
+impl DogfoodExecution {
+    /// Stable machine-readable execution token.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::NativeRust => "native-rust",
+        }
+    }
+}
+
+impl serde::Serialize for DogfoodExecution {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for DogfoodExecution {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        match <String as serde::Deserialize>::deserialize(deserializer)?.as_str() {
+            "native-rust" => Ok(Self::NativeRust),
+            _ => Err(serde::de::Error::custom(
+                "dogfood execution must be `native-rust`",
+            )),
+        }
+    }
+}
+
 /// One external toolchain step's typed result.
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[doc = "Canonical domain representation for ToolchainStepOutcome."]

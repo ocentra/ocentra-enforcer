@@ -1,0 +1,212 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-32",
+  "family": "IF/hardware-firmware-security",
+  "baselineCommit": "e65fc187676c686cd63823598bdce0e8599c6707",
+  "scope": "Retain advisory and manual content for the deterministic hardware-firmware-security packet from immutable CP08 evidence; no native implementation, live hardware, firmware, device, boot, endpoint, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-uefi-bootkit-persistence",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-uefi-bootkit-persistence/SKILL.md",
+        "sha256": "6ae1b48d0b0d5f9e06239ec10b6c460422199a1d41a08b390ef6f3ce10f89f79",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing UEFI Bootkit Persistence:L43"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-53/decomposition.json",
+        "artifactSha256": "985bda0f2523df050ff41f4b2867ee1ed731307bdfd5bbdacba97d72b25ea664"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain firmware, boot, device, hardware-trust, update, supply-chain, evidence, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live firmware inspection or hardware attestation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, hardware ownership, privacy, legal and safety scope, lab isolation, stop conditions, analyst validation, update or recovery, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live hardware action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "auditing-uefi-firmware-with-chipsec",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-uefi-firmware-with-chipsec/SKILL.md",
+        "sha256": "48be885889e27dee2aea01adc9a855eb39d29377f1d90bedf7957ddee23a5b6f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Auditing UEFI Firmware with CHIPSEC:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-53/decomposition.json",
+        "artifactSha256": "985bda0f2523df050ff41f4b2867ee1ed731307bdfd5bbdacba97d72b25ea664"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain firmware, boot, device, hardware-trust, update, supply-chain, evidence, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live firmware inspection or hardware attestation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, hardware ownership, privacy, legal and safety scope, lab isolation, stop conditions, analyst validation, update or recovery, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live hardware action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-secure-boot-bypass",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-secure-boot-bypass/SKILL.md",
+        "sha256": "0115f82d1b735aca00f74c59b93a83f15b69a0913308bbc2c78a120c8e5b980f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Secure Boot Bypass:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain firmware, boot, device, hardware-trust, update, supply-chain, evidence, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live firmware inspection or hardware attestation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, hardware ownership, privacy, legal and safety scope, lab isolation, stop conditions, analyst validation, update or recovery, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live hardware action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hunting-bootkits-in-efi-system-partition",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-bootkits-in-efi-system-partition/SKILL.md",
+        "sha256": "a0f9b4e380da3a735d8d3b2313c237fbcf25898702389e019a7c455225fad210",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hunting Bootkits in the EFI System Partition:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-63/decomposition.json",
+        "artifactSha256": "5ce06ea9a9b510afb1e60f9b01aa909959333ca55328befe8eac4b854cc5925e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain firmware, boot, device, hardware-trust, update, supply-chain, evidence, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live firmware inspection or hardware attestation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, hardware ownership, privacy, legal and safety scope, lab isolation, stop conditions, analyst validation, update or recovery, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live hardware action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-firmware-extraction-with-binwalk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-firmware-extraction-with-binwalk/SKILL.md",
+        "sha256": "ee0aebde3da369802a25de83b09d8efcc3016539eecc5fdca5b236236dec24df",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Firmware Extraction with Binwalk:L62"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-75/decomposition.json",
+        "artifactSha256": "0a091e58e4a53b0699707defe2d203fbe6fae3a8de821f5e3a12a124fe4468c1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain firmware, boot, device, hardware-trust, update, supply-chain, evidence, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live firmware inspection or hardware attestation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, hardware ownership, privacy, legal and safety scope, lab isolation, stop conditions, analyst validation, update or recovery, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live hardware action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "validating-tpm-measured-boot-attestation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/validating-tpm-measured-boot-attestation/SKILL.md",
+        "sha256": "4e48b2d1150ed9a9d7cce4d28fb9eef81665b1f5e9338028c832cdf9068b35bc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Validating TPM Measured Boot and Attestation:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain firmware, boot, device, hardware-trust, update, supply-chain, evidence, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live firmware inspection or hardware attestation."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, hardware ownership, privacy, legal and safety scope, lab isolation, stop conditions, analyst validation, update or recovery, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live hardware action or security conclusion is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 6,
+    "advisoryRetained": 6,
+    "manualRetained": 6,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live firmware, boot, hardware, device, endpoint, cloud, host, packet, production, or external-service execution is proved.",
+    "No exploit delivery, credential capture, secure-boot bypass, persistence, attestation validity, firmware integrity, supply-chain truth, remediation success, attribution, privacy, legal, safety, or security outcome is proved.",
+    "All six hardware-firmware-security skills are represented in this packet with advisory and manual retention only.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

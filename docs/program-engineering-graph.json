@@ -1,0 +1,214 @@
+{
+  "schemaVersion": 1,
+  "graphId": "GOAL/enforcer-system",
+  "goal": {
+    "id": "GOAL/enforcer-system",
+    "title": "Evidence-backed, graph-driven Ocentra Enforcer delivery",
+    "path": "docs/plans/PROGRAM_STATUS.md",
+    "description": "Coordinate every repo-owned plan while keeping detailed intent, proof, and authority boundaries in their existing artifacts."
+  },
+  "planRoot": "docs/plans",
+  "programs": [
+    {
+      "id": "PROGRAM/cyberskills",
+      "title": "CyberSkills parity",
+      "planKeys": ["cyberskills-parity-plan"],
+      "state": "active",
+      "managerThread": "019fc636-24d5-7200-9827-c6af2c5c4bf3",
+      "currentBundle": "Cyber-owned graph audit; then approved CP08 decomposition and native dogfood",
+      "subgraph": {
+        "path": "docs/engineering-graph.json",
+        "ownerThread": "019fc636-24d5-7200-9827-c6af2c5c4bf3",
+        "authority": "Cyber-owned executable graph; imported here as a subordinate program graph"
+      },
+      "authority": "User-directed Cyber graph instruction plus the CyberSkills plan/workpack proof contract"
+    },
+    {
+      "id": "PROGRAM/universal-language",
+      "title": "Universal language enforcement",
+      "planKeys": ["universal-language-enforcement-plan"],
+      "state": "active",
+      "managerThread": "019fc4c6-b2fc-7201-ab87-8a47e5c0a188",
+      "managerState": "hold",
+      "currentBundle": "UL00 capability truth audit before any build or cleanup",
+      "authority": "Universal-language workpack index and retained exact-SHA evidence"
+    },
+    {
+      "id": "PROGRAM/rust-mjs-parity",
+      "title": "Rust versus frozen MJS parity and retirement",
+      "planKeys": ["rust-mjs-parity-retirement-plan"],
+      "state": "active",
+      "managerThread": "019fc4c6-b2fb-78b3-985d-d5c235130a6e",
+      "currentBundle": "RM02-RM07 bounded oracles; RM08 remains blocked",
+      "authority": "RM00 frozen authority manifest, RM01 inventory, and retained oracle artifacts"
+    },
+    {
+      "id": "PROGRAM/enforcer-selfhost",
+      "title": "Enforcer self-hosting and native Rust delivery",
+      "planKeys": ["enforcer-selfhost-plan"],
+      "state": "active",
+      "currentBundle": "Rust workspace, dogfood, install, and planning-system workpacks",
+      "authority": "Enforcer self-host plan and its workpack proof rows"
+    }
+  ],
+  "intentMatrices": [
+    {
+      "programId": "PROGRAM/cyberskills",
+      "planKey": "cyberskills-parity-plan",
+      "path": "docs/plans/cyberskills-parity-plan/CYBERSKILLS_INTENT_MATRIX.json",
+      "lifecycleSource": "docs/engineering-graph.json",
+      "containerWorkpacks": ["CP09", "CP11", "CP12"]
+    }
+  ],
+  "crossEdges": [
+    {
+      "from": "WP/cyberskills-parity-plan/CP08",
+      "to": "WP/enforcer-graph-bootstrap",
+      "kind": "depends-on",
+      "reason": "The Cyber corpus expansion starts only after the repo-owned engineering graph is validated."
+    },
+    {
+      "from": "WP/cyberskills-parity-plan/CP02",
+      "to": "WP/universal-language-enforcement-plan/UL02",
+      "kind": "depends-on",
+      "reason": "Cyber shared-syntax adoption waits for the Universal grammar ownership decision."
+    },
+    {
+      "from": "WP/cyberskills-parity-plan/CP03",
+      "to": "WP/universal-language-enforcement-plan/UL04",
+      "kind": "depends-on",
+      "reason": "Cyber fact demand consumes the Universal facts and parse-honesty contract."
+    },
+    {
+      "from": "WP/cyberskills-parity-plan/CP06",
+      "to": "WP/universal-language-enforcement-plan/UL07",
+      "kind": "depends-on",
+      "reason": "Cyber engine consumers use the bounded reusable tool-adapter contract."
+    },
+    {
+      "from": "WP/cyberskills-parity-plan/CP12",
+      "to": "WP/universal-language-enforcement-plan/UL13",
+      "kind": "depends-on",
+      "reason": "Cyber cross-file predicates require the graph and semantic provider seam."
+    },
+    {
+      "from": "WP/rust-mjs-parity-retirement-plan/RM08",
+      "to": "WP/rust-mjs-parity-retirement-plan/RM02",
+      "kind": "depends-on",
+      "reason": "Parity adjudication waits for the CLI/scanner oracle."
+    },
+    {
+      "from": "WP/rust-mjs-parity-retirement-plan/RM08",
+      "to": "WP/rust-mjs-parity-retirement-plan/RM03",
+      "kind": "depends-on",
+      "reason": "Parity adjudication waits for the MCP oracle."
+    },
+    {
+      "from": "WP/rust-mjs-parity-retirement-plan/RM08",
+      "to": "WP/rust-mjs-parity-retirement-plan/RM04",
+      "kind": "depends-on",
+      "reason": "Parity adjudication waits for config/rule/route/proof evidence."
+    },
+    {
+      "from": "WP/rust-mjs-parity-retirement-plan/RM08",
+      "to": "WP/rust-mjs-parity-retirement-plan/RM05",
+      "kind": "depends-on",
+      "reason": "Parity adjudication waits for coordination evidence."
+    },
+    {
+      "from": "WP/rust-mjs-parity-retirement-plan/RM08",
+      "to": "WP/rust-mjs-parity-retirement-plan/RM06",
+      "kind": "depends-on",
+      "reason": "Parity adjudication waits for install/harness evidence."
+    },
+    {
+      "from": "WP/rust-mjs-parity-retirement-plan/RM08",
+      "to": "WP/rust-mjs-parity-retirement-plan/RM07",
+      "kind": "depends-on",
+      "reason": "Parity adjudication waits for CI/hook/dogfood evidence."
+    }
+  ],
+  "lifecycleOverrides": {
+    "WP/cyberskills-parity-plan/CP00": {
+      "state": "done",
+      "source": "PROGRAM_STATUS.md accepted Cyber truth ledger and batches 1-29"
+    },
+    "WP/cyberskills-parity-plan/CP01": {
+      "state": "done",
+      "source": "PROGRAM_STATUS.md accepted Cyber source reconciliation through batch-29"
+    }
+  },
+  "extraNodes": [
+    {
+      "id": "WP/enforcer-graph-bootstrap",
+      "kind": "workpack",
+      "title": "Repo-owned overall engineering graph bootstrap",
+      "path": "docs/program-engineering-graph.json",
+      "state": "done",
+      "parent": "GOAL/enforcer-system",
+      "metadata": {
+        "scope": "cross-program Enforcer system graph; CyberSkills remains a subordinate graph",
+        "subgraphs": ["docs/engineering-graph.json"],
+        "completionEvidence": {
+          "mergeCommit": "2ba966a4379398ecc20fdc8f51a3c60e05945cb1",
+          "checks": ["program-graph tests 6/6", "graph validate 0 issues", "route PASS", "source-shape 0 findings", "scan 0 findings"]
+        },
+        "completionContract": {
+          "requiredPaths": [
+            "docs/program-engineering-graph.json",
+            "scripts/program-graph.mjs",
+            "tests/program-graph.test.mjs",
+            "docs/PROGRAM_GRAPH.md",
+            "AGENTS.md"
+          ],
+          "requiredNodes": []
+        }
+      }
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "ARTIFACT/program-status",
+      "title": "Boss program status dashboard",
+      "path": "docs/plans/PROGRAM_STATUS.md",
+      "kind": "dashboard"
+    }
+  ],
+  "policies": {
+    "declaredDone": ["ACCEPTED", "DONE", "CLOSED"],
+    "declaredActive": ["ACTIVE", "ACTIVE-ORACLE"],
+    "declaredPaused": ["PAUSED", "HOLD"],
+    "declaredReady": ["READY", "READY-AUDIT", "DESIGN-READY", "DECISION-READY"],
+    "hardEdgeKinds": ["depends-on"],
+    "pathMustBeRelative": true,
+    "unknownImportedStatusIsNotDone": true,
+    "ciLifecycle": {
+      "watchRequired": true,
+      "headPinning": "exact-pr-head",
+      "mergeGate": "all-required-checks-success",
+      "mergeAction": "merge",
+      "deleteBranch": false,
+      "failureAction": "report-exact-check-and-stop",
+      "stopOn": [
+        "in_progress",
+        "failure",
+        "cancelled",
+        "timed_out",
+        "action_required",
+        "stale",
+        "unstable",
+        "unknown"
+      ],
+      "postMerge": [
+        "verify-pr-merge-commit",
+        "fetch-canonical-rust-build",
+        "record-graph-lifecycle-evidence",
+        "release-claims"
+      ],
+      "doesNotProve": [
+        "green CI proves only the tested commit and changed packet gates",
+        "green CI does not prove native CyberSkills implementation, overall parity, or security outcomes"
+      ]
+    }
+  }
+}

@@ -1,9 +1,9 @@
 //! Hard tests for GLSL, onboarded by REUSING C's own generic
 //! spec-table engine machinery verbatim
-//! ([`enforcer_memory::languages::generic::parse_glsl`]) -- the baseline's
+//! ([`enforcer_syntax::languages::generic::parse_glsl`]) -- the baseline's
 //! own `lang_specs.c` row reuses C's node-type arrays byte-for-byte for
 //! this language (see
-//! [`enforcer_memory::languages::spec::LangSpec::glsl`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::glsl`]'s own doc
 //! comment), so these tests assert the same C-family shapes
 //! `tests/unit_languages_c.rs` already covers, plus the GLSL-specific
 //! finding that shader storage qualifiers (`uniform`/`in`/`out`/
@@ -11,8 +11,8 @@
 //! contained parse-error nodes that never affect function/struct/call
 //! extraction (this crate's entire GLSL extraction scope).
 
-use enforcer_memory::languages::generic::parse_glsl;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_glsl;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_glsl";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

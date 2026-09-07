@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-63",
+  "family": "IF/red-teaming",
+  "baselineCommit": "8279d5da51a0c19e59f14a2c6f9905c99d1b230e",
+  "scope": "Retain advisory and manual authorized-red-team content from immutable CP08 evidence; native predicates are limited to static supplied scope, authorization, identity, directory, attack-path, technique, infrastructure, telemetry, safety, owner, stop-condition, and evidence manifests; no live credential access, C2, persistence, reconnaissance, exploit delivery, lateral movement, endpoint, network, or production execution.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "abusing-dpapi-for-credential-access",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/abusing-dpapi-for-credential-access/SKILL.md", "sha256": "c40816ddec253d2db7a8392ca9c48ec1e6f50e3c51ca040a36938396379b7e13", "availability": "available", "license": "Apache-2.0", "anchors": ["# Abusing DPAPI for Credential Access:L23"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-52/decomposition.json", "artifactSha256": "f4fb49c294289ade67b5327106ff1aa303c23264b4d4fb8b89c95060ca92d0f2"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive credential-protection, DPAPI risk, evidence, and authorized-assessment guidance.", "notProved": ["No credential extraction, key recovery, account access, or compromise outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, identity and host ownership, legal/privacy review, scope, stop conditions, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["No human credential, scope, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "abusing-shadow-credentials-for-privesc",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/abusing-shadow-credentials-for-privesc/SKILL.md", "sha256": "dfa41cec76f10e0dae86311024aadae408597d83b74386a0f0937e32f5342e09", "availability": "available", "license": "Apache-2.0", "anchors": ["# Abusing Shadow Credentials for Privilege Escalation:L23"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-52/decomposition.json", "artifactSha256": "f4fb49c294289ade67b5327106ff1aa303c23264b4d4fb8b89c95060ca92d0f2"},
+      "advisory": {"status": "retained", "purpose": "Retain defensive identity, certificate, directory, privilege-risk, evidence, and remediation guidance.", "notProved": ["No shadow credential creation, privilege escalation, identity compromise, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, directory and identity ownership, legal/privacy review, scope, stop conditions, analyst validation, revocation, containment, remediation, and disclosure decisions.", "notProved": ["No human identity, revocation, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "building-c2-infrastructure-with-sliver-framework",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-c2-infrastructure-with-sliver-framework/SKILL.md", "sha256": "d2e8215bf87e3f0f99d3fcefce273ca5d6a6eb225db7f496ba9ecd02fd2f0f74", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building C2 Infrastructure with Sliver Framework:L37"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-26/decomposition.json", "artifactSha256": "fbe5db5dd64c3a4440007ffd7f340d5e89bbcdefb4dc891585aff8015a53f437"},
+      "advisory": {"status": "retained", "purpose": "Retain C2 architecture, traffic-analysis, safety, telemetry, and defensive detection guidance.", "notProved": ["No C2 construction, beaconing, traffic, evasion, attribution, or operational outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, infrastructure ownership, legal/safety review, network scope, stop conditions, analyst validation, containment, rollback, and disclosure decisions.", "notProved": ["No human infrastructure, network, containment, rollback, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "building-c2-redirector-infrastructure",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-c2-redirector-infrastructure/SKILL.md", "sha256": "c60077de210ad413bd3ac378fbe574ebfe080aadca0174b839b198668c1aa648", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building C2 Redirector Infrastructure:L24"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-26/decomposition.json", "artifactSha256": "fbe5db5dd64c3a4440007ffd7f340d5e89bbcdefb4dc891585aff8015a53f437"},
+      "advisory": {"status": "retained", "purpose": "Retain redirector architecture, routing, traffic-analysis, safety, telemetry, and defensive infrastructure guidance.", "notProved": ["No redirector, routing, live beaconing, evasion, attribution, or operational outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, network and host ownership, legal/safety review, scope, stop conditions, analyst validation, containment, rollback, and disclosure decisions.", "notProved": ["No human infrastructure, routing, containment, rollback, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "building-red-team-c2-infrastructure-with-havoc",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-red-team-c2-infrastructure-with-havoc/SKILL.md", "sha256": "ec141e88be91eab1681ab2711a76bf14f9985b07a0ba75ee495a9185771aa859", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Red Team C2 Infrastructure with Havoc:L40"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-26/decomposition.json", "artifactSha256": "fbe5db5dd64c3a4440007ffd7f340d5e89bbcdefb4dc891585aff8015a53f437"},
+      "advisory": {"status": "retained", "purpose": "Retain C2 planning, configuration review, traffic-analysis, safety, telemetry, and defensive response guidance.", "notProved": ["No Havoc construction, execution, beaconing, evasion, attribution, or operational outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, infrastructure ownership, legal/safety review, network scope, stop conditions, analyst validation, containment, rollback, and disclosure decisions.", "notProved": ["No human C2, network, containment, rollback, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "coercing-authentication-with-coercer-petitpotam",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/coercing-authentication-with-coercer-petitpotam/SKILL.md", "sha256": "984eab0143d08f00ce2e74b1935c9beaa629710f56a82ebb697efd184b8eb81e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Coercing Authentication with Coercer and PetitPotam:L23"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-55/decomposition.json", "artifactSha256": "0e7ea377341afe2f35a52a5e1f1e3976202f6936fe71f3e4c42a3046e59c3ca9"},
+      "advisory": {"status": "retained", "purpose": "Retain authentication-coercion risk, hardening, telemetry, evidence, and defensive remediation guidance.", "notProved": ["No coercion, authentication relay, credential exposure, compromise, or detection outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, identity and host ownership, legal/safety review, scope, stop conditions, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["No human coercion, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "conducting-domain-persistence-with-dcsync",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-domain-persistence-with-dcsync/SKILL.md", "sha256": "84955f1bac4e16f71d9b45110f9ee02c36863ffb9740ded0eafc871fd9a8339e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Domain Persistence with DCSync:L34"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-55/decomposition.json", "artifactSha256": "0e7ea377341afe2f35a52a5e1f1e3976202f6936fe71f3e4c42a3046e59c3ca9"},
+      "advisory": {"status": "retained", "purpose": "Retain directory replication, persistence risk, identity protection, telemetry, evidence, and defensive remediation guidance.", "notProved": ["No DCSync, directory access, credential extraction, persistence, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, directory ownership, legal/privacy review, scope, stop conditions, analyst validation, revocation, containment, remediation, and disclosure decisions.", "notProved": ["No human directory, revocation, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "conducting-full-scope-red-team-engagement",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-full-scope-red-team-engagement/SKILL.md", "sha256": "a38ff44824e0d6f9246261e7b5cc6e950101db21380817b5af759147a32fb429", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Full-Scope Red Team Engagement:L36"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-55/decomposition.json", "artifactSha256": "0e7ea377341afe2f35a52a5e1f1e3976202f6936fe71f3e4c42a3046e59c3ca9"},
+      "advisory": {"status": "retained", "purpose": "Retain engagement planning, scope, rules of engagement, safety, evidence, reporting, and defensive improvement guidance.", "notProved": ["No engagement authorization, execution, exploitability, detection efficacy, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, named owner, asset scope, legal/safety review, rules of engagement, stop conditions, notification, containment, remediation, and disclosure decisions.", "notProved": ["No human engagement, safety, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "conducting-internal-reconnaissance-with-bloodhound-ce",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-internal-reconnaissance-with-bloodhound-ce/SKILL.md", "sha256": "57600785700d52180ffb8f77bf0433a45671a1e5f0ff12cee4d2e257af927882", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Internal Reconnaissance with BloodHound CE:L35"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-55/decomposition.json", "artifactSha256": "0e7ea377341afe2f35a52a5e1f1e3976202f6936fe71f3e4c42a3046e59c3ca9"},
+      "advisory": {"status": "retained", "purpose": "Retain directory graph, attack-path review, identity risk, evidence, uncertainty, and defensive hardening guidance.", "notProved": ["No directory collection, graph truth, attack path, privilege escalation, attribution, or security outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, directory ownership, legal/privacy review, collection scope, stop conditions, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["No human collection, attack-path, containment, remediation, or disclosure decision is proved."]}
+    },
+    {
+      "catalogId": "conducting-pass-the-ticket-attack",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/conducting-pass-the-ticket-attack/SKILL.md", "sha256": "33dc713d928260e3ba15cb733e5136eabf263cc08d6e6e260bdfda8e0f659e3b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Conducting Pass-the-Ticket Attack:L35"]},
+      "cp08Evidence": {"artifactPath": "proof/cyberskills/cp08/batch-56/decomposition.json", "artifactSha256": "5731959bc5bf97804672c8a5d360bc8f54aa1b0e6c0670d4c9ee8fab7a5aabb1"},
+      "advisory": {"status": "retained", "purpose": "Retain ticket-based identity risk, authentication telemetry, evidence, hardening, and defensive response guidance.", "notProved": ["No ticket use, credential replay, lateral movement, compromise, attribution, or detection outcome is proved."]},
+      "manual": {"status": "retained", "purpose": "Require written authorization, identity and host ownership, legal/privacy review, scope, stop conditions, analyst validation, revocation, containment, remediation, and disclosure decisions.", "notProved": ["No human identity, revocation, containment, remediation, or disclosure decision is proved."]}
+    }
+  ],
+  "derivedCounts": {"skills": 10, "advisoryRetained": 10, "manualRetained": 10, "nativeImplemented": 0, "executableProof": 0, "externalExecuted": 0},
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live credential access, C2, persistence, reconnaissance, exploit delivery, lateral movement, endpoint, network, directory, packet, or production execution.",
+    "No compromise, credential capture, privilege escalation, attribution, detection efficacy, containment, remediation success, safety outcome, or security outcome is proved.",
+    "This packet covers the first ten red-teaming skills as retained advisory/manual evidence only; the family remains incomplete until its final packets are retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, repositories, C2 frameworks, directory tools, credentials, endpoints, networks, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

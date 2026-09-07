@@ -1,15 +1,15 @@
 //! Hard tests for MATLAB, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_matlab`]) -- there is no
+//! ([`enforcer_syntax::languages::generic::parse_matlab`]) -- there is no
 //! bespoke `languages::matlab` extractor to prove zero-regression
 //! against, so these tests assert against the grammar-shape ground truth
-//! recorded in [`enforcer_memory::languages::spec::LangSpec::matlab`]'s
+//! recorded in [`enforcer_syntax::languages::spec::LangSpec::matlab`]'s
 //! own doc comment directly: `function_definition`'s quirk-claimed
 //! name/body walk, `class_definition` DEFINES nesting, `function_call`
 //! vs. unparenthesized `command`-syntax calls, and branch recognition.
 
-use enforcer_memory::languages::generic::parse_matlab;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_matlab;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -19,7 +19,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_matlab";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

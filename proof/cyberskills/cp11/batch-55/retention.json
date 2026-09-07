@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-55",
+  "family": "IF/penetration-testing",
+  "baselineCommit": "57c1cdb91b57fbe463125c15b5532b27bbaf7c16",
+  "scope": "Retain advisory and manual content for the second penetration-testing packet from immutable CP08 evidence; native predicates are limited to static supplied authorization, scope, target, asset, route, protocol, finding, severity, ownership, safety, and evidence manifests; no live endpoint, host, cloud, device, packet, browser, server, credential, session, exploit, payload, scanner, wireless interface, production infrastructure, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "exploiting-sql-injection-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-sql-injection-vulnerabilities/SKILL.md",
+        "sha256": "7f8b8d773ef413c2af08d8993be9fc8e2fafbb98ca45701638ad303c5b370ad6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Exploiting SQL Injection Vulnerabilities:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-62/decomposition.json",
+        "artifactSha256": "57b725c6fb1aa6777e36474888053a306bc60e4654cd111a0b26dc5ed5c2aa16"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain parameterization, input validation, query review, secure development, defensive testing, and remediation guidance.",
+        "notProved": ["Guidance is not live exploitability, query execution, data access, finding validity, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application and data ownership, legal/privacy/ethics/safety review, bounded scope, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No authorization, payload, database access, data extraction, containment, or remediation decision is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-attack-surface-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-attack-surface-management/SKILL.md",
+        "sha256": "425776aa4f183491d9241f0954152cf0744010067bbd7bfeadaf504796e88085",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Attack Surface Management:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-66/decomposition.json",
+        "artifactSha256": "4f7cae0bfe4d287767ddc758df9fcd729a6e879f93376818cccf55d4503e3f9c"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain asset governance, exposure review, ownership, inventory hygiene, prioritization, and defensive remediation guidance.",
+        "notProved": ["Guidance is not asset discovery, surface completeness, exposure truth, vulnerability truth, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and domain ownership, legal/privacy/safety review, data handling, bounded scope, analyst validation, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No discovery, inventory authority, exposure finding, owner approval, remediation, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "moving-laterally-with-netexec",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/moving-laterally-with-netexec/SKILL.md",
+        "sha256": "f190284de77c0b80813f5d42df4793a2ab82af1912d69362794aeea154a288fc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Moving Laterally with NetExec:L24"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-72/decomposition.json",
+        "artifactSha256": "59869f0a621f4eb61bd1c68ad48da9a9ee00098731becb3d46a2be43d15fa1e1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authorized lateral-movement assessment, segmentation, credential hygiene, remote-service hardening, and defensive validation guidance.",
+        "notProved": ["Guidance is not host access, credential validity, enumeration, remote execution, compromise, or containment effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset ownership, legal/privacy/safety approval, isolated scope, stop conditions, analyst validation, and remediation decisions.",
+        "notProved": ["No NetExec, SMB, WinRM, LDAP, MSSQL, credential, endpoint, session, lateral-movement, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-active-directory-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-active-directory-penetration-test/SKILL.md",
+        "sha256": "d9e8820603312311bba35baf84c163a2169254b71d764ceb2ac54dbc818bd934",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Active Directory Penetration Test:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-72/decomposition.json",
+        "artifactSha256": "59869f0a621f4eb61bd1c68ad48da9a9ee00098731becb3d46a2be43d15fa1e1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authorized directory assessment, ACL and trust review, attack-path analysis, hardening, and defensive validation guidance.",
+        "notProved": ["Guidance is not directory exposure, enumeration, privilege escalation, credential extraction, compromise, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, domain ownership, legal/privacy/safety review, scope and stop conditions, analyst validation, containment, and remediation decisions.",
+        "notProved": ["No domain controller, Active Directory, BloodHound, Kerberos, ADCS, DCSync, credential, endpoint, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-binary-exploitation-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-binary-exploitation-analysis/SKILL.md",
+        "sha256": "f3a9f7d3b775dc1d4fb51b6f00c424a5dbbfed173fcc64fd335d8555bbdee8b2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Binary Exploitation Analysis:L28"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json",
+        "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain secure-code review, binary-analysis, mitigation, vulnerability triage, and defensive remediation guidance.",
+        "notProved": ["Guidance is not binary behavior, memory behavior, crash, exploitability, payload delivery, or code execution."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, sample ownership, legal/safety review, isolated analysis scope, analyst validation, containment, and disclosure decisions.",
+        "notProved": ["No debugger, disassembler, compiler, exploit framework, binary, process, host, runtime, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-external-network-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-external-network-penetration-test/SKILL.md",
+        "sha256": "7810b346bdde515919949c7c29406ef265ed08365e7087253e485e0ef1c1496c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing External Network Penetration Test:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-51/decomposition.json",
+        "artifactSha256": "aa7a6fc8d699cc03de79a31192c35e1c97cbdd8929c2336ceade17d581864239"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive external assessment, exposure management, scope control, authorization, evidence, reporting, and remediation guidance.",
+        "notProved": ["Guidance is not live external discovery, service access, exploitability, finding validity, attribution, or security outcome."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, Internet-facing asset ownership, legal/safety/privacy review, data boundaries, stop conditions, analyst validation, severity, containment, rollback, recovery, and disclosure decisions.",
+        "notProved": ["No Internet network, host, service, scanner, packet, credential, exploit, session, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-iot-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-iot-security-assessment/SKILL.md",
+        "sha256": "f55327f225ac5a523ffbac6e03368c8deea96172cb1eb0cadcbb1fc130225ba9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing IoT Security Assessment:L35"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-76/decomposition.json",
+        "artifactSha256": "fef0536670b4a4fb7b402f0766da2135a15a34d31cc26315aca4a35b66769b39"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain IoT threat modeling, device hardening, segmentation, safety, firmware review, and defensive assessment guidance.",
+        "notProved": ["Guidance is not device discovery, firmware state, network access, IoT vulnerability, compromise, or control effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device ownership, legal/privacy/ethics/safety review, bounded scope, stop conditions, analyst validation, and remediation decisions.",
+        "notProved": ["No IoT device, radio, gateway, scanner, protocol, endpoint, network, production, or safety action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-privilege-escalation-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-privilege-escalation-assessment/SKILL.md",
+        "sha256": "f2f2f403b57075150d223ca43c58a613da44cafb4b0f1ce44025166e0b12f56b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Privilege Escalation Assessment:L40"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-77/decomposition.json",
+        "artifactSha256": "d9f9a9708fd8337b1442e85b44e57ff030e166af4cf7dafc447c59583aa498f6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain OS hardening, service and permission review, container and cloud controls, detection, rollback, and defensive remediation guidance.",
+        "notProved": ["Guidance is not an escalation path, credential exposure, privilege gain, detection efficacy, finding validity, or business impact."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, host ownership, legal/safety/data review, bounded scope, stop conditions, analyst validation, rollback, containment, and remediation decisions.",
+        "notProved": ["No host, container, Kubernetes, cloud metadata, credential, endpoint, exploit, privilege change, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-thick-client-application-penetration-test",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-thick-client-application-penetration-test/SKILL.md",
+        "sha256": "7149ad678c2fb057773f1b7556f99cc693f290d0862704173410eb6f883807b8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Thick Client Application Penetration Test:L40"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-79/decomposition.json",
+        "artifactSha256": "dbc9422fc04edceb306c4f80fee5be0380cd830f1a2be95a1d8acec471c1e0ae"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain desktop-application hardening, binary review, certificate pinning, secure storage, process monitoring, and defensive testing guidance.",
+        "notProved": ["Guidance is not client behavior, memory state, dynamic analysis, traffic, credential exposure, vulnerability, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, application and host ownership, legal/privacy/safety review, test scope, stop conditions, analyst validation, cleanup, and remediation decisions.",
+        "notProved": ["No client, process, memory, endpoint, network, debugger, proxy, exploit, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-vulnerability-scanning-with-nessus",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-vulnerability-scanning-with-nessus/SKILL.md",
+        "sha256": "8f76d3fb61eabdaf505fd2223ff9b19916747b0920db22279b5f25c43a3806e5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Vulnerability Scanning with Nessus:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-80/decomposition.json",
+        "artifactSha256": "2382fe1639cf1de5e723bbee340ad64b4c348530e9b43ee84bc630e808d1d924"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain vulnerability scanning, asset hygiene, severity review, patching, maintenance-window, and defensive assessment guidance.",
+        "notProved": ["Guidance is not vulnerability truth, scan result, exploitability, CVSS priority truth, asset exposure, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset ownership, legal and maintenance-window review, severity validation, stop conditions, remediation, and disclosure decisions.",
+        "notProved": ["No Nessus scan, scanner, host, network, credential, CMDB, ticket, finding, or production action is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, host, cloud, device, packet, browser, server, credential, session, exploit, payload, scanner, wireless interface, or production action is proved.",
+    "No exploitability, credential capture, compromise, attribution, detection efficacy, remediation success, safety outcome, or security outcome is proved.",
+    "This packet contains the second 10 penetration-testing skills; the remaining 3 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

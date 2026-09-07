@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-60",
+  "family": "IF/purple-team",
+  "baselineCommit": "389a87c774888454743524cd9addc27de502cd42",
+  "scope": "Retain advisory and manual purple-team content from immutable CP08 evidence; native predicates are limited to static supplied emulation-plan, technique, control, telemetry, scope, authorization, owner, analyst, stop-condition, and evidence manifests; no live endpoint, cloud, host, device, packet, production, or external-service execution.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "performing-purple-team-atomic-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-purple-team-atomic-testing/SKILL.md",
+        "sha256": "be2bb94082c65abca9492938020e498b80d0e1e637f278411f2329a4d522e1aa",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Purple Team Atomic Testing:L47"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-77/decomposition.json",
+        "artifactSha256": "d9f9a9708fd8337b1442e85b44e57ff030e166af4cf7dafc447c59583aa498f6"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain bounded adversary-emulation planning, control validation, telemetry review, analyst uncertainty, safety, and defensive improvement guidance.",
+        "notProved": [
+          "Guidance is not execution and does not prove control effectiveness, telemetry completeness, detection efficacy, or remediation success."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, named owner, scope, legal and safety review, stop conditions, data handling, analyst validation, notification, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, analyst decision, live emulation, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 1,
+    "advisoryRetained": 1,
+    "manualRetained": 1,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, cloud, host, device, packet, production, or external-service execution, exploit delivery, credential capture, or compromise outcome.",
+    "No control effectiveness, telemetry completeness, detection efficacy, attribution, remediation success, safety outcome, or security outcome is proved.",
+    "This packet covers the purple-team skill as retained advisory/manual evidence only; the family is not natively implemented or executable-proof complete.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, repositories, emulation engines, and production systems are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

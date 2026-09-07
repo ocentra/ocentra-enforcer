@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-02",
+  "family": "IF/ai-security",
+  "baselineCommit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+  "scope": "Retain advisory and manual content for the remaining four deterministic AI-security packet skills from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "red-teaming-llms-with-garak",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/red-teaming-llms-with-garak/SKILL.md",
+        "sha256": "f0e3aec650e4b5ce2356ee4ce35533df7ef195d19226859f285eb22fa3f81145",
+        "license": "Apache-2.0",
+        "anchors": ["# Red-Teaming LLMs with garak:L24"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-20/decomposition.json",
+        "artifactSha256": "69fce732bcf4e3a5b31e461c3e4d6bd5b2d860501a93d1b2984c439619ff3a9d"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authorized LLM probe planning, model-risk interpretation, defensive testing, and remediation guidance.",
+        "notProved": ["Guidance is not model execution and does not prove probe validity, model behavior, or resistance to attack."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, model and provider ownership, legal/privacy/ethics review, credential and data boundaries, safety stop conditions, analyst validation, and disclosure decisions.",
+        "notProved": ["No human authorization, live probe, model judgment, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "securing-agentic-ai-tool-invocation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-agentic-ai-tool-invocation/SKILL.md",
+        "sha256": "92989526f69a2ce9bab565c322686a3126750a183580db70857149daa66b5bc0",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Agentic AI Tool Invocation:L23"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-20/decomposition.json",
+        "artifactSha256": "69fce732bcf4e3a5b31e461c3e4d6bd5b2d860501a93d1b2984c439619ff3a9d"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain tool trust, authorization, schema validation, least privilege, provenance, isolation, review, and response guidance.",
+        "notProved": ["Guidance is not agent or tool execution and does not prove authorization enforcement, tool safety, or model behavior."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization and scope, agent/tool ownership, legal/privacy review, credential and data boundaries, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No human tool approval, live agent invocation, credential use, containment, remediation, rollback, or disclosure decision is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-for-system-prompt-leakage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-for-system-prompt-leakage/SKILL.md",
+        "sha256": "3755ca9c9d01c6c58b4631f1a9db75696f8ca33a366d47b98b90d2bc17fb6167",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing for System Prompt Leakage:L23"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-81/decomposition.json",
+        "artifactSha256": "ff701913c6bad304bcf96c60eba0865b71d51e80f9a6f446fa7105839a4072cc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain prompt confidentiality, instruction hierarchy, tool least privilege, output review, red-team planning, and defensive AI guidance.",
+        "notProved": ["Guidance is not inference and does not prove prompt leakage, model safety, finding validity, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, model and prompt ownership, legal/privacy review, secret handling, safety scope, stop conditions, analyst validation, and disclosure decisions.",
+        "notProved": ["No human authorization, live model test, prompt extraction, secret disclosure, containment, remediation, or AI-security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "testing-prompt-injection-in-rag-pipelines",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-prompt-injection-in-rag-pipelines/SKILL.md",
+        "sha256": "ab5d167bbb09c1827c5ef011ce0d78f199f4c166b95796d24b6adb8782248f7b",
+        "license": "Apache-2.0",
+        "anchors": ["# Testing Prompt Injection in RAG Pipelines:L23"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-82/decomposition.json",
+        "artifactSha256": "629bc5a4eea52edf1a187ed53f59100b8a7c142370047d60908e097f33755d94"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain retrieval isolation, instruction hierarchy, source trust, tool least privilege, output review, and defensive AI testing guidance.",
+        "notProved": ["Guidance is not inference and does not prove injection resistance, retrieval isolation, secret safety, or remediation effectiveness."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, model and data ownership, legal/privacy review, secret handling, safety scope, stop conditions, analyst validation, and disclosure decisions.",
+        "notProved": ["No human authorization, live RAG or model test, prompt extraction, tool abuse, containment, remediation, or AI-security outcome is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 4,
+    "advisoryRetained": 4,
+    "manualRetained": 4,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "This packet retains advisory/manual content only and does not promote CP08 decomposition to native implementation or executable proof.",
+    "No model, agent, tool, prompt, RAG index, red-team runtime, telemetry, endpoint, provider, cloud, or production authority was executed.",
+    "No exploit, credential, detection efficacy, attribution, remediation, safety, privacy, or security outcome is proved.",
+    "The protected vendor deletion remains excluded and was not read, materialized, hashed, or counted as eligible coverage.",
+    "External repositories and tools remain reference/parity inputs only; this retention packet is not an external adapter or live integration."
+  ]
+}

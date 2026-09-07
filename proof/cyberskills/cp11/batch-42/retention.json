@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-42",
+  "family": "IF/malware-analysis",
+  "baselineCommit": "5c86bb2d3cfd88952762f466fc049ed9360021d8",
+  "scope": "Retain advisory and manual content for the deterministic third malware-analysis packet from immutable CP08 evidence; no native implementation, live sample execution, detonation, reverse engineering, attribution, endpoint, network, sandbox, scanner, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "deobfuscating-javascript-malware",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deobfuscating-javascript-malware/SKILL.md",
+        "sha256": "c398220aa65995ae0dac16fed620d103679da6333c7807b2e276fcdc82452045",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Deobfuscating JavaScript Malware:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-30/decomposition.json",
+        "artifactSha256": "c3c8418ba91f63f785155889a354c8139cbba725bb89410733c4a710d4fe5fde"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "deobfuscating-powershell-obfuscated-malware",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deobfuscating-powershell-obfuscated-malware/SKILL.md",
+        "sha256": "68584b7ed6f68fddfa1822113c152772169b6669641ae108f5f975a80d2a8bec",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Deobfuscating PowerShell Obfuscated Malware:L37"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-30/decomposition.json",
+        "artifactSha256": "c3c8418ba91f63f785155889a354c8139cbba725bb89410733c4a710d4fe5fde"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-process-injection-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-process-injection-techniques/SKILL.md",
+        "sha256": "ba4c5a849c88ec19a42b09eb195aa28859023ab7977722b13b2640ec480f5f19",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Process Injection Techniques:L40"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-rootkit-activity",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-rootkit-activity/SKILL.md",
+        "sha256": "dd8298e54723b70a73f8bd730d76969bec6a5171747c58949c7f635883fa1125",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Rootkit Activity:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-12/decomposition.json",
+        "artifactSha256": "bb8dfde4dff8786b08a57541aa6542b96bcf3d739a1ad8ad488eb4b7ea596e05"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "extracting-config-from-agent-tesla-rat",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/extracting-config-from-agent-tesla-rat/SKILL.md",
+        "sha256": "94e69527da11f000ced0a2ed5252a633209057d3e276b554eeacadbd08a41316",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Extracting Config from Agent Tesla RAT:L39"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "extracting-iocs-from-malware-samples",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/extracting-iocs-from-malware-samples/SKILL.md",
+        "sha256": "41eec5442e403f5f249a5d5bdd93f40b8ced5f06b54df9508a92fbd312f14fc5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Extracting IOCs from Malware Samples:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-30/decomposition.json",
+        "artifactSha256": "c3c8418ba91f63f785155889a354c8139cbba725bb89410733c4a710d4fe5fde"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-automated-malware-analysis-with-cape",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-automated-malware-analysis-with-cape/SKILL.md",
+        "sha256": "9306134d73836ac3a4d93fd224fe1cb8bba167d4a527d645e39db3f8bb704200",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Automated Malware Analysis with CAPE:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-30/decomposition.json",
+        "artifactSha256": "c3c8418ba91f63f785155889a354c8139cbba725bb89410733c4a710d4fe5fde"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-dynamic-analysis-with-any-run",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-dynamic-analysis-with-any-run/SKILL.md",
+        "sha256": "6101faecf73a65b7ccca571726d55b98e873180ae9d35a642b6ee764a04fe34c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Dynamic Analysis with ANY.RUN:L40"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-74/decomposition.json",
+        "artifactSha256": "3bcb86f48ec982e443eb42ede1d4d60c34bdf15543f4b1353f70aa3bce181ffe"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-firmware-malware-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-firmware-malware-analysis/SKILL.md",
+        "sha256": "744a833148a3c02e3108c2cf7f78f25b236500d9bc8dc108858c754ff36bcc34",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Firmware Malware Analysis:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-malware-triage-with-yara",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-malware-triage-with-yara/SKILL.md",
+        "sha256": "f30e2157d784a8bb171037242e588145366914c53a3f707842344959fc4216c1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Malware Triage with YARA:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-30/decomposition.json",
+        "artifactSha256": "c3c8418ba91f63f785155889a354c8139cbba725bb89410733c4a710d4fe5fde"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware analysis, deobfuscation, process/rootkit, IOC, firmware, triage, and dynamic-analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live malware execution, detonation, reverse engineering, analysis, attribution, endpoint, network, sandbox, scanner, or production execution is proved.",
+    "No sample validity, family attribution, persistence, exploitability, detection efficacy, remediation success, legal conclusion, privacy conclusion, or security outcome is proved.",
+    "This packet contains malware-analysis skills 21 through 30; the remaining 8 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

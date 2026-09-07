@@ -1,16 +1,16 @@
 //! Hard tests for HTML, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_html`]) -- grammar:
+//! ([`enforcer_syntax::languages::generic::parse_html`]) -- grammar:
 //! `tree-sitter-html` 0.23.2. Matches the baseline's own fully nominal
 //! row: no func/class/call/import concept modeled here at all, and the
 //! baseline's own `<script>`-embedded-JS-import reparse is explicitly
-//! DEFERRED (see [`enforcer_memory::languages::generic::parse_html`]'s
+//! DEFERRED (see [`enforcer_syntax::languages::generic::parse_html`]'s
 //! own doc comment) -- these tests assert only "parses without
 //! panicking" plus the one real structural signal this crate can
 //! record, a module symbol for the file's own `document` root.
 
-use enforcer_memory::parsers::SymbolKind;
-use enforcer_memory::{languages::generic::parse_html, parsers};
+use enforcer_syntax::parsers::SymbolKind;
+use enforcer_syntax::{languages::generic::parse_html, parsers};
 use std::error::Error;
 use std::fs;
 use std::path::Path;

@@ -1,0 +1,334 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-23",
+  "family": "IF/devsecops",
+  "baselineCommit": "f7bc74275752036a1bf48771b0735d49ec2a24f6",
+  "scope": "Retain advisory and manual content for the deterministic DevSecOps packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "building-devsecops-pipeline-with-gitlab-ci",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-devsecops-pipeline-with-gitlab-ci/SKILL.md",
+        "sha256": "e35605005b2954dfcd9a5f20758b8a4238b7bd017ae80d22cc02e37aa7bfa0bc",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building DevSecOps Pipeline with GitLab CI:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json",
+        "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-aqua-security-for-container-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-aqua-security-for-container-scanning/SKILL.md",
+        "sha256": "37d6bcd5314eeda63fc292b8bc1ed6772ca37ecfae9821866aed150e922c67dd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Aqua Security for Container Scanning:L31",
+          "## Core Scanning Capabilities:L53",
+          "### Image Vulnerability Scanning:L55"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-03/decomposition.json",
+        "artifactSha256": "475b79ee85cbd84c36bb13b9e408065e2d958cbb4259260656a953e609e10511"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-code-signing-for-artifacts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-code-signing-for-artifacts/SKILL.md",
+        "sha256": "ce1d6eb5837e351f6b86540d7520b84ae0962bf853ec772ff55c7d81943dda31",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Code Signing for Artifacts:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-fuzz-testing-in-cicd-with-aflplusplus",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-fuzz-testing-in-cicd-with-aflplusplus/SKILL.md",
+        "sha256": "29ceff642a69c9e18d34e11c6a53899112f53ecf499f37264a467ef6eadbc27e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Fuzz Testing in CI/CD with AFL++:L40"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-67/decomposition.json",
+        "artifactSha256": "55d386f99df11bc9a31bbceaee9c326d17760ea2d740036f10e03a553544e930"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-github-advanced-security-for-code-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-github-advanced-security-for-code-scanning/SKILL.md",
+        "sha256": "eb11fb928c5b7cf9d033bc6bd625556730ca7c7cf213e35ee111b10ab36f964e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing GitHub Advanced Security for Code Scanning:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-infrastructure-as-code-security-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-infrastructure-as-code-security-scanning/SKILL.md",
+        "sha256": "1cbf4e495942e96150f36ae0cdc6a4d5f75c1c0ac500513c6f1ad4b80e872799",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Infrastructure as Code Security Scanning:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-68/decomposition.json",
+        "artifactSha256": "e2226d0c0dd63876748f7fd414ad8ff2d18563358dd5de54805ccb63bf234f5e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-policy-as-code-with-open-policy-agent",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-policy-as-code-with-open-policy-agent/SKILL.md",
+        "sha256": "f2fced8c007915ffac26e8ee40993991522b754c3d1f7df6079b3c1ffb85c971",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Policy as Code with Open Policy Agent:L39"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json",
+        "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-secret-scanning-with-gitleaks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-secret-scanning-with-gitleaks/SKILL.md",
+        "sha256": "b4edc041a407d5b88dc54de6085088c797cd97a63d82de605c39436346ff4cc4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Secret Scanning with Gitleaks:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json",
+        "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-secrets-scanning-in-ci-cd",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-secrets-scanning-in-ci-cd/SKILL.md",
+        "sha256": "d27c80a229695c253995fda9af2d12fac8ed04c2c4be6b2aea2ae888bd172f07",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Secrets Scanning in CI/CD:L27"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-36/decomposition.json",
+        "artifactSha256": "f0165e0a041bca60c0fa36b3d0362504e0ea61ae4c58649c10b3d0775bd3bf8f"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-semgrep-for-custom-sast-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-semgrep-for-custom-sast-rules/SKILL.md",
+        "sha256": "1f742a919e99f19d23b36aa66848e5205a4922873be5bae3e45fed84be75d411",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Semgrep for Custom SAST Rules:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-70/decomposition.json",
+        "artifactSha256": "62b18f4ecfde7c7212df459cbba430a93e0ee32b75bc456d2bd9d3b66fc6c67e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate guidance.",
+        "notProved": [
+          "Guidance is not pipeline enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, repository and workflow ownership, scope, legal and safety review, data handling, release approval, key custody, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live CI/CD operation or release outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live GitLab, GitHub Actions, Aqua, AFL++, GitHub Advanced Security, IaC scanner, Open Policy Agent, Gitleaks, Semgrep, container registry, artifact store, CI runner, deployment, endpoint, cloud, or production execution is proved.",
+    "No vulnerability truth, secret detection, signature validity, provenance validity, CI security, artifact integrity, release approval, remediation, rollback, compliance, or security outcome is proved.",
+    "The remaining eight DevSecOps skills are not included in this B01 packet and remain unretained until a later graph-selected packet.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

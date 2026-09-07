@@ -1,8 +1,8 @@
-use enforcer_memory::languages::generic::{
+use enforcer_syntax::languages::generic::{
     parse_ada, parse_apex, parse_cairo, parse_fsharp, parse_ini, parse_julia, parse_powershell,
     parse_verilog,
 };
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::parsers::SymbolKind;
 
 #[test]
 fn syntax_child_iteration_preserves_generic_language_scope_and_order() {

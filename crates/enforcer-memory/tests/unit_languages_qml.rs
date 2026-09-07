@@ -1,5 +1,5 @@
 //! Hard tests for QML onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_qml`]
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_qml`]
 //! -- language-parity wave G2.2e). QML has no pre-existing bespoke
 //! `languages::qml` extractor, so these tests assert directly against
 //! the grammar's own real shape -- both the `tree-sitter-qmljs` crate's
@@ -12,14 +12,14 @@
 //! its JS-shaped content inside a real top-level `Item { ... }`
 //! object, matching that finding.
 
-use enforcer_memory::languages::generic::parse_qml;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_qml;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

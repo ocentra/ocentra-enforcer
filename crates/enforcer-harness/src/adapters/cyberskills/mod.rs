@@ -45,3 +45,4 @@
 pub mod gate;
 pub mod recorded;
 pub mod seam;
+pub mod trivy;

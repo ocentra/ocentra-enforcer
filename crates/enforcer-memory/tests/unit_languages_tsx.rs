@@ -1,7 +1,7 @@
 //! Hard tests for TSX (TypeScript-JSX), onboarded through the generic
-//! spec-table engine's [`enforcer_memory::languages::generic::parse_tsx`]
-//! -- reuses [`enforcer_memory::languages::generic::typescript_quirks`]
-//! unchanged (see [`enforcer_memory::languages::spec::LangSpec::tsx`]'s
+//! spec-table engine's [`enforcer_syntax::languages::generic::parse_tsx`]
+//! -- reuses [`enforcer_syntax::languages::generic::typescript_quirks`]
+//! unchanged (see [`enforcer_syntax::languages::spec::LangSpec::tsx`]'s
 //! doc comment: every node-kind array is identical to plain
 //! TypeScript's), with only the grammar entry point swapped
 //! (`tree_sitter_typescript::LANGUAGE_TSX` instead of
@@ -12,8 +12,8 @@
 //! extracts identically to `unit_languages_typescript.rs`'s own
 //! TypeScript-grammar assertions.
 
-use enforcer_memory::languages::generic::parse_tsx;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_tsx;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -23,7 +23,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_tsx";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

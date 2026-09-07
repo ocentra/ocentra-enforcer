@@ -1,17 +1,17 @@
 //! Hard tests for Wolfram Language, onboarded directly through the
 //! generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_wolfram`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_wolfram`]) -- there is
 //! no bespoke `languages::wolfram` extractor to prove zero-regression
 //! against (Wolfram has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::wolfram`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::wolfram`]'s own doc
 //! comment directly: `set_delayed`'s positional (zero-field) function
 //! naming off a nested `apply` head, `apply`'s positional callee
 //! reconstruction, `Needs[...]`/`get_top`'s IMPORTS detection, and
 //! nested-definition descent into a function's own RHS.
 
-use enforcer_memory::languages::generic::parse_wolfram;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_wolfram;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_wolfram";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

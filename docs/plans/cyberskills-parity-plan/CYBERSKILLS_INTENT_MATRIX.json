@@ -1,0 +1,2126 @@
+{
+  "schemaVersion": 1,
+  "matrixKind": "cyberskills-intent-driven-execution",
+  "generatedFrom": {
+    "repositoryCommit": "5cc61c1dbd466fd3eaa806820cfe5b10bc89bed5",
+    "catalogPath": "crates/enforcer-rules/dispositions/cyberskills-disposition.json",
+    "vendorAudit": "git-object read-only; non-protected SKILL.md frontmatter and Python blobs inspected; protected path excluded",
+    "sourceLicense": "Apache-2.0",
+    "rawSubdomainFamilyCount": 46,
+    "canonicalIntentFamilyCount": 34,
+    "availableSkillCount": 816,
+    "protectedExcluded": [
+      "detecting-fileless-malware-techniques"
+    ],
+    "protectedPolicy": "sourceUnavailable; never read, restored, touched, classified, or counted eligible"
+  },
+  "pythonAudit": {
+    "method": "deterministic static inspection of non-protected git Python blobs; indicators are classification evidence, not execution proof",
+    "pythonBlobCount": 1092,
+    "skillsWithPython": 816,
+    "astParseableSkills": 815,
+    "astParseErrorSkills": 1,
+    "readIndicatorSkills": 765,
+    "writeIndicatorSkills": 695,
+    "shellOrSubprocessIndicatorSkills": 279,
+    "networkOrCloudIndicatorSkills": 327,
+    "artifactParsingIndicatorSkills": 798,
+    "externalToolOrProcessIndicatorSkills": 547,
+    "sqliteIndicatorSkills": 12
+  },
+  "proposedCapabilityTotals": {
+    "nativeTypedStatic": 137,
+    "repositoryGraph": 7,
+    "binaryForensicNetworkLiveExternal": 567,
+    "advisoryManual": 105,
+    "basis": "deterministic proposal from frontmatter/tags/inputKind/externalTool and Python inspection; not implementation status"
+  },
+  "truthBoundary": {
+    "intentClassification": "routing/audit evidence only",
+    "cp08Decomposition": "immutable evidence only; never native or proof coverage",
+    "nativeCoverage": "only catalog.records[*].implementation.native.coverage",
+    "executableProof": "only catalog.records[*].implementation.executableProof.coverage",
+    "externalEngine": "blocked/reference-only; no user-facing install or paid dependency",
+    "advisoryManual": "retained until a separate bounded packet proves a native replacement"
+  },
+  "componentPolicy": {
+    "kinds": [
+      "native-predicate",
+      "external-engine",
+      "advisory",
+      "manual"
+    ],
+    "nativePacketOwnership": "one native-predicate per skill; CP09 limit 5, CP12 limit 1",
+    "retentionPacketOwnership": "one advisory and one manual per skill in CP11 batches of 10",
+    "externalStatus": "blocked and not routed to product implementation",
+    "requiredNotProved": [
+      "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+      "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+      "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+      "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+    ]
+  },
+  "packetDerivation": {
+    "algorithm": "sort skillIds by family then catalogId; chunk native by family nativeBatchLimit and retention by 10",
+    "nativePacketId": "WP/{nativeRoute}/IF-{family}/B##",
+    "retentionPacketId": "WP/CP11/IF-{family}/B##",
+    "selection": "graph.next chooses only derived-ready packets after all hard dependencies are done or an explicit READY entry-routing gate satisfies the route; READY never promotes implementation or proof"
+  },
+  "routeQualification": {
+    "defaultNativeRoute": "CP09",
+    "repositoryGraphSkillIds": [],
+    "repositoryGraphRequirement": "Only an explicitly listed catalog ID with CP08 evidence of a repository-level predicate, a failing file-local fixture, and an approved UL13 graph relation may route to CP12. All other native predicates, including mixed families, route to CP09 typed/static packets.",
+    "qualifiedRepositoryGraphCount": 0,
+    "candidateRepositoryGraphCount": 7
+  },
+  "reuse": {
+    "typedParsing": [
+      "crates/enforcer-domain/src",
+      "crates/enforcer-lang-security/src/rules/cyberskills",
+      "crates/enforcer-security/src/boundary"
+    ],
+    "syntaxFacts": [
+      "crates/enforcer-syntax/src/parsers",
+      "crates/enforcer-syntax/src/facts",
+      "crates/enforcer-syntax/tests/fact_contract.rs"
+    ],
+    "repositoryGraph": [
+      "crates/enforcer-memory/src/code_graph.rs",
+      "crates/enforcer-memory/src/graph_schema.rs",
+      "crates/enforcer-memory/src/data_flow.rs",
+      "crates/enforcer-memory/src/resolution.rs"
+    ],
+    "evidenceHarness": [
+      "crates/enforcer-harness/src/adapters/cyberskills",
+      "crates/enforcer-harness/src/execution.rs",
+      "crates/enforcer-harness/tests/cyberskills_adapters.rs"
+    ],
+    "existingNativeRules": [
+      "crates/enforcer-lang-security/src/rules/cyberskills/registry.rs",
+      "crates/enforcer-lang-security/tests/cyberskills_corpus.rs",
+      "crates/enforcer-rules/dispositions/cyberskills-disposition.json"
+    ]
+  },
+  "familyCount": 34,
+  "skillCount": 816,
+  "families": [
+    {
+      "familyId": "IF/ai-security",
+      "subdomain": "ai-security",
+      "intent": "Assess AI models, agents, prompts, retrieval, training data, and tool invocation for security failure modes.",
+      "skillCount": 14,
+      "skillIds": [
+        "assessing-vector-and-embedding-weaknesses",
+        "auditing-mcp-servers-for-tool-poisoning",
+        "continuous-llm-red-teaming-with-promptfoo",
+        "defending-llms-with-guardrails",
+        "detecting-ai-model-prompt-injection-attacks",
+        "detecting-data-and-model-poisoning",
+        "detecting-indirect-prompt-injection",
+        "detecting-model-extraction-attacks",
+        "implementing-llm-guardrails-for-security",
+        "orchestrating-llm-attacks-with-pyrit",
+        "red-teaming-llms-with-garak",
+        "securing-agentic-ai-tool-invocation",
+        "testing-for-system-prompt-leakage",
+        "testing-prompt-injection-in-rag-pipelines"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/api-security",
+      "subdomain": "api-security",
+      "intent": "Validate API routes, schemas, requests, responses, identity, authorization, parser, origin, and rate-control contracts.",
+      "skillCount": 28,
+      "skillIds": [
+        "detecting-api-enumeration-attacks",
+        "detecting-broken-object-property-level-authorization",
+        "detecting-shadow-api-endpoints",
+        "exploiting-api-injection-vulnerabilities",
+        "exploiting-broken-function-level-authorization",
+        "exploiting-excessive-data-exposure-in-api",
+        "exploiting-jwt-algorithm-confusion-attack",
+        "implementing-api-abuse-detection-with-rate-limiting",
+        "implementing-api-gateway-security-controls",
+        "implementing-api-key-security-controls",
+        "implementing-api-rate-limiting-and-throttling",
+        "implementing-api-schema-validation-security",
+        "implementing-api-security-posture-management",
+        "implementing-api-security-testing-with-42crunch",
+        "implementing-api-threat-protection-with-apigee",
+        "performing-api-fuzzing-with-restler",
+        "performing-api-inventory-and-discovery",
+        "performing-api-rate-limiting-bypass",
+        "performing-api-security-testing-with-postman",
+        "performing-graphql-depth-limit-attack",
+        "performing-graphql-introspection-attack",
+        "performing-jwt-none-algorithm-attack",
+        "performing-soap-web-service-security-testing",
+        "testing-api-authentication-weaknesses",
+        "testing-api-for-broken-object-level-authorization",
+        "testing-api-for-mass-assignment-vulnerability",
+        "testing-oauth2-implementation-flaws",
+        "testing-websocket-api-security"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/blockchain-security",
+      "subdomain": "blockchain-security",
+      "intent": "Analyze smart-contract, transaction, wallet, token, and chain-integrity security properties from supplied artifacts.",
+      "skillCount": 2,
+      "skillIds": [
+        "analyzing-ethereum-smart-contract-vulnerabilities",
+        "auditing-foundry-smart-contract-security"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/cloud-security",
+      "subdomain": "cloud-security",
+      "intent": "Evaluate cloud identity, storage, network, workload, activity, and preventive-control configuration evidence.",
+      "skillCount": 66,
+      "skillIds": [
+        "analyzing-cloud-storage-access-patterns",
+        "analyzing-office365-audit-logs-for-compromise",
+        "auditing-aws-s3-bucket-permissions",
+        "auditing-azure-active-directory-configuration",
+        "auditing-cloud-with-cis-benchmarks",
+        "auditing-gcp-iam-permissions",
+        "auditing-kubernetes-cluster-rbac",
+        "auditing-terraform-infrastructure-for-security",
+        "building-cloud-siem-with-sentinel",
+        "conducting-cloud-penetration-testing",
+        "detecting-aws-cloudtrail-anomalies",
+        "detecting-aws-credential-exposure-with-trufflehog",
+        "detecting-aws-guardduty-findings-automation",
+        "detecting-aws-iam-privilege-escalation",
+        "detecting-azure-lateral-movement",
+        "detecting-azure-service-principal-abuse",
+        "detecting-azure-storage-account-misconfigurations",
+        "detecting-cloud-threats-with-guardduty",
+        "detecting-compromised-cloud-credentials",
+        "detecting-cryptomining-in-cloud",
+        "detecting-misconfigured-azure-storage",
+        "detecting-oauth-token-theft",
+        "detecting-s3-data-exfiltration-attempts",
+        "detecting-serverless-function-injection",
+        "detecting-shadow-it-cloud-usage",
+        "detecting-suspicious-oauth-application-consent",
+        "emulating-cloud-attacks-with-stratus-red-team",
+        "enumerating-cloud-with-cloudfox",
+        "exploiting-aws-with-pacu",
+        "implementing-aws-config-rules-for-compliance",
+        "implementing-aws-macie-for-data-classification",
+        "implementing-aws-nitro-enclave-security",
+        "implementing-aws-security-hub",
+        "implementing-aws-security-hub-compliance",
+        "implementing-azure-defender-for-cloud",
+        "implementing-cloud-dlp-for-data-protection",
+        "implementing-cloud-security-posture-management",
+        "implementing-cloud-trail-log-analysis",
+        "implementing-cloud-waf-rules",
+        "implementing-cloud-workload-protection",
+        "implementing-gcp-binary-authorization",
+        "implementing-gcp-organization-policy-constraints",
+        "implementing-gcp-vpc-firewall-rules",
+        "implementing-secrets-management-with-vault",
+        "implementing-zero-trust-in-cloud",
+        "implementing-zero-trust-network-access",
+        "managing-cloud-identity-with-okta",
+        "performing-aws-account-enumeration-with-scout-suite",
+        "performing-aws-privilege-escalation-assessment",
+        "performing-cloud-asset-inventory-with-cartography",
+        "performing-cloud-forensics-with-aws-cloudtrail",
+        "performing-cloud-log-forensics-with-athena",
+        "performing-cloud-native-forensics-with-falco",
+        "performing-cloud-native-threat-hunting-with-aws-detective",
+        "performing-cloud-penetration-testing-with-pacu",
+        "performing-gcp-penetration-testing-with-gcpbucketbrute",
+        "performing-gcp-security-assessment-with-forseti",
+        "performing-serverless-function-security-review",
+        "remediating-s3-bucket-misconfiguration",
+        "securing-api-gateway-with-aws-waf",
+        "securing-aws-iam-permissions",
+        "securing-aws-lambda-execution-roles",
+        "securing-azure-with-microsoft-defender",
+        "securing-container-registry-images",
+        "securing-kubernetes-on-cloud",
+        "securing-serverless-functions"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/compliance-governance",
+      "subdomain": "compliance-governance",
+      "intent": "Turn control frameworks, scope, assessment, exception, POA&M, and evidence requirements into typed assurance checks.",
+      "skillCount": 10,
+      "skillIds": [
+        "achieving-cmmc-level-2-compliance",
+        "conducting-cyber-risk-assessment-with-nist-800-30",
+        "executing-nist-rmf-authorization-to-operate",
+        "implementing-gdpr-data-protection-controls",
+        "implementing-hipaa-security-rule-safeguards",
+        "implementing-iso-27001-information-security-management",
+        "implementing-pci-dss-compliance-controls",
+        "managing-third-party-vendor-risk",
+        "performing-nist-csf-maturity-assessment",
+        "performing-soc2-type2-audit-preparation"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/container-security",
+      "subdomain": "container-security",
+      "intent": "Inspect container images, manifests, runtimes, Kubernetes policy, and deployment configuration for deterministic hardening facts.",
+      "skillCount": 33,
+      "skillIds": [
+        "analyzing-kubernetes-audit-logs",
+        "auditing-kubernetes-rbac-privilege-escalation",
+        "benchmarking-kubernetes-with-kube-bench",
+        "detecting-container-drift-at-runtime",
+        "detecting-container-escape-attempts",
+        "detecting-container-escape-with-falco-rules",
+        "detecting-container-runtime-threats-with-falco",
+        "detecting-privilege-escalation-in-kubernetes-pods",
+        "escaping-containers-to-host",
+        "hardening-docker-containers-for-production",
+        "hardening-docker-daemon-configuration",
+        "implementing-container-image-minimal-base-with-distroless",
+        "implementing-container-network-policies-with-calico",
+        "implementing-image-provenance-verification-with-cosign",
+        "implementing-kubernetes-network-policy-with-calico",
+        "implementing-kubernetes-pod-security-standards",
+        "implementing-network-policies-for-kubernetes",
+        "implementing-opa-gatekeeper-for-policy-enforcement",
+        "implementing-pod-security-admission-controller",
+        "implementing-rbac-hardening-for-kubernetes",
+        "implementing-runtime-security-with-tetragon",
+        "implementing-supply-chain-security-with-in-toto",
+        "performing-container-escape-detection",
+        "performing-container-security-scanning-with-trivy",
+        "performing-docker-bench-security-assessment",
+        "performing-kubernetes-cis-benchmark-with-kube-bench",
+        "performing-kubernetes-etcd-security-assessment",
+        "performing-kubernetes-penetration-testing",
+        "scanning-container-images-with-grype",
+        "scanning-docker-images-with-trivy",
+        "scanning-kubernetes-manifests-with-kubesec",
+        "securing-container-registry-with-harbor",
+        "securing-helm-chart-deployments"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/cryptography",
+      "subdomain": "cryptography",
+      "intent": "Validate algorithms, keys, certificates, protocols, randomness, signatures, and cryptographic configuration from supplied data.",
+      "skillCount": 16,
+      "skillIds": [
+        "configuring-certificate-authority-with-openssl",
+        "configuring-hsm-for-key-storage",
+        "configuring-tls-1-3-for-secure-communications",
+        "implementing-aes-encryption-for-data-at-rest",
+        "implementing-digital-signatures-with-ed25519",
+        "implementing-end-to-end-encryption-for-messaging",
+        "implementing-envelope-encryption-with-aws-kms",
+        "implementing-jwt-signing-and-verification",
+        "implementing-rsa-key-pair-management",
+        "implementing-zero-knowledge-proof-for-authentication",
+        "migrating-to-post-quantum-cryptography",
+        "performing-cryptographic-audit-of-application",
+        "performing-hardware-security-module-integration",
+        "performing-hash-cracking-with-hashcat",
+        "performing-post-quantum-cryptography-migration",
+        "performing-ssl-certificate-lifecycle-management"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/data-protection",
+      "subdomain": "data-protection",
+      "intent": "Check data classification, handling, retention, minimization, and protection-control evidence.",
+      "skillCount": 1,
+      "skillIds": [
+        "implementing-data-loss-prevention-with-microsoft-purview"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/deception-technology",
+      "subdomain": "deception-technology",
+      "intent": "Model deception assets, lures, telemetry, authorization, and response plans without claiming live engagement outcomes.",
+      "skillCount": 6,
+      "skillIds": [
+        "deploying-active-directory-honeytokens",
+        "deploying-cloud-deception-with-decoy-resources",
+        "deploying-honeytokens-and-canarytokens",
+        "designing-adversary-engagement-with-mitre-engage",
+        "implementing-deception-based-detection-with-canarytoken",
+        "implementing-network-deception-with-honeypots"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/devsecops",
+      "subdomain": "devsecops",
+      "intent": "Validate CI/CD, IaC, dependency, artifact, release, secret, provenance, and security-gate contracts.",
+      "skillCount": 18,
+      "skillIds": [
+        "building-devsecops-pipeline-with-gitlab-ci",
+        "implementing-aqua-security-for-container-scanning",
+        "implementing-code-signing-for-artifacts",
+        "implementing-fuzz-testing-in-cicd-with-aflplusplus",
+        "implementing-github-advanced-security-for-code-scanning",
+        "implementing-infrastructure-as-code-security-scanning",
+        "implementing-policy-as-code-with-open-policy-agent",
+        "implementing-secret-scanning-with-gitleaks",
+        "implementing-secrets-scanning-in-ci-cd",
+        "implementing-semgrep-for-custom-sast-rules",
+        "integrating-dast-with-owasp-zap-in-pipeline",
+        "integrating-sast-into-github-actions-pipeline",
+        "performing-container-image-hardening",
+        "performing-sca-dependency-scanning-with-snyk",
+        "performing-threat-modeling-with-owasp-threat-dragon",
+        "scanning-containers-with-trivy-in-cicd",
+        "scanning-iac-and-images-with-trivy",
+        "securing-github-actions-workflows"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/digital-forensics",
+      "subdomain": "digital-forensics",
+      "intent": "Parse supplied forensic artifacts, metadata, timelines, hashes, acquisition plans, and evidence-chain records.",
+      "skillCount": 41,
+      "skillIds": [
+        "acquiring-disk-image-with-dd-and-dcfldd",
+        "analyzing-browser-forensics-with-hindsight",
+        "analyzing-disk-image-with-autopsy",
+        "analyzing-docker-container-forensics",
+        "analyzing-email-headers-for-phishing-investigation",
+        "analyzing-linux-kernel-rootkits",
+        "analyzing-linux-system-artifacts",
+        "analyzing-lnk-file-and-jump-list-artifacts",
+        "analyzing-mft-for-deleted-file-recovery",
+        "analyzing-outlook-pst-for-email-forensics",
+        "analyzing-prefetch-files-for-execution-history",
+        "analyzing-slack-space-and-file-system-artifacts",
+        "analyzing-usb-device-connection-history",
+        "analyzing-windows-amcache-artifacts",
+        "analyzing-windows-lnk-files-for-artifacts",
+        "analyzing-windows-prefetch-with-python",
+        "analyzing-windows-registry-for-artifacts",
+        "analyzing-windows-shellbag-artifacts",
+        "building-super-timelines-with-plaso",
+        "extracting-browser-history-artifacts",
+        "extracting-credentials-from-memory-dump",
+        "extracting-windows-event-logs-artifacts",
+        "generating-forensic-timelines-with-hayabusa",
+        "investigating-ransomware-attack-artifacts",
+        "parsing-artifacts-with-eric-zimmerman-tools",
+        "performing-cloud-forensics-investigation",
+        "performing-cloud-storage-forensic-acquisition",
+        "performing-file-carving-with-foremost",
+        "performing-linux-log-forensics-investigation",
+        "performing-log-analysis-for-forensic-investigation",
+        "performing-malware-persistence-investigation",
+        "performing-memory-forensics-with-volatility3",
+        "performing-mobile-device-forensics-with-cellebrite",
+        "performing-network-forensics-with-wireshark",
+        "performing-network-packet-capture-analysis",
+        "performing-sqlite-database-forensics",
+        "performing-steganography-detection",
+        "performing-timeline-reconstruction-with-plaso",
+        "performing-windows-artifact-analysis-with-eric-zimmerman-tools",
+        "recovering-deleted-files-with-photorec",
+        "triaging-windows-with-kape"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/endpoint-security",
+      "subdomain": "endpoint-security",
+      "intent": "Analyze endpoint configuration, process/file/registry telemetry, persistence, policy, and evidence manifests.",
+      "skillCount": 17,
+      "skillIds": [
+        "configuring-host-based-intrusion-detection",
+        "configuring-windows-defender-advanced-settings",
+        "configuring-windows-event-logging-for-detection",
+        "deploying-edr-agent-with-crowdstrike",
+        "deploying-osquery-for-endpoint-monitoring",
+        "detecting-evasion-techniques-in-endpoint-logs",
+        "detecting-fileless-attacks-on-endpoints",
+        "hardening-linux-endpoint-with-cis-benchmark",
+        "hardening-windows-endpoint-with-cis-benchmark",
+        "implementing-application-whitelisting-with-applocker",
+        "implementing-disk-encryption-with-bitlocker",
+        "implementing-endpoint-dlp-controls",
+        "implementing-file-integrity-monitoring-with-aide",
+        "implementing-memory-protection-with-dep-aslr",
+        "implementing-usb-device-control-policy",
+        "performing-endpoint-forensics-investigation",
+        "performing-endpoint-vulnerability-remediation"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/hardware-firmware-security",
+      "subdomain": "hardware-firmware-security",
+      "intent": "Inspect firmware, boot, device, hardware trust, update, and supply-chain evidence without live hardware access claims.",
+      "skillCount": 6,
+      "skillIds": [
+        "analyzing-uefi-bootkit-persistence",
+        "auditing-uefi-firmware-with-chipsec",
+        "detecting-secure-boot-bypass",
+        "hunting-bootkits-in-efi-system-partition",
+        "performing-firmware-extraction-with-binwalk",
+        "validating-tpm-measured-boot-attestation"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/identity-access-management",
+      "subdomain": "identity-access-management",
+      "intent": "Validate identities, roles, entitlements, federation, authentication policy, sessions, ownership, review, and least-privilege evidence.",
+      "skillCount": 40,
+      "skillIds": [
+        "analyzing-active-directory-acl-abuse",
+        "attacking-entra-id-with-roadtools",
+        "attacking-oauth-with-device-code-phishing",
+        "auditing-entra-id-with-aadinternals",
+        "building-identity-federation-with-saml-azure-ad",
+        "building-identity-governance-lifecycle-process",
+        "building-role-mining-for-rbac-optimization",
+        "configuring-active-directory-tiered-model",
+        "configuring-ldap-security-hardening",
+        "configuring-multi-factor-authentication-with-duo",
+        "configuring-oauth2-authorization-flow",
+        "detecting-anomalous-authentication-patterns",
+        "implementing-aws-iam-permission-boundaries",
+        "implementing-azure-ad-privileged-identity-management",
+        "implementing-conditional-access-policies-azure-ad",
+        "implementing-delinea-secret-server-for-pam",
+        "implementing-google-workspace-admin-security",
+        "implementing-google-workspace-sso-configuration",
+        "implementing-hardware-security-key-authentication",
+        "implementing-hashicorp-vault-dynamic-secrets",
+        "implementing-identity-governance-with-sailpoint",
+        "implementing-just-in-time-access-provisioning",
+        "implementing-pam-for-database-access",
+        "implementing-passwordless-authentication-with-fido2",
+        "implementing-passwordless-auth-with-microsoft-entra",
+        "implementing-privileged-access-management-with-cyberark",
+        "implementing-privileged-access-workstation",
+        "implementing-privileged-session-monitoring",
+        "implementing-saml-sso-with-okta",
+        "implementing-scim-provisioning-with-okta",
+        "implementing-zero-standing-privilege-with-cyberark",
+        "performing-access-recertification-with-saviynt",
+        "performing-access-review-and-certification",
+        "performing-entitlement-review-with-sailpoint-iiq",
+        "performing-oauth-scope-minimization-review",
+        "performing-privileged-account-access-review",
+        "performing-privileged-account-discovery",
+        "performing-service-account-audit",
+        "performing-service-account-credential-rotation",
+        "post-exploiting-microsoft-graph-with-graphrunner"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/incident-response",
+      "subdomain": "incident-response",
+      "intent": "Turn incident triage, evidence, notification, containment, remediation, recovery, and lessons into typed response contracts.",
+      "skillCount": 26,
+      "skillIds": [
+        "analyzing-linux-audit-logs-for-intrusion",
+        "analyzing-network-traffic-for-incidents",
+        "analyzing-security-logs-with-splunk",
+        "building-incident-response-playbook",
+        "building-incident-timeline-with-timesketch",
+        "building-malware-incident-communication-template",
+        "collecting-indicators-of-compromise",
+        "collecting-volatile-evidence-from-compromised-host",
+        "conducting-cloud-incident-response",
+        "conducting-malware-incident-response",
+        "conducting-memory-forensics-with-volatility",
+        "conducting-phishing-incident-response",
+        "conducting-post-incident-lessons-learned",
+        "containing-active-breach",
+        "detecting-email-account-compromise",
+        "eradicating-malware-from-infected-systems",
+        "implementing-velociraptor-for-ir-collection",
+        "performing-active-directory-compromise-investigation",
+        "performing-cloud-incident-containment-procedures",
+        "performing-disk-forensics-investigation",
+        "performing-insider-threat-investigation",
+        "performing-ransomware-response",
+        "testing-ransomware-recovery-procedures",
+        "triaging-security-incident",
+        "triaging-security-incident-with-ir-playbook",
+        "validating-backup-integrity-for-recovery"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/malware-analysis",
+      "subdomain": "malware-analysis",
+      "intent": "Analyze supplied samples, scripts, binaries, IOCs, metadata, persistence, and reports with explicit execution boundaries.",
+      "skillCount": 38,
+      "skillIds": [
+        "analyzing-android-malware-with-apktool",
+        "analyzing-bootkit-and-rootkit-samples",
+        "analyzing-cobalt-strike-beacon-configuration",
+        "analyzing-cobaltstrike-malleable-c2-profiles",
+        "analyzing-command-and-control-communication",
+        "analyzing-golang-malware-with-ghidra",
+        "analyzing-heap-spray-exploitation",
+        "analyzing-linux-elf-malware",
+        "analyzing-macro-malware-in-office-documents",
+        "analyzing-malicious-pdf-with-peepdf",
+        "analyzing-malware-behavior-with-cuckoo-sandbox",
+        "analyzing-malware-persistence-with-autoruns",
+        "analyzing-malware-sandbox-evasion-techniques",
+        "analyzing-memory-dumps-with-volatility",
+        "analyzing-network-covert-channels-in-malware",
+        "analyzing-network-traffic-of-malware",
+        "analyzing-packed-malware-with-upx-unpacker",
+        "analyzing-pdf-malware-with-pdfid",
+        "analyzing-ransomware-encryption-mechanisms",
+        "analyzing-supply-chain-malware-artifacts",
+        "deobfuscating-javascript-malware",
+        "deobfuscating-powershell-obfuscated-malware",
+        "detecting-process-injection-techniques",
+        "detecting-rootkit-activity",
+        "extracting-config-from-agent-tesla-rat",
+        "extracting-iocs-from-malware-samples",
+        "performing-automated-malware-analysis-with-cape",
+        "performing-dynamic-analysis-with-any-run",
+        "performing-firmware-malware-analysis",
+        "performing-malware-triage-with-yara",
+        "performing-memory-forensics-with-volatility3-plugins",
+        "performing-static-malware-analysis-with-pe-studio",
+        "performing-yara-rule-development-for-detection",
+        "reverse-engineering-android-malware-with-jadx",
+        "reverse-engineering-dotnet-malware-with-dnspy",
+        "reverse-engineering-malware-with-ghidra",
+        "reverse-engineering-ransomware-encryption-routine",
+        "reverse-engineering-rust-malware"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/mobile-security",
+      "subdomain": "mobile-security",
+      "intent": "Validate mobile package, manifest, permission, storage, transport, signing, device-policy, and mobile evidence artifacts.",
+      "skillCount": 13,
+      "skillIds": [
+        "analyzing-ios-app-security-with-objection",
+        "detecting-mobile-malware-behavior",
+        "exploiting-deeplink-vulnerabilities",
+        "exploiting-insecure-data-storage-in-mobile",
+        "implementing-mobile-application-management",
+        "intercepting-mobile-traffic-with-burpsuite",
+        "performing-android-app-static-analysis-with-mobsf",
+        "performing-dynamic-analysis-of-android-app",
+        "performing-ios-app-security-assessment",
+        "performing-mobile-app-certificate-pinning-bypass",
+        "reverse-engineering-ios-app-with-frida",
+        "testing-android-intents-for-vulnerabilities",
+        "testing-mobile-api-authentication"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/network-security",
+      "subdomain": "network-security",
+      "intent": "Analyze supplied routes, protocols, DNS, packet/flow summaries, segmentation, wireless, and network-control evidence.",
+      "skillCount": 43,
+      "skillIds": [
+        "analyzing-network-flow-data-with-netflow",
+        "analyzing-network-packets-with-scapy",
+        "analyzing-network-traffic-with-wireshark",
+        "conducting-man-in-the-middle-attack-simulation",
+        "configuring-network-segmentation-with-vlans",
+        "configuring-pfsense-firewall-rules",
+        "configuring-snort-ids-for-intrusion-detection",
+        "configuring-suricata-for-network-monitoring",
+        "detecting-arp-poisoning-in-network-traffic",
+        "detecting-command-and-control-over-dns",
+        "detecting-dns-exfiltration-with-dns-query-analysis",
+        "detecting-exfiltration-over-dns-with-zeek",
+        "detecting-lateral-movement-in-network",
+        "detecting-lateral-movement-with-zeek",
+        "detecting-network-anomalies-with-zeek",
+        "detecting-network-scanning-with-ids-signatures",
+        "detecting-port-scanning-with-fail2ban",
+        "exploiting-bgp-hijacking-vulnerabilities",
+        "exploiting-ipv6-vulnerabilities",
+        "exploiting-smb-vulnerabilities-with-metasploit",
+        "implementing-bgp-security-with-rpki",
+        "implementing-browser-isolation-for-zero-trust",
+        "implementing-ddos-mitigation-with-cloudflare",
+        "implementing-network-access-control",
+        "implementing-network-access-control-with-cisco-ise",
+        "implementing-network-intrusion-prevention-with-suricata",
+        "implementing-network-segmentation-with-firewall-zones",
+        "implementing-network-traffic-analysis-with-arkime",
+        "implementing-network-traffic-baselining",
+        "implementing-next-generation-firewall-with-palo-alto",
+        "performing-arp-spoofing-attack-simulation",
+        "performing-bandwidth-throttling-attack-simulation",
+        "performing-dns-enumeration-and-zone-transfer",
+        "performing-network-traffic-analysis-with-tshark",
+        "performing-network-traffic-analysis-with-zeek",
+        "performing-packet-injection-attack",
+        "performing-ssl-stripping-attack",
+        "performing-ssl-tls-inspection-configuration",
+        "performing-ssl-tls-security-assessment",
+        "performing-vlan-hopping-attack",
+        "performing-wifi-password-cracking-with-aircrack",
+        "performing-wireless-security-assessment-with-kismet",
+        "scanning-network-with-nmap-advanced"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/ot-ics-security",
+      "subdomain": "ot-ics-security",
+      "intent": "Validate OT/ICS assets, zones, segments, historian, protocol, remote access, and safety evidence without production control.",
+      "skillCount": 29,
+      "skillIds": [
+        "detecting-anomalies-in-industrial-control-systems",
+        "detecting-attacks-on-historian-servers",
+        "detecting-attacks-on-scada-systems",
+        "detecting-dnp3-protocol-anomalies",
+        "detecting-modbus-command-injection-attacks",
+        "detecting-modbus-protocol-anomalies",
+        "detecting-stuxnet-style-attacks",
+        "implementing-conduit-security-for-ot-remote-access",
+        "implementing-dragos-platform-for-ot-monitoring",
+        "implementing-ics-firewall-with-tofino",
+        "implementing-iec-62443-security-zones",
+        "implementing-nerc-cip-compliance-controls",
+        "implementing-network-segmentation-for-ot",
+        "implementing-ot-incident-response-playbook",
+        "implementing-ot-network-traffic-analysis-with-nozomi",
+        "implementing-patch-management-for-ot-systems",
+        "implementing-purdue-model-network-segmentation",
+        "monitoring-scada-modbus-traffic-anomalies",
+        "performing-ics-asset-discovery-with-claroty",
+        "performing-oil-gas-cybersecurity-assessment",
+        "performing-ot-network-security-assessment",
+        "performing-ot-vulnerability-assessment-with-claroty",
+        "performing-ot-vulnerability-scanning-safely",
+        "performing-plc-firmware-security-analysis",
+        "performing-power-grid-cybersecurity-assessment",
+        "performing-s7comm-protocol-security-analysis",
+        "performing-scada-hmi-security-assessment",
+        "securing-historian-server-in-ot-environment",
+        "securing-remote-access-to-ot-environment"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/penetration-testing",
+      "subdomain": "penetration-testing",
+      "intent": "Represent authorized assessment scope, test plans, findings, evidence, and remediation without live exploitation claims.",
+      "skillCount": 23,
+      "skillIds": [
+        "conducting-api-security-testing",
+        "conducting-external-reconnaissance-with-osint",
+        "conducting-internal-network-penetration-test",
+        "conducting-mobile-app-penetration-test",
+        "conducting-network-penetration-test",
+        "conducting-social-engineering-penetration-test",
+        "conducting-wireless-network-penetration-test",
+        "executing-active-directory-attack-simulation",
+        "executing-phishing-simulation-campaign",
+        "executing-red-team-exercise",
+        "exploiting-sql-injection-vulnerabilities",
+        "implementing-attack-surface-management",
+        "moving-laterally-with-netexec",
+        "performing-active-directory-penetration-test",
+        "performing-binary-exploitation-analysis",
+        "performing-external-network-penetration-test",
+        "performing-iot-security-assessment",
+        "performing-privilege-escalation-assessment",
+        "performing-thick-client-application-penetration-test",
+        "performing-vulnerability-scanning-with-nessus",
+        "performing-web-application-penetration-test",
+        "performing-wireless-network-penetration-test",
+        "testing-for-xss-vulnerabilities"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/phishing-defense",
+      "subdomain": "phishing-defense",
+      "intent": "Validate campaign, message, cohort, training, authorization, indicator, reporting, and response evidence without delivery claims.",
+      "skillCount": 16,
+      "skillIds": [
+        "analyzing-malicious-url-with-urlscan",
+        "building-phishing-reporting-button-workflow",
+        "detecting-business-email-compromise",
+        "detecting-business-email-compromise-with-ai",
+        "detecting-deepfake-audio-in-vishing-attacks",
+        "detecting-qr-code-phishing-with-email-security",
+        "detecting-spearphishing-with-email-gateway",
+        "implementing-anti-phishing-training-program",
+        "implementing-dmarc-dkim-spf-email-security",
+        "implementing-email-sandboxing-with-proofpoint",
+        "implementing-google-workspace-phishing-protection",
+        "implementing-mimecast-targeted-attack-protection",
+        "implementing-proofpoint-email-security-gateway",
+        "performing-adversary-in-the-middle-phishing-detection",
+        "performing-dmarc-policy-enforcement-rollout",
+        "performing-phishing-simulation-with-gophish"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/privacy-compliance",
+      "subdomain": "privacy-compliance",
+      "intent": "Check privacy scope, data handling, consent, retention, disclosure, and protection evidence.",
+      "skillCount": 2,
+      "skillIds": [
+        "implementing-gdpr-data-subject-access-request",
+        "performing-privacy-impact-assessment"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/purple-team",
+      "subdomain": "purple-team",
+      "intent": "Coordinate bounded adversary emulation, control validation, telemetry, and analyst decision evidence.",
+      "skillCount": 1,
+      "skillIds": [
+        "performing-purple-team-atomic-testing"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/ransomware-defense",
+      "subdomain": "ransomware-defense",
+      "intent": "Validate prevention, detection, response, backup, restore, containment, and recovery plans from supplied evidence.",
+      "skillCount": 13,
+      "skillIds": [
+        "analyzing-ransomware-payment-wallets",
+        "building-ransomware-playbook-with-cisa-framework",
+        "deploying-decoy-files-for-ransomware-detection",
+        "deploying-ransomware-canary-files",
+        "detecting-ransomware-encryption-behavior",
+        "detecting-ransomware-precursors-in-network",
+        "implementing-anti-ransomware-group-policy",
+        "implementing-honeypot-for-ransomware-detection",
+        "implementing-immutable-backup-with-restic",
+        "implementing-ransomware-backup-strategy",
+        "implementing-ransomware-kill-switch-detection",
+        "performing-ransomware-tabletop-exercise",
+        "recovering-from-ransomware-attack"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/red-teaming",
+      "subdomain": "red-teaming",
+      "intent": "Represent authorized adversary tradecraft, scope, infrastructure, safety, evidence, and analyst decisions without operational execution.",
+      "skillCount": 35,
+      "skillIds": [
+        "abusing-dpapi-for-credential-access",
+        "abusing-shadow-credentials-for-privesc",
+        "building-c2-infrastructure-with-sliver-framework",
+        "building-c2-redirector-infrastructure",
+        "building-red-team-c2-infrastructure-with-havoc",
+        "coercing-authentication-with-coercer-petitpotam",
+        "conducting-domain-persistence-with-dcsync",
+        "conducting-full-scope-red-team-engagement",
+        "conducting-internal-reconnaissance-with-bloodhound-ce",
+        "conducting-pass-the-ticket-attack",
+        "conducting-social-engineering-pretext-call",
+        "conducting-spearphishing-simulation-campaign",
+        "executing-red-team-engagement-planning",
+        "exploiting-active-directory-certificate-services-esc1",
+        "exploiting-active-directory-with-bloodhound",
+        "exploiting-adcs-with-certipy",
+        "exploiting-constrained-delegation-abuse",
+        "exploiting-kerberoasting-with-impacket",
+        "exploiting-ms17-010-eternalblue-vulnerability",
+        "exploiting-nopac-cve-2021-42278-42287",
+        "exploiting-zerologon-vulnerability-cve-2020-1472",
+        "mapping-attack-paths-with-bloodhound-ce",
+        "operating-havoc-c2",
+        "operating-sliver-c2",
+        "performing-active-directory-bloodhound-analysis",
+        "performing-active-directory-forest-trust-attack",
+        "performing-credential-access-with-lazagne",
+        "performing-initial-access-with-evilginx3",
+        "performing-kerberoasting-attack",
+        "performing-lateral-movement-with-wmiexec",
+        "performing-open-source-intelligence-gathering",
+        "performing-physical-intrusion-assessment",
+        "performing-privilege-escalation-on-linux",
+        "performing-red-team-with-covenant",
+        "relaying-ntlm-for-adcs-esc8"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/soc-operations",
+      "subdomain": "soc-operations",
+      "intent": "Validate SOC monitoring, alert, triage, escalation, case, notification, metric, and response evidence.",
+      "skillCount": 63,
+      "skillIds": [
+        "analyzing-api-gateway-access-logs",
+        "analyzing-azure-activity-logs-for-threats",
+        "analyzing-dns-logs-for-exfiltration",
+        "analyzing-memory-forensics-with-lime-and-volatility",
+        "analyzing-powershell-script-block-logging",
+        "analyzing-tls-certificate-transparency-logs",
+        "analyzing-web-server-logs-for-intrusion",
+        "analyzing-windows-event-logs-in-splunk",
+        "building-automated-malware-submission-pipeline",
+        "building-detection-rules-with-sigma",
+        "building-detection-rule-with-splunk-spl",
+        "building-incident-response-dashboard",
+        "building-soc-escalation-matrix",
+        "building-soc-metrics-and-kpi-tracking",
+        "building-soc-playbook-for-ransomware",
+        "building-threat-intelligence-enrichment-in-splunk",
+        "building-threat-intelligence-feed-integration",
+        "building-vulnerability-scanning-workflow",
+        "correlating-security-events-in-qradar",
+        "detecting-beaconing-patterns-with-zeek",
+        "detecting-entra-offensive-tools-in-graph-logs",
+        "detecting-insider-data-exfiltration-via-dlp",
+        "detecting-sql-injection-via-waf-logs",
+        "detecting-supply-chain-attacks-in-ci-cd",
+        "extracting-memory-artifacts-with-rekall",
+        "hunting-credential-stuffing-attacks",
+        "hunting-saas-sso-token-abuse",
+        "implementing-alert-fatigue-reduction",
+        "implementing-canary-tokens-for-network-intrusion",
+        "implementing-ebpf-security-monitoring",
+        "implementing-endpoint-detection-with-wazuh",
+        "implementing-honeytokens-for-breach-detection",
+        "implementing-log-forwarding-with-fluentd",
+        "implementing-log-integrity-with-blockchain",
+        "implementing-mitre-attack-coverage-mapping",
+        "implementing-mtls-for-zero-trust-services",
+        "implementing-security-chaos-engineering",
+        "implementing-security-monitoring-with-datadog",
+        "implementing-siem-correlation-rules-for-apt",
+        "implementing-siem-use-cases-for-detection",
+        "implementing-siem-use-case-tuning",
+        "implementing-soar-automation-with-phantom",
+        "implementing-soar-playbook-for-phishing",
+        "implementing-soar-playbook-with-palo-alto-xsoar",
+        "implementing-syslog-centralization-with-rsyslog",
+        "implementing-threat-modeling-with-mitre-attack",
+        "implementing-ticketing-system-for-incidents",
+        "investigating-insider-threat-indicators",
+        "investigating-phishing-email-incident",
+        "performing-alert-triage-with-elastic-siem",
+        "performing-deception-technology-deployment",
+        "performing-dns-tunneling-detection",
+        "performing-false-positive-reduction-in-siem",
+        "performing-ioc-enrichment-automation",
+        "performing-lateral-movement-detection",
+        "performing-log-source-onboarding-in-siem",
+        "performing-purple-team-exercise",
+        "performing-red-team-phishing-with-gophish",
+        "performing-soc-tabletop-exercise",
+        "performing-ssrf-vulnerability-exploitation",
+        "performing-threat-hunting-with-elastic-siem",
+        "performing-user-behavior-analytics",
+        "triaging-security-alerts-in-splunk"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/supply-chain-security",
+      "subdomain": "supply-chain-security",
+      "intent": "Validate dependencies, packages, SBOMs, signatures, provenance, secrets, CI, artifacts, ownership, and release controls.",
+      "skillCount": 8,
+      "skillIds": [
+        "analyzing-sbom-for-supply-chain-vulnerabilities",
+        "detecting-dependency-confusion",
+        "detecting-malicious-npm-packages",
+        "detecting-typosquatting-packages",
+        "detecting-typosquatting-packages-in-npm-pypi",
+        "generating-and-analyzing-sboms",
+        "implementing-sigstore-for-software-signing",
+        "verifying-build-provenance-with-slsa-sigstore"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/threat-detection",
+      "subdomain": "threat-detection",
+      "intent": "Define deterministic detection predicates over supplied telemetry, indicators, rules, and evidence manifests.",
+      "skillCount": 7,
+      "skillIds": [
+        "detecting-credential-dumping-techniques",
+        "detecting-golden-ticket-forgery",
+        "detecting-insider-threat-with-ueba",
+        "detecting-living-off-the-land-attacks",
+        "detecting-living-off-the-land-with-lolbas",
+        "detecting-pass-the-ticket-attacks",
+        "detecting-rdp-brute-force-attacks"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/threat-hunting",
+      "subdomain": "threat-hunting",
+      "intent": "Represent hypotheses, telemetry queries, relationships, pivots, evidence, and analyst decisions over supplied data.",
+      "skillCount": 58,
+      "skillIds": [
+        "analyzing-persistence-mechanisms-in-linux",
+        "analyzing-powershell-empire-artifacts",
+        "analyzing-ransomware-network-indicators",
+        "building-threat-hunt-hypothesis-framework",
+        "detecting-dcsync-attack-in-active-directory",
+        "detecting-dll-sideloading-attacks",
+        "detecting-email-forwarding-rules-attack",
+        "detecting-golden-ticket-attacks-in-kerberos-logs",
+        "detecting-insider-threat-behaviors",
+        "detecting-kerberoasting-attacks",
+        "detecting-lateral-movement-with-splunk",
+        "detecting-malicious-scheduled-tasks-with-sysmon",
+        "detecting-mimikatz-execution-patterns",
+        "detecting-ntlm-relay-with-event-correlation",
+        "detecting-pass-the-hash-attacks",
+        "detecting-privilege-escalation-attempts",
+        "detecting-process-hollowing-technique",
+        "detecting-service-account-abuse",
+        "detecting-suspicious-powershell-execution",
+        "detecting-t1003-credential-dumping-with-edr",
+        "detecting-t1055-process-injection-with-sysmon",
+        "detecting-t1548-abuse-elevation-control-mechanism",
+        "detecting-wmi-persistence",
+        "fleet-hunting-with-velociraptor",
+        "hunting-evtx-with-chainsaw",
+        "hunting-for-anomalous-powershell-execution",
+        "hunting-for-beaconing-with-frequency-analysis",
+        "hunting-for-cobalt-strike-beacons",
+        "hunting-for-command-and-control-beaconing",
+        "hunting-for-data-exfiltration-indicators",
+        "hunting-for-data-staging-before-exfiltration",
+        "hunting-for-dcom-lateral-movement",
+        "hunting-for-dcsync-attacks",
+        "hunting-for-defense-evasion-via-timestomping",
+        "hunting-for-dns-based-persistence",
+        "hunting-for-dns-tunneling-with-zeek",
+        "hunting-for-domain-fronting-c2-traffic",
+        "hunting-for-lateral-movement-via-wmi",
+        "hunting-for-living-off-the-cloud-techniques",
+        "hunting-for-living-off-the-land-binaries",
+        "hunting-for-lolbins-execution-in-endpoint-logs",
+        "hunting-for-ntlm-relay-attacks",
+        "hunting-for-persistence-mechanisms-in-windows",
+        "hunting-for-persistence-via-wmi-subscriptions",
+        "hunting-for-process-injection-techniques",
+        "hunting-for-registry-persistence-mechanisms",
+        "hunting-for-registry-run-key-persistence",
+        "hunting-for-scheduled-task-persistence",
+        "hunting-for-shadow-copy-deletion",
+        "hunting-for-spearphishing-indicators",
+        "hunting-for-startup-folder-persistence",
+        "hunting-for-supply-chain-compromise",
+        "hunting-for-suspicious-scheduled-tasks",
+        "hunting-for-t1098-account-manipulation",
+        "hunting-for-unusual-network-connections",
+        "hunting-for-unusual-service-installations",
+        "hunting-for-webshell-activity",
+        "performing-threat-hunting-with-yara-rules"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/threat-intelligence",
+      "subdomain": "threat-intelligence",
+      "intent": "Validate IOCs, sources, citations, actors, relationships, STIX/TAXII, feeds, confidence, provenance, and uncertainty.",
+      "skillCount": 52,
+      "skillIds": [
+        "analyzing-apt-group-with-mitre-navigator",
+        "analyzing-campaign-attribution-evidence",
+        "analyzing-certificate-transparency-for-phishing",
+        "analyzing-cyber-kill-chain",
+        "analyzing-indicators-of-compromise",
+        "analyzing-malware-family-relationships-with-malpedia",
+        "analyzing-ransomware-leak-site-intelligence",
+        "analyzing-threat-actor-ttps-with-mitre-attack",
+        "analyzing-threat-actor-ttps-with-mitre-navigator",
+        "analyzing-threat-intelligence-feeds",
+        "analyzing-threat-landscape-with-misp",
+        "analyzing-typosquatting-domains-with-dnstwist",
+        "auditing-tls-certificate-transparency-logs",
+        "automating-ioc-enrichment",
+        "building-adversary-infrastructure-tracking-system",
+        "building-attack-pattern-library-from-cti-reports",
+        "building-ioc-defanging-and-sharing-pipeline",
+        "building-ioc-enrichment-pipeline-with-opencti",
+        "building-threat-actor-profile-from-osint",
+        "building-threat-feed-aggregation-with-misp",
+        "building-threat-intelligence-platform",
+        "collecting-open-source-intelligence",
+        "collecting-threat-intelligence-with-misp",
+        "correlating-threat-campaigns",
+        "evaluating-threat-intelligence-platforms",
+        "generating-threat-intelligence-reports",
+        "hunting-advanced-persistent-threats",
+        "implementing-diamond-model-analysis",
+        "implementing-security-information-sharing-with-stix2",
+        "implementing-stix-taxii-feed-integration",
+        "implementing-taxii-server-with-opentaxii",
+        "implementing-threat-intelligence-lifecycle-management",
+        "managing-intelligence-lifecycle",
+        "mapping-mitre-attack-techniques",
+        "modeling-threats-with-opencti",
+        "monitoring-darkweb-sources",
+        "operationalizing-misp-threat-feeds",
+        "performing-ai-driven-osint-correlation",
+        "performing-brand-monitoring-for-impersonation",
+        "performing-dark-web-monitoring-for-threats",
+        "performing-indicator-lifecycle-management",
+        "performing-ip-reputation-analysis-with-shodan",
+        "performing-malware-hash-enrichment-with-virustotal",
+        "performing-malware-ioc-extraction",
+        "performing-osint-with-spiderfoot",
+        "performing-paste-site-monitoring-for-credentials",
+        "performing-threat-emulation-with-atomic-red-team",
+        "performing-threat-intelligence-sharing-with-misp",
+        "performing-threat-landscape-assessment-for-sector",
+        "processing-stix-taxii-feeds",
+        "profiling-threat-actor-groups",
+        "tracking-threat-actor-infrastructure"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/vulnerability-management",
+      "subdomain": "vulnerability-management",
+      "intent": "Validate assets, findings, severity, exceptions, ownership, remediation, SLA, evidence, and notification manifests.",
+      "skillCount": 25,
+      "skillIds": [
+        "building-patch-tuesday-response-process",
+        "building-vulnerability-aging-and-sla-tracking",
+        "building-vulnerability-dashboard-with-defectdojo",
+        "building-vulnerability-exception-tracking-system",
+        "exploiting-vulnerabilities-with-metasploit-framework",
+        "implementing-attack-path-analysis-with-xm-cyber",
+        "implementing-cloud-vulnerability-posture-management",
+        "implementing-continuous-security-validation-with-bas",
+        "implementing-epss-score-for-vulnerability-prioritization",
+        "implementing-patch-management-workflow",
+        "implementing-rapid7-insightvm-for-scanning",
+        "implementing-vulnerability-management-with-greenbone",
+        "implementing-vulnerability-remediation-sla",
+        "implementing-vulnerability-sla-breach-alerting",
+        "performing-active-directory-vulnerability-assessment",
+        "performing-agentless-vulnerability-scanning",
+        "performing-asset-criticality-scoring-for-vulns",
+        "performing-authenticated-scan-with-openvas",
+        "performing-authenticated-vulnerability-scan",
+        "performing-cve-prioritization-with-kev-catalog",
+        "performing-web-application-scanning-with-nikto",
+        "performing-web-application-vulnerability-triage",
+        "prioritizing-vulnerabilities-with-cvss-scoring",
+        "scanning-infrastructure-with-nessus",
+        "triaging-vulnerabilities-with-ssvc-framework"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/web-application-security",
+      "subdomain": "web-application-security",
+      "intent": "Validate web routes, parsers, requests, responses, headers, auth, origin, sessions, payload policy, and evidence.",
+      "skillCount": 46,
+      "skillIds": [
+        "bypassing-authentication-with-forced-browsing",
+        "exploiting-broken-link-hijacking",
+        "exploiting-http-request-smuggling",
+        "exploiting-idor-vulnerabilities",
+        "exploiting-insecure-deserialization",
+        "exploiting-mass-assignment-in-rest-apis",
+        "exploiting-nosql-injection-vulnerabilities",
+        "exploiting-oauth-misconfiguration",
+        "exploiting-prototype-pollution-in-javascript",
+        "exploiting-race-condition-vulnerabilities",
+        "exploiting-server-side-request-forgery",
+        "exploiting-sql-injection-with-sqlmap",
+        "exploiting-template-injection-vulnerabilities",
+        "exploiting-type-juggling-vulnerabilities",
+        "exploiting-websocket-vulnerabilities",
+        "implementing-devsecops-security-scanning",
+        "implementing-runtime-application-self-protection",
+        "implementing-web-application-logging-with-modsecurity",
+        "performing-blind-ssrf-exploitation",
+        "performing-clickjacking-attack-test",
+        "performing-content-security-policy-bypass",
+        "performing-csrf-attack-simulation",
+        "performing-directory-traversal-testing",
+        "performing-fuzzing-with-aflplusplus",
+        "performing-graphql-security-assessment",
+        "performing-http-parameter-pollution-attack",
+        "performing-second-order-sql-injection",
+        "performing-security-headers-audit",
+        "performing-subdomain-enumeration-with-subfinder",
+        "performing-supply-chain-attack-simulation",
+        "performing-web-application-firewall-bypass",
+        "performing-web-cache-deception-attack",
+        "performing-web-cache-poisoning-attack",
+        "testing-api-security-with-owasp-top-10",
+        "testing-cors-misconfiguration",
+        "testing-for-broken-access-control",
+        "testing-for-business-logic-vulnerabilities",
+        "testing-for-email-header-injection",
+        "testing-for-host-header-injection",
+        "testing-for-json-web-token-vulnerabilities",
+        "testing-for-open-redirect-vulnerabilities",
+        "testing-for-sensitive-data-exposure",
+        "testing-for-xml-injection-vulnerabilities",
+        "testing-for-xss-vulnerabilities-with-burpsuite",
+        "testing-for-xxe-injection-vulnerabilities",
+        "testing-jwt-token-security"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/wireless-security",
+      "subdomain": "wireless-security",
+      "intent": "Analyze supplied wireless configuration, protocol, access, segmentation, and observation evidence.",
+      "skillCount": 2,
+      "skillIds": [
+        "detecting-bluetooth-low-energy-attacks",
+        "performing-bluetooth-security-assessment"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "native-safe-simulation",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP09",
+      "nativeBatchLimit": 5,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP05",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    },
+    {
+      "familyId": "IF/zero-trust-architecture",
+      "subdomain": "zero-trust-architecture",
+      "intent": "Validate identity, device posture, network admission, federation, mTLS, DNS policy, SaaS access, session, and ownership evidence.",
+      "skillCount": 18,
+      "skillIds": [
+        "configuring-aws-verified-access-for-ztna",
+        "configuring-identity-aware-proxy-with-google-iap",
+        "configuring-microsegmentation-for-zero-trust",
+        "configuring-zscaler-private-access-for-ztna",
+        "deploying-cloudflare-access-for-zero-trust",
+        "deploying-palo-alto-prisma-access-zero-trust",
+        "deploying-software-defined-perimeter",
+        "deploying-tailscale-for-zero-trust-vpn",
+        "implementing-beyondcorp-zero-trust-access-model",
+        "implementing-cisa-zero-trust-maturity-model",
+        "implementing-device-posture-assessment-in-zero-trust",
+        "implementing-identity-verification-for-zero-trust",
+        "implementing-microsegmentation-with-guardicore",
+        "implementing-zero-trust-dns-with-nextdns",
+        "implementing-zero-trust-for-saas-applications",
+        "implementing-zero-trust-network-access-with-zscaler",
+        "implementing-zero-trust-with-beyondcorp",
+        "implementing-zero-trust-with-hashicorp-boundary"
+      ],
+      "capabilityTracks": [
+        "native-static",
+        "native-offline-artifact",
+        "repository-graph",
+        "advisory-manual"
+      ],
+      "nativeRoute": "CP12",
+      "nativeBatchLimit": 1,
+      "retentionRoute": "CP11",
+      "retentionBatchLimit": 10,
+      "existingReuse": [
+        "typedParsing",
+        "syntaxFacts",
+        "repositoryGraph",
+        "evidenceHarness",
+        "existingNativeRules"
+      ],
+      "dependencies": [
+        "WP/CP03",
+        "WP/CP08"
+      ],
+      "sourceEvidence": "catalog sourceSha256/source.anchors/license are authoritative and revalidated at packet claim time",
+      "notProved": [
+        "No live endpoint, cloud, host, device, packet, production, or external-service outcome.",
+        "No exploit delivery, credential capture, attribution, detection efficacy, remediation success, or safety outcome.",
+        "CP08 decomposition and source classification do not promote native implementation or executable proof.",
+        "External repositories and tools are reference/parity inputs only; packet completion requires Rust-owned evidence."
+      ]
+    }
+  ]
+}

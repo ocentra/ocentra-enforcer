@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-46",
+  "baselineCommit": "705d5552d000b56e5e209b3c83b5b51ca5cfb0c8",
+  "family": "Network detection, traffic analysis, firewall policy, and segmentation controls",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "configuring-pfsense-firewall-rules",
+      "configuring-snort-ids-for-intrusion-detection",
+      "implementing-network-intrusion-prevention-with-suricata",
+      "implementing-network-segmentation-with-firewall-zones",
+      "implementing-network-traffic-analysis-with-arkime",
+      "implementing-network-traffic-baselining",
+      "implementing-next-generation-firewall-with-palo-alto",
+      "performing-network-packet-capture-analysis",
+      "performing-network-traffic-analysis-with-tshark",
+      "performing-network-traffic-analysis-with-zeek"
+    ],
+    "reason": "Ten disjoint network defense skills covering pfSense and next-generation firewall policy, Snort and Suricata detection or prevention, zone segmentation, Arkime, TShark, and Zeek traffic analysis, packet-capture evidence, and traffic baselining. Native checks are limited to static typed supplied manifests; live traffic, packet capture, detection, enforcement, and network-security outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "configuring-pfsense-firewall-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-pfsense-firewall-rules/SKILL.md",
+        "sha256": "634f33a293b277d0393d53df116be2c21fbaa3d25fb599f8f16154041ffdde64",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Configuring pfSense Firewall Rules:L31"]
+      },
+      "components": [
+        {"componentId": "configuring-pfsense-firewall-rules::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied pfSense firewall, interface, zone, rule, NAT, address, service, owner, change, provenance, and evidence manifests.", "notProved": ["No live pfSense policy, packet filtering, NAT behavior, connectivity, enforcement, availability, or security outcome proof."]},
+        {"componentId": "configuring-pfsense-firewall-rules::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use pfSense, routers, interfaces, switches, firewall appliances, packet paths, live networks, or production enforcement authorities.", "notProved": ["No live rule, interface, packet, route, NAT, firewall decision, network, or normalized enforcement result."]},
+        {"componentId": "configuring-pfsense-firewall-rules::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive firewall policy, interface, NAT, rule-order, change, logging, and validation guidance.", "notProved": ["Guidance is not enforcement and does not prove connectivity or filtering effectiveness."]},
+        {"componentId": "configuring-pfsense-firewall-rules::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, change approval, data handling, validation, severity, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human firewall, change, containment, remediation, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "configuring-snort-ids-for-intrusion-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-snort-ids-for-intrusion-detection/SKILL.md",
+        "sha256": "b3ba125665d77fdb2086a45ff8b3e15e4f5c2ceb4bfa5184c0479bf299136baf",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Configuring Snort IDS for Intrusion Detection:L31"]
+      },
+      "components": [
+        {"componentId": "configuring-snort-ids-for-intrusion-detection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Snort signature, rule, protocol, flow, threshold, source, asset, severity, owner, provenance, and evidence manifests.", "notProved": ["No live Snort sensor, packet inspection, alert, detection efficacy, attribution, or security outcome proof."]},
+        {"componentId": "configuring-snort-ids-for-intrusion-detection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Snort, sensors, packet interfaces, network taps, PCAP, SIEM, SOAR, endpoints, networks, or production detection authorities.", "notProved": ["No live packet, sensor, rule execution, alert, endpoint, network, or normalized detection result."]},
+        {"componentId": "configuring-snort-ids-for-intrusion-detection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Snort signature, sensor placement, tuning, alert quality, and analyst-validation guidance.", "notProved": ["Guidance is not enforcement and does not prove detection, coverage, or alert quality."]},
+        {"componentId": "configuring-snort-ids-for-intrusion-detection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, capture approval, data handling, validation, severity, escalation, containment, remediation, and disclosure decisions.", "notProved": ["No human rule, capture, alert, escalation, containment, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-network-intrusion-prevention-with-suricata",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-intrusion-prevention-with-suricata/SKILL.md",
+        "sha256": "4ea61fa392fa24e631afc3f1861eb02fa778854d0bfb485190569f1d33e3e347",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Intrusion Prevention with Suricata:L33"]
+      },
+      "components": [
+        {"componentId": "implementing-network-intrusion-prevention-with-suricata::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Suricata rule, signature, protocol, flow, action, threshold, interface, asset, owner, change, and evidence manifests.", "notProved": ["No live Suricata inspection, blocking, packet decision, alert, availability, false-positive rate, or security outcome proof."]},
+        {"componentId": "implementing-network-intrusion-prevention-with-suricata::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Suricata, sensors, inline interfaces, packet paths, network appliances, SIEM, SOAR, endpoints, or production prevention authorities.", "notProved": ["No live packet, rule execution, inline action, alert, endpoint, network, or normalized prevention result."]},
+        {"componentId": "implementing-network-intrusion-prevention-with-suricata::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Suricata signature, inline prevention, tuning, monitoring, rollback, and analyst-validation guidance.", "notProved": ["Guidance is not enforcement and does not prove prevention, availability, or detection quality."]},
+        {"componentId": "implementing-network-intrusion-prevention-with-suricata::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, inline-change approval, capture approval, validation, severity, containment, rollback, remediation, and disclosure decisions.", "notProved": ["No human prevention, inline-change, containment, rollback, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-network-segmentation-with-firewall-zones",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-segmentation-with-firewall-zones/SKILL.md",
+        "sha256": "19ac72a46949dec9d904e127cc2959dfd80081bfb0c2f426bfa38445c0390cc3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Segmentation with Firewall Zones:L34"]
+      },
+      "components": [
+        {"componentId": "implementing-network-segmentation-with-firewall-zones::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied network zone, segment, subnet, route, ACL, firewall, trust boundary, dependency, owner, change, and evidence manifests.", "notProved": ["No live segmentation, route isolation, firewall enforcement, reachability, lateral movement prevention, or security outcome proof."]},
+        {"componentId": "implementing-network-segmentation-with-firewall-zones::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use routers, switches, VLANs, firewalls, SDN, cloud networks, endpoints, live routes, packet paths, or production enforcement authorities.", "notProved": ["No live zone, segment, route, packet, endpoint, firewall decision, reachability, or normalized isolation result."]},
+        {"componentId": "implementing-network-segmentation-with-firewall-zones::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive segmentation, trust-boundary, least-privilege flow, firewall-zone, testing, and rollback guidance.", "notProved": ["Guidance is not enforcement and does not prove isolation or lateral-movement resistance."]},
+        {"componentId": "implementing-network-segmentation-with-firewall-zones::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, dependency approval, change control, validation, containment, rollback, remediation, recovery, and disclosure decisions.", "notProved": ["No human segmentation, change, containment, rollback, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-network-traffic-analysis-with-arkime",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-traffic-analysis-with-arkime/SKILL.md",
+        "sha256": "4cd36418496ee2b2b1b2144a50784b60f8a28b3b754153e2e695b0a1442d8998",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Traffic Analysis with Arkime:L34"]
+      },
+      "components": [
+        {"componentId": "implementing-network-traffic-analysis-with-arkime::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Arkime session, flow, packet, timestamp, protocol, field, index, analyst, ownership, provenance, and evidence manifests.", "notProved": ["No live Arkime capture, session reconstruction, traffic truth, attribution, detection, or security outcome proof."]},
+        {"componentId": "implementing-network-traffic-analysis-with-arkime::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Arkime, capture interfaces, sensors, PCAP, packet brokers, storage, networks, endpoints, SIEM, or production analysis authorities.", "notProved": ["No live packet, session, sensor, interface, storage, endpoint, network, or normalized analysis result."]},
+        {"componentId": "implementing-network-traffic-analysis-with-arkime::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Arkime session analysis, capture planning, protocol review, privacy, retention, and analyst-validation guidance.", "notProved": ["Guidance is not enforcement and does not prove traffic truth, attribution, or detection."]},
+        {"componentId": "implementing-network-traffic-analysis-with-arkime::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, capture approval, retention, data handling, analyst validation, severity, escalation, containment, remediation, and disclosure decisions.", "notProved": ["No human capture, privacy, analysis, escalation, containment, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-network-traffic-baselining",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-traffic-baselining/SKILL.md",
+        "sha256": "0a3285e1277530a265f6bcb0655ef9a0e52bff60ee883a2afad06e550431d07f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Traffic Baselining:L31"]
+      },
+      "components": [
+        {"componentId": "implementing-network-traffic-baselining::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied traffic flow, feature, time window, baseline, threshold, segment, protocol, owner, provenance, and evidence manifests.", "notProved": ["No live traffic, baseline completeness, anomaly, threshold efficacy, detection, attribution, or security outcome proof."]},
+        {"componentId": "implementing-network-traffic-baselining::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use flow collectors, packet sensors, NetFlow, SIEM, NDR, analytics, networks, endpoints, cloud, or production monitoring authorities.", "notProved": ["No live flow, packet, collector, endpoint, network, analytics, anomaly, or normalized baseline result."]},
+        {"componentId": "implementing-network-traffic-baselining::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive traffic-baseline, feature selection, threshold, drift, anomaly review, and analyst-validation guidance.", "notProved": ["Guidance is not enforcement and does not prove a baseline, anomaly, or detection result."]},
+        {"componentId": "implementing-network-traffic-baselining::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, data handling, baseline approval, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human baseline, anomaly, escalation, containment, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-next-generation-firewall-with-palo-alto",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-next-generation-firewall-with-palo-alto/SKILL.md",
+        "sha256": "7e06cdcf4481fd6bbc6b86b6e39207b56d5985f9729d0f48e5cd98e44d04d865",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Next-Generation Firewall with Palo Alto:L34"]
+      },
+      "components": [
+        {"componentId": "implementing-next-generation-firewall-with-palo-alto::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Palo Alto firewall, zone, application, service, rule, threat, URL, user, interface, owner, change, and evidence manifests.", "notProved": ["No live Palo Alto policy, application identification, filtering, threat prevention, connectivity, availability, or security outcome proof."]},
+        {"componentId": "implementing-next-generation-firewall-with-palo-alto::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Palo Alto firewalls, routers, interfaces, threat services, identity providers, packet paths, live networks, or production enforcement authorities.", "notProved": ["No live rule, application, packet, user, firewall decision, threat service, network, or normalized enforcement result."]},
+        {"componentId": "implementing-next-generation-firewall-with-palo-alto::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive next-generation firewall, zone, application policy, threat prevention, change, and validation guidance.", "notProved": ["Guidance is not enforcement and does not prove filtering, availability, or threat prevention."]},
+        {"componentId": "implementing-next-generation-firewall-with-palo-alto::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, policy approval, change control, validation, severity, containment, rollback, remediation, recovery, and disclosure decisions.", "notProved": ["No human firewall, policy, containment, rollback, remediation, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-network-packet-capture-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-network-packet-capture-analysis/SKILL.md",
+        "sha256": "083503ccb18f73a7b08a0c7793757db4a5a641fd5375bb9acde5cb6417d03ab0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Network Packet Capture Analysis:L36"]
+      },
+      "components": [
+        {"componentId": "performing-network-packet-capture-analysis::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied packet, frame, session, timestamp, protocol, flow, parser, filter, analyst, ownership, chain, and evidence manifests.", "notProved": ["No live packet capture, packet truth, session reconstruction, attribution, detection, evidentiary validity, or security outcome proof."]},
+        {"componentId": "performing-network-packet-capture-analysis::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use capture interfaces, taps, sensors, PCAP tools, Wireshark, TShark, Arkime, networks, endpoints, or production forensic authorities.", "notProved": ["No live packet, interface, tap, sensor, parser, endpoint, network, or normalized capture result."]},
+        {"componentId": "performing-network-packet-capture-analysis::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive packet-capture planning, protocol analysis, filtering, privacy, retention, and evidence-handling guidance.", "notProved": ["Guidance is not enforcement and does not prove packet truth, attribution, or evidentiary validity."]},
+        {"componentId": "performing-network-packet-capture-analysis::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, capture approval, chain of custody, retention, data handling, analyst validation, severity, containment, remediation, and disclosure decisions.", "notProved": ["No human capture, chain-of-custody, analysis, containment, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-network-traffic-analysis-with-tshark",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-network-traffic-analysis-with-tshark/SKILL.md",
+        "sha256": "f248728c09be03520eb8de74e2c36f0adb000b537068effca3b77c2af0a002ca",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Network Traffic Analysis with TShark:L32"]
+      },
+      "components": [
+        {"componentId": "performing-network-traffic-analysis-with-tshark::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied TShark filter, packet, field, protocol, flow, timestamp, session, parser, analyst, provenance, and evidence manifests.", "notProved": ["No live TShark execution, packet capture, parser behavior, traffic truth, attribution, detection, or security outcome proof."]},
+        {"componentId": "performing-network-traffic-analysis-with-tshark::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use TShark, Wireshark, capture interfaces, PCAP, sensors, endpoints, networks, storage, or production analysis authorities.", "notProved": ["No live packet, capture, parser, interface, endpoint, network, storage, or normalized analysis result."]},
+        {"componentId": "performing-network-traffic-analysis-with-tshark::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive TShark filtering, protocol analysis, capture planning, privacy, retention, and analyst-validation guidance.", "notProved": ["Guidance is not enforcement and does not prove traffic truth, attribution, or detection."]},
+        {"componentId": "performing-network-traffic-analysis-with-tshark::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, capture approval, data handling, analyst validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human capture, analysis, escalation, containment, remediation, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-network-traffic-analysis-with-zeek",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-network-traffic-analysis-with-zeek/SKILL.md",
+        "sha256": "3c4556782d7539b7447e698eb574f0becb5f0a7e95de694985d0b11c68e6ca41",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Network Traffic Analysis with Zeek:L33"]
+      },
+      "components": [
+        {"componentId": "performing-network-traffic-analysis-with-zeek::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Zeek script, event, connection, protocol, notice, log schema, sensor, analyst, ownership, provenance, and evidence manifests.", "notProved": ["No live Zeek execution, sensor, traffic truth, notice, detection, attribution, or security outcome proof."]},
+        {"componentId": "performing-network-traffic-analysis-with-zeek::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Zeek, scripts, sensors, capture interfaces, PCAP, networks, endpoints, SIEM, NDR, or production detection authorities.", "notProved": ["No live packet, sensor, script, notice, endpoint, network, SIEM, or normalized detection result."]},
+        {"componentId": "performing-network-traffic-analysis-with-zeek::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Zeek scripting, protocol analysis, notice review, sensor placement, privacy, and analyst-validation guidance.", "notProved": ["Guidance is not enforcement and does not prove traffic truth, notice validity, or detection."]},
+        {"componentId": "performing-network-traffic-analysis-with-zeek::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, network and asset ownership, legal/privacy/safety review, capture approval, script approval, data handling, validation, severity, escalation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["No human script, capture, notice, escalation, containment, remediation, or recovery decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "pfSense, Snort, Suricata, Palo Alto, Arkime, TShark, Zeek, routers, switches, firewalls, sensors, packet-capture interfaces, SIEM, NDR, endpoints, live networks, and production enforcement or detection authorities remain blocked external engines.",
+    "No live traffic, packet capture, parser or rule execution, alert truth, detection, anomaly, attribution, firewall or IPS enforcement, segmentation effectiveness, connectivity, evidentiary validity, incident response, or network-security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}

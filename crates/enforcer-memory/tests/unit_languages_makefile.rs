@@ -1,17 +1,17 @@
 //! Hard tests for Makefile, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_makefile`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_makefile`]) -- there is
 //! no bespoke `languages::makefile` extractor to prove zero-regression
 //! against (Makefile has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::makefile`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::makefile`]'s own doc
 //! comment directly: `rule`'s own unfielded `targets` child (no working
 //! field for the common case), the real `"function"` field shared by both
 //! `function_call`/`shell_function`, and `include_directive`'s two-level
 //! `filenames`-field unwrap.
 
-use enforcer_memory::languages::generic::parse_makefile;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_makefile;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_makefile";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

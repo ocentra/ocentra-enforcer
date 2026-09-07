@@ -36,6 +36,7 @@ use enforcer_domain::memory_types::{
     ComplexitySymbolLocation, ComplexityTransitiveMetrics, GraphSourceLine, MemoryAstFieldName,
     MemoryAstNodeKind, MemoryAstNodeKindSet, ParsedCallee, ParsedSymbolName,
 };
+use enforcer_syntax::parsers::grammar_for_complexity;
 use std::collections::HashMap;
 use tree_sitter::{Node, Parser};
 
@@ -137,6 +138,7 @@ impl NodeKindTable {
         (!self.decision_points.is_empty()).into()
     }
 
+    /// Return the Rust AST node-kind classification table.
     pub fn rust() -> Self {
         node_kind_table! {
             decision_points: &[
@@ -179,6 +181,7 @@ impl NodeKindTable {
         }
     }
 
+    /// Return the TypeScript and JavaScript AST node-kind classification table.
     pub fn typescript_javascript() -> Self {
         node_kind_table! {
             decision_points: &[
@@ -228,6 +231,7 @@ impl NodeKindTable {
         }
     }
 
+    /// Return the Python AST node-kind classification table.
     pub fn python() -> Self {
         node_kind_table! {
             decision_points: &[
@@ -260,6 +264,7 @@ impl NodeKindTable {
         }
     }
 
+    /// Return the Go AST node-kind classification table.
     pub fn go() -> Self {
         node_kind_table! {
             decision_points: &[
@@ -291,6 +296,7 @@ impl NodeKindTable {
         }
     }
 
+    /// Return the Java AST node-kind classification table.
     pub fn java() -> Self {
         node_kind_table! {
             decision_points: &[
@@ -1174,22 +1180,6 @@ fn node_kind_table(language: ComplexityLanguage) -> NodeKindTable {
     }
 }
 
-fn grammar(language: ComplexityLanguage) -> tree_sitter::Language {
-    match language {
-        ComplexityLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
-        ComplexityLanguage::TypeScriptOrJavaScript => {
-            tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into()
-        }
-        ComplexityLanguage::Python => tree_sitter_python::LANGUAGE.into(),
-        ComplexityLanguage::Go => tree_sitter_go::LANGUAGE.into(),
-        ComplexityLanguage::Java => tree_sitter_java::LANGUAGE.into(),
-        ComplexityLanguage::C => tree_sitter_c::LANGUAGE.into(),
-        ComplexityLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
-        ComplexityLanguage::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
-        ComplexityLanguage::Php => tree_sitter_php::LANGUAGE_PHP.into(),
-    }
-}
-
 /// Integration entry point for a caller ([`crate::code_graph::CodeGraph::insert_file_and_chunks`])
 /// that only has `(name, line)` pairs from a [`crate::parsers::ParsedFile`]
 /// extraction pass, not a live AST handle: re-parses `source` under
@@ -1212,7 +1202,10 @@ pub fn metrics_for_symbols<'source>(
     let symbols = symbols.as_ref();
     let mut out = HashMap::new();
     let mut parser = Parser::new();
-    if parser.set_language(&grammar(language)).is_err() {
+    if parser
+        .set_language(&grammar_for_complexity(language))
+        .is_err()
+    {
         return out;
     }
     let Some(tree) = parser.parse(source, None) else {

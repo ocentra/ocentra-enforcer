@@ -1,17 +1,17 @@
 //! Hard tests for Starlark, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_starlark`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_starlark`])
 //! -- there is no bespoke `languages::starlark` extractor to prove
 //! zero-regression against (Starlark has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::starlark`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::starlark`]'s own doc
 //! comment directly: `function_definition`'s ordinary `name`/`body`
 //! fields, `call`'s ordinary `function`/`arguments` fields, and
 //! `load(...)`'s `call_override`-caught IMPORTS detection (the baseline's
 //! own `starlark_import_types` array entry, `"with_clause"`, is a real but
 //! unrelated node -- see that doc comment for the full finding).
 
-use enforcer_memory::languages::generic::parse_starlark;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_starlark;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_starlark";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

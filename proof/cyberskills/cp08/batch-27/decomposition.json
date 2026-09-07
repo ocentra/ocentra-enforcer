@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-27",
+  "baselineCommit": "c541e9301a712f22a580d7b511741178a92a0cf4",
+  "family": "Cloud security posture, preventive controls, workload protection, and zero-trust access",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["auditing-cloud-with-cis-benchmarks", "implementing-cloud-dlp-for-data-protection", "implementing-cloud-security-posture-management", "implementing-cloud-trail-log-analysis", "implementing-cloud-vulnerability-posture-management", "implementing-cloud-waf-rules", "implementing-cloud-workload-protection", "implementing-zero-trust-in-cloud", "implementing-zero-trust-network-access", "performing-cloud-asset-inventory-with-cartography"],
+    "reason": "Ten disjoint cloud posture, preventive-control, workload-protection, and zero-trust access skills. Native checks are limited to static typed configuration, policy, supplied telemetry, and evidence manifests with deterministic fixture fields; cloud execution and live outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "auditing-cloud-with-cis-benchmarks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/auditing-cloud-with-cis-benchmarks/SKILL.md", "sha256": "c1ec47a63c60a1edfd95cd67aad9cdd84d8bdff01e9201389916bd0819611b03", "availability": "available", "license": "Apache-2.0", "anchors": ["# Auditing Cloud with CIS Benchmarks:L38"]},
+      "components": [
+        {"componentId": "auditing-cloud-with-cis-benchmarks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed CIS control and cloud configuration manifest fields.", "notProved": ["No CIS execution, cloud API, posture completeness, or live outcome proof."]},
+        {"componentId": "auditing-cloud-with-cis-benchmarks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud providers, CIS scanners, and benchmark execution authorities.", "notProved": ["No pinned adapter, scanner runtime, or normalized live evidence."]},
+        {"componentId": "auditing-cloud-with-cis-benchmarks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain CIS audit and remediation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "auditing-cloud-with-cis-benchmarks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require auditor scope, exception, and risk-acceptance decisions.", "notProved": ["No live audit or governance proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-cloud-dlp-for-data-protection",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-dlp-for-data-protection/SKILL.md", "sha256": "5de9f41001266e13e2440e356617d1cc0b776d657f1b55dc9ccf52a520bf4b12", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Cloud DLP for Data Protection:L42"]},
+      "components": [
+        {"componentId": "implementing-cloud-dlp-for-data-protection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed DLP policy and data-classification manifest fields.", "notProved": ["No DLP engine, data inspection, leakage prevention, or live outcome proof."]},
+        {"componentId": "implementing-cloud-dlp-for-data-protection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud DLP engines, storage authorities, and live data sources.", "notProved": ["No pinned adapter, scan runtime, or normalized evidence."]},
+        {"componentId": "implementing-cloud-dlp-for-data-protection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain DLP design, classification, and remediation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-cloud-dlp-for-data-protection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require privacy, data-owner, and exception decisions.", "notProved": ["No live data-governance proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-cloud-security-posture-management",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-security-posture-management/SKILL.md", "sha256": "4959a58f74b1a02a7ef763573be9177658f78dca3b9fe510297cf8b150f55ddd", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Cloud Security Posture Management:L33"]},
+      "components": [
+        {"componentId": "implementing-cloud-security-posture-management::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed resource, control, assignment, and posture manifest fields.", "notProved": ["No CSPM platform, cloud API, effective posture, or live outcome proof."]},
+        {"componentId": "implementing-cloud-security-posture-management::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CSPM products and cloud provider authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "implementing-cloud-security-posture-management::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain CSPM architecture and remediation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-cloud-security-posture-management::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require owner, remediation, and risk-acceptance decisions.", "notProved": ["No live posture-governance proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-cloud-trail-log-analysis",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-trail-log-analysis/SKILL.md", "sha256": "43543d05b74ee1ff17a540da09067209716c3579c65cbc2fbdf993b73f6e1609", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing CloudTrail Log Analysis:L34"]},
+      "components": [
+        {"componentId": "implementing-cloud-trail-log-analysis::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Evaluate deterministic predicates over supplied typed cloud audit-event records.", "notProved": ["No CloudTrail/SIEM execution, telemetry completeness, attribution, or live outcome proof."]},
+        {"componentId": "implementing-cloud-trail-log-analysis::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CloudTrail, cloud APIs, SIEM, and alerting authorities.", "notProved": ["No pinned adapter, query runtime, or normalized evidence."]},
+        {"componentId": "implementing-cloud-trail-log-analysis::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain audit-log analysis and investigation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-cloud-trail-log-analysis::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require investigation scope, retention, and analyst decisions.", "notProved": ["No live investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-cloud-vulnerability-posture-management",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-vulnerability-posture-management/SKILL.md", "sha256": "45193f9b63488373cf803d69007910150e0c6ff9fe11923c1ee205290aa1c301", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Cloud Vulnerability Posture Management:L33"]},
+      "components": [
+        {"componentId": "implementing-cloud-vulnerability-posture-management::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed cloud asset, finding, severity, and remediation manifest fields.", "notProved": ["No scanner, cloud inventory, vulnerability coverage, or remediation outcome proof."]},
+        {"componentId": "implementing-cloud-vulnerability-posture-management::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud vulnerability scanners and inventory authorities.", "notProved": ["No pinned adapter, scan runtime, or normalized evidence."]},
+        {"componentId": "implementing-cloud-vulnerability-posture-management::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain vulnerability prioritization and remediation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-cloud-vulnerability-posture-management::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require owner, prioritization, exception, and remediation decisions.", "notProved": ["No live remediation proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-cloud-waf-rules",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-waf-rules/SKILL.md", "sha256": "9fd17ac88c2097d6ee8a2a5981f6fe1a1bb586d8a4cc14fd7605491611196e0a", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Cloud WAF Rules:L35"]},
+      "components": [
+        {"componentId": "implementing-cloud-waf-rules::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed WAF rule, match, action, scope, and logging manifest fields.", "notProved": ["No WAF engine, traffic test, attack simulation, bypass resistance, or live outcome proof."]},
+        {"componentId": "implementing-cloud-waf-rules::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud WAF, proxy, endpoint, and traffic authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "implementing-cloud-waf-rules::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain WAF design, tuning, and remediation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-cloud-waf-rules::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require application-owner, exception, and rollout decisions.", "notProved": ["No live filtering proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-cloud-workload-protection",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-cloud-workload-protection/SKILL.md", "sha256": "2e38f1d70a3aba4ed7cf9e3820d7927fedb58760507492dbaa4f852afd32f107", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Cloud Workload Protection:L34"]},
+      "components": [
+        {"componentId": "implementing-cloud-workload-protection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed workload protection policy and configuration manifest fields.", "notProved": ["No runtime agent, workload execution, containment, or live protection outcome proof."]},
+        {"componentId": "implementing-cloud-workload-protection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use workload-protection agents and cloud runtime authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "implementing-cloud-workload-protection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain workload protection architecture and response guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-cloud-workload-protection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require workload-owner and incident-response decisions.", "notProved": ["No live protection proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-trust-in-cloud",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-in-cloud/SKILL.md", "sha256": "e32e3aaecd1ed3fda7ec0f26b4b9db79452a98345558a42e68a347181e3fc77b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Zero Trust in Cloud:L33"]},
+      "components": [
+        {"componentId": "implementing-zero-trust-in-cloud::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed identity, network, workload, and trust-boundary policy manifests.", "notProved": ["No provider evaluation, access decision, enforcement, or live outcome proof."]},
+        {"componentId": "implementing-zero-trust-in-cloud::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud identity, network, policy, and runtime authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "implementing-zero-trust-in-cloud::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain zero-trust architecture and migration guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-zero-trust-in-cloud::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require trust-boundary, owner, exception, and rollout decisions.", "notProved": ["No live access-governance proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-trust-network-access",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-trust-network-access/SKILL.md", "sha256": "88fa1ff266f284a444cc065656c697518b2d51921e7bac5833255c4d56d02290", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Zero Trust Network Access:L33"]},
+      "components": [
+        {"componentId": "implementing-zero-trust-network-access::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed access-policy, device, identity, and routing manifest fields.", "notProved": ["No ZTNA gateway, live session, enforcement, or access outcome proof."]},
+        {"componentId": "implementing-zero-trust-network-access::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use ZTNA gateways, identity providers, device posture, and network authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "implementing-zero-trust-network-access::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain ZTNA architecture and deployment guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-zero-trust-network-access::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require access-owner, authorization, exception, and rollout decisions.", "notProved": ["No live access proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-cloud-asset-inventory-with-cartography",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-asset-inventory-with-cartography/SKILL.md", "sha256": "5499f9e12d4edfb090fd8a8dd9c78c476653a643f386a46d3f34265dac3df4d0", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Cloud Asset Inventory with Cartography:L32"]},
+      "components": [
+        {"componentId": "performing-cloud-asset-inventory-with-cartography::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed cloud asset, relationship, ownership, and evidence manifest fields.", "notProved": ["No Cartography run, complete inventory, graph freshness, or cloud API proof."]},
+        {"componentId": "performing-cloud-asset-inventory-with-cartography::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Cartography, cloud graph, provider API, and inventory authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "performing-cloud-asset-inventory-with-cartography::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cloud inventory and relationship-analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-cloud-asset-inventory-with-cartography::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require inventory scope, ownership, and analyst decisions.", "notProved": ["No live inventory-governance proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Cloud APIs, CIS execution, DLP, CSPM, WAF, scanner, workload, ZTNA, and Cartography engines remain blocked external authorities.",
+    "No live cloud access, enforcement, scanning, inventory completeness, attribution, or operational outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

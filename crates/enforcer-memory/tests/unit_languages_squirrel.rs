@@ -1,6 +1,6 @@
 //! Hard tests for Squirrel onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_squirrel`] --
+//! ([`enforcer_syntax::languages::generic::parse_squirrel`] --
 //! language-parity wave G2.2e). Squirrel has no pre-existing bespoke
 //! `languages::squirrel` extractor, so these tests assert directly
 //! against the grammar's own real shape -- both the vendored
@@ -19,14 +19,14 @@
 //! own module doc for the full finding).
 
 use enforcer_domain::memory_types::ReceiverHint;
-use enforcer_memory::languages::generic::parse_squirrel;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_squirrel;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

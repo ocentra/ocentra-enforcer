@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "exploiting-mass-assignment-in-rest-apis",
+  "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/exploiting-mass-assignment-in-rest-apis/SKILL.md",
+  "sourceSha256": "23393f7b14703375d6487e099a3108186d299b359fab45e7c09281e41b479af9",
+  "sourceAnchors": ["\"role\":\"admin\"", "\"isAdmin\":true"],
+  "nativeRuleId": "CYBER-MASS-ASSIGN.1",
+  "nativeValidatorPath": "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+  "failFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/bad/vuln.py",
+  "passFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/good/safe.py",
+  "coverage": "narrowed-predicate",
+  "predicate": "Static source detection of whole untrusted request-object binding without a field allowlist.",
+  "notProved": "Live endpoint discovery, authorization behavior, and exploitation outcomes."
+}

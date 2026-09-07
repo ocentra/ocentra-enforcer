@@ -1,17 +1,17 @@
 //! Hard tests for CFScript, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_cfscript`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_cfscript`]) -- there is
 //! no bespoke `languages::cfscript` extractor to prove zero-regression
 //! against (CFScript has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::cfscript`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::cfscript`]'s own doc
 //! comment directly: real `function_declaration` name/body fields
 //! reused from the JS arrays, and the `tag_statement`-with-`tag`=
 //! `"property"` quirk (this grammar has no dedicated field-declaration
 //! node kind for CFScript at all).
 
-use enforcer_memory::languages::generic::parse_cfscript;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_cfscript;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_cfscript";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

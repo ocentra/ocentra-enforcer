@@ -1,6 +1,6 @@
 //! G1: proves the generic spec-table-driven engine
-//! ([`enforcer_memory::languages::generic`]) reproduces
-//! [`enforcer_memory::languages::go`]'s bespoke extractor output --
+//! ([`enforcer_syntax::languages::generic`]) reproduces
+//! [`enforcer_syntax::languages::go`]'s bespoke extractor output --
 //! defs, calls (incl. receiver/arg capture), imports, inherits,
 //! defines, routes, and test detection -- on every scenario the
 //! existing hand-written `unit_languages_go.rs` suite already covers,
@@ -16,10 +16,10 @@
 //! purposes (this is exactly what `code_graph`/`resolution` consume:
 //! neither cares about `Vec` order).
 
-use enforcer_memory::languages::{
+use enforcer_syntax::languages::{
     c, cpp, csharp, generic, go, java, php, python, rust, typescript,
 };
-use enforcer_memory::parsers::{Language, ParsedFile};
+use enforcer_syntax::parsers::{Language, ParsedFile};
 use std::error::Error;
 use std::fs;
 use std::path::Path;

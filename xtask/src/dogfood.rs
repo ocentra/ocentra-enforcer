@@ -2,7 +2,7 @@
 //!
 //! "Eating your own dog food" for the Rust engine is native: the exact same
 //! [`enforcer_scan::engine`] every `enforcer check`/`enforcer scan`
-//! invocation runs is pointed at the workspace's OWN `crates/**`,
+//! invocation runs is pointed at the workspace's own Cargo members,
 //! in-process, plus the standard Rust toolchain gates (`cargo fmt --check`,
 //! `cargo clippy -D warnings`, `cargo deny check`, `cargo audit`, run by
 //! [`boundary`]).
@@ -107,17 +107,21 @@ pub struct DogfoodOutcome {
     pub toolchain: Option<ToolchainOutcome>,
 }
 
-/// Walk `repo_root` under the workspace's own config-declared ignore
-/// scope and keep only `crates/**` files -- the shipped-source set the
-/// self-scan gates.
-fn walk_crate_files(
+/// Walk `repo_root` under the workspace's own config-declared ignore scope
+/// and keep every Cargo workspace member file: `crates/**` and `xtask/**`.
+/// The shared traversal contract rejects generated `target` and `target-*`
+/// trees before this member filter runs.
+fn walk_workspace_files(
     repo_root: &Path,
 ) -> Result<Vec<enforcer_domain::paths::RelPath>, DogfoodError> {
     let ignore_rules = boundary::ignore_rules_from_config(repo_root)?;
     let all_files = walk::walk(repo_root, &ignore_rules).map_err(DogfoodError::from_display)?;
     Ok(all_files
         .into_iter()
-        .filter(|entry| entry.as_str().starts_with("crates/"))
+        .filter(|entry| {
+            let path = entry.as_str();
+            path.starts_with("crates/") || path.starts_with("xtask/")
+        })
         .collect())
 }
 
@@ -156,7 +160,7 @@ pub fn run_rust_rule_scan(
     repo_root: &Path,
     baseline_store: &Path,
 ) -> Result<RustRuleScanResult, DogfoodError> {
-    let crate_files = walk_crate_files(repo_root)?;
+    let crate_files = walk_workspace_files(repo_root)?;
 
     // a09 anti-silent-skip: every dispatched file is recorded as `Ran`
     // (the engine applies at least the common+security families to every
@@ -204,7 +208,7 @@ pub fn write_baseline_snapshot(
     repo_root: &Path,
     baseline_store: &Path,
 ) -> Result<Baseline, DogfoodError> {
-    let crate_files = walk_crate_files(repo_root)?;
+    let crate_files = walk_workspace_files(repo_root)?;
     let report = scan_crates(repo_root, &crate_files)?;
     let baseline = Baseline::from_known(
         report
@@ -370,6 +374,83 @@ mod tests {
         assert!(
             matches!(result.gate.passes(), ReportOutcome::Clean),
             "an ignored fixtures/ path must never contribute a violation"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn disposition_catalog_is_not_product_source_but_source_trigger_is_detected(
+    ) -> Result<(), std::io::Error> {
+        let temp = tempfile::tempdir()?;
+        // This is an exact applicability boundary, not a security-rule
+        // exception: the disposition catalog contains documented detector
+        // evidence, while deployable source remains in scan scope.
+        seed(
+            temp.path(),
+            "ocentra-enforcer.config.json",
+            r#"{"schemaVersion":2,"profileName":"default","ignoreFileGlobs":["crates/enforcer-rules/dispositions/**"]}"#,
+        )?;
+        let metadata_endpoint = format!("http://169.254.{}", "169.254");
+        seed(
+            temp.path(),
+            "crates/enforcer-rules/dispositions/cyberskills-disposition.json",
+            &format!(r#"{{"documentedIndicator":"{metadata_endpoint}"}}"#),
+        )?;
+        seed(temp.path(), "crates/sample/src/lib.rs", &clean_body())?;
+        let baseline_store = temp.path().join("baseline.json");
+        let ignored =
+            run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
+        assert!(
+            matches!(ignored.gate.passes(), ReportOutcome::Clean),
+            "a documented indicator in the non-executable disposition catalog must not contribute a finding"
+        );
+
+        seed(
+            temp.path(),
+            "crates/sample/src/lib.rs",
+            &format!("const METADATA: &str = \"{metadata_endpoint}\";"),
+        )?;
+        let detected =
+            run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
+        assert!(
+            detected.report.findings.iter().any(|finding| {
+                finding.rule_id.as_str() == "CYBER-SSRF.1"
+                    && finding.file.as_str() == "crates/sample/src/lib.rs"
+            }),
+            "the same indicator in deployable source must remain a CYBER-SSRF.1 finding"
+        );
+        assert!(
+            matches!(detected.gate.passes(), ReportOutcome::Violations),
+            "an unbaselined deployable-source CYBER trigger must fail closed"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn workspace_walk_includes_xtask_and_excludes_generated_target_trees(
+    ) -> Result<(), std::io::Error> {
+        let temp = tempfile::tempdir()?;
+        seed_config(temp.path())?;
+        seed(temp.path(), "crates/sample/src/lib.rs", &clean_body())?;
+        seed(temp.path(), "xtask/src/main.rs", &clean_body())?;
+        seed(
+            temp.path(),
+            "crates/sample/target/debug/generated.rs",
+            &violating_body(),
+        )?;
+        seed(
+            temp.path(),
+            "target-ci/crates/sample/generated.rs",
+            &violating_body(),
+        )?;
+
+        let baseline_store = temp.path().join("baseline.json");
+        let result =
+            run_rust_rule_scan(temp.path(), &baseline_store).map_err(std::io::Error::other)?;
+        assert_eq!(result.coverage.ran_count().get(), 2);
+        assert!(
+            matches!(result.gate.passes(), ReportOutcome::Clean),
+            "generated target trees must not contribute violations to workspace dogfood"
         );
         Ok(())
     }

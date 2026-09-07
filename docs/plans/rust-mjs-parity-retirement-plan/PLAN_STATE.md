@@ -1,0 +1,26 @@
+# Rust/MJS Parity Retirement — Plan State
+
+<!-- agent-capsule -->
+```yaml
+planId: rust-mjs-parity-retirement-plan
+state: "RM00 authority and the complete-unproved RM01 inventory are accepted; RM02-RM07 read-only behavioral oracles are active."
+integrator: "boss on rust-build"
+terminalRule: "no MJS fallback; delete legacy runtime paths rather than merging or retaining them"
+```
+<!-- /agent-capsule -->
+
+## Where We Are
+
+The repository contains both MJS and native Rust enforcement paths. Some native schema and fixture oracles exist, but their presence does not prove public runtime, MCP, install, hook, CI, or coordination parity. RM00 records the split authority and required aggregate contract in [`authority/RM00_AUTHORITY.json`](authority/RM00_AUTHORITY.json). No native cutover is authorized.
+
+## Where We Want To Be
+
+All registered public mechanical capability rows are independently reproduced at one candidate SHA; local CLI, MCP, install, hooks, CI, and release select native execution; rollback is to a previous native release; legacy MJS runtime code is deleted, not merged or kept as a fallback.
+
+## Dependency Checklist
+
+1. RM00 accepted: exact public, provenance, overlay, dogfood, and aggregate authority are frozen by SHA.
+2. RM01 accepted: the canonical matrix contains 837 unique source-inventory rows, covers all declared public surfaces, and keeps every row unmeasured until an executable oracle runs.
+3. RM02-RM07 actively establish read-only public and candidate behavioral oracles; bounded evidence does not itself close a row or workpack.
+4. RM08 adjudicates gaps; RM09-RM10 repair only approved disjoint gaps.
+5. RM11 aggregates exact-SHA evidence, then RM12-RM14 control cutover and deletion.

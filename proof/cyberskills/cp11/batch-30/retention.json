@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-30",
+  "family": "IF/endpoint-security",
+  "baselineCommit": "73f360488e5d342a3a8a8e7d03378678d97bb4c2",
+  "scope": "Retain advisory and manual content for the deterministic endpoint-security packet from immutable CP08 evidence; no native implementation, live endpoint or host execution, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "configuring-host-based-intrusion-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-host-based-intrusion-detection/SKILL.md",
+        "sha256": "59f10898da82139c24a6cb175a7fd6605be72da22ad56f11b023290f3c564b01",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring Host-Based Intrusion Detection:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-47/decomposition.json",
+        "artifactSha256": "12bee1924f14160b89c23cd93148bec2ba94f2b2354f028c75a0a8e69aeeb452"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-windows-defender-advanced-settings",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-windows-defender-advanced-settings/SKILL.md",
+        "sha256": "b61fec85a8be254691a666bbff4bfef12d19ffcbab26efaa9d4a075cfbde1b7b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring Windows Defender Advanced Settings:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-11/decomposition.json",
+        "artifactSha256": "f1c267048d428ced544b01b54b6b3cf0e3d0e20af06b5901a0c88cf050aec63e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-windows-event-logging-for-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-windows-event-logging-for-detection/SKILL.md",
+        "sha256": "59f5842ebf4d6cc270181708bbac69febc74d2af44e259c070551e97c84a3a77",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring Windows Event Logging for Detection:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-11/decomposition.json",
+        "artifactSha256": "f1c267048d428ced544b01b54b6b3cf0e3d0e20af06b5901a0c88cf050aec63e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "deploying-edr-agent-with-crowdstrike",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-edr-agent-with-crowdstrike/SKILL.md",
+        "sha256": "1cb2092d7f15cbcad22ceb0ae96311c1c0462e79f9cf316efb545f2ddd40cc62",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Deploying EDR Agent with CrowdStrike:L45"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-47/decomposition.json",
+        "artifactSha256": "12bee1924f14160b89c23cd93148bec2ba94f2b2354f028c75a0a8e69aeeb452"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "deploying-osquery-for-endpoint-monitoring",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/deploying-osquery-for-endpoint-monitoring/SKILL.md",
+        "sha256": "9fa554874a8ed76630b57f7a1a2c2b9393c93bf382c4eb6156a1b58553003674",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Deploying Osquery for Endpoint Monitoring:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-47/decomposition.json",
+        "artifactSha256": "12bee1924f14160b89c23cd93148bec2ba94f2b2354f028c75a0a8e69aeeb452"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-evasion-techniques-in-endpoint-logs",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-evasion-techniques-in-endpoint-logs/SKILL.md",
+        "sha256": "c2bf7021da96aa3efa65c043736bd196a1b5fc6b9dc58a19e581587e75396b5d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Evasion Techniques in Endpoint Logs:L41"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-47/decomposition.json",
+        "artifactSha256": "12bee1924f14160b89c23cd93148bec2ba94f2b2354f028c75a0a8e69aeeb452"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-fileless-attacks-on-endpoints",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-attacks-on-endpoints/SKILL.md",
+        "sha256": "d0deea298ac6eb95a27ca3ffdfc438c3198b6a87ee663e164368c161ab924cd2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Fileless Attacks on Endpoints:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-47/decomposition.json",
+        "artifactSha256": "12bee1924f14160b89c23cd93148bec2ba94f2b2354f028c75a0a8e69aeeb452"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hardening-linux-endpoint-with-cis-benchmark",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hardening-linux-endpoint-with-cis-benchmark/SKILL.md",
+        "sha256": "e10e1c01357938a9b29d34f89878bdfa21df195cd7962be51b2b6f07b7dca00e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hardening Linux Endpoint with CIS Benchmark:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-12/decomposition.json",
+        "artifactSha256": "bb8dfde4dff8786b08a57541aa6542b96bcf3d739a1ad8ad488eb4b7ea596e05"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hardening-windows-endpoint-with-cis-benchmark",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hardening-windows-endpoint-with-cis-benchmark/SKILL.md",
+        "sha256": "7cdd2d09de8e2130c5a03094b803aead1fd091ccde2b1e0c5cb324eef4790bce",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hardening Windows Endpoint with CIS Benchmark:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-11/decomposition.json",
+        "artifactSha256": "f1c267048d428ced544b01b54b6b3cf0e3d0e20af06b5901a0c88cf050aec63e"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-application-whitelisting-with-applocker",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-application-whitelisting-with-applocker/SKILL.md",
+        "sha256": "e4fe8b7392401c1b78d175b102e344fdbfc392a603bf952b2725759769166f84",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Application Whitelisting with AppLocker:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-65/decomposition.json",
+        "artifactSha256": "f604722c098e992418b96a79fc8c2eb4b2fe723912bcad4264e9088acde1de65"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain endpoint configuration, process, file, registry, persistence, policy, telemetry, evidence-manifest, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live endpoint monitoring or detection."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, system ownership, privacy, legal and safety scope, stop conditions, analyst validation, containment, remediation, rollback, and disclosure decisions.",
+        "notProved": [
+          "No live endpoint action or security conclusion is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, host, process, file, registry, device, network, cloud, production, EDR, SIEM, HIDS, DLP, FIM, vulnerability, or external-service execution is proved.",
+    "No credential extraction, persistence, evasion, detection efficacy, remediation success, attribution, privacy, legal, safety, or security outcome is proved.",
+    "The remaining 7 endpoint-security skills are not included in this B01 packet and remain unretained until later graph-selected packets.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

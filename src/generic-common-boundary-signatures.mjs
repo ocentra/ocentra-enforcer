@@ -59,10 +59,10 @@ export function analyzeBoundarySignatures(text, rawTypes) {
   const hasDomainConversion = validTryFromTarget(text, rawTypes)
     || validFromTarget(text, rawTypes)
     || conversions.some((signature) => isDomainBoundaryReturnType(signature.returnType, rawTypes));
-  const publicRawReturn = signatures.find((signature) =>
+  const publicRawReturn = rawTypes.size > 0 && signatures.find((signature) =>
     signature.isPublic && rawPattern.test(signature.returnType)
       && !hasDocumentedWireOutput(text, signature.returnType, rawTypes));
-  const untypedConversion = conversions.find((signature) => {
+  const untypedConversion = rawTypes.size > 0 && conversions.find((signature) => {
     // A boundary helper can parse a local representation, but only an
     // exported conversion that accepts a declared raw DTO can leak an
     // untyped transport error across the API boundary.
@@ -82,7 +82,7 @@ export function analyzeBoundarySignatures(text, rawTypes) {
     // crate-private persistence/serialization helpers may accept a DTO while
     // they are still inside the boundary module; treating those as public
     // ingress created false BOUND-1.2 findings in typed code.
-    hasRawInput: signatures.some((signature) => signature.isPublic && (
+    hasRawInput: rawTypes.size > 0 && signatures.some((signature) => signature.isPublic && (
       rawPattern.test(signature.parameters)
         || (CONVERSION_NAME_RE.test(signature.name) && rawPattern.test(signature.returnType))
     )),

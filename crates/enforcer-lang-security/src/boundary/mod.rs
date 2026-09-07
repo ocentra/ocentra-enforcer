@@ -5,6 +5,7 @@
 //! Malformed-input rejection has negative coverage beside each fallible decoder.
 
 pub(crate) mod cloud_azure;
+pub(crate) mod cloud_security_b13_manifest_wire;
 pub(crate) mod dependency_manifest;
 pub(crate) mod dockerfile;
 pub(crate) mod fileless;
@@ -12,6 +13,7 @@ pub(crate) mod finding;
 #[cfg(test)]
 pub(crate) mod fixture;
 pub(crate) mod json;
+pub(crate) mod k8s_container_security_manifest;
 pub(crate) mod k8s_pod;
 pub(crate) mod k8s_rbac;
 pub(crate) mod pattern;

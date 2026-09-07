@@ -1,13 +1,13 @@
 //! Hard tests for GN, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_gn`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_gn`])
 //! -- grammar VENDORED (`vendor/tree-sitter-gn-local/`). Asserts
 //! against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::gn`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::gn`]'s own doc
 //! comment: real `call_expression`/`if_statement`/`foreach_statement`
-//! fields, plus [`enforcer_memory::languages::generic::gn_quirk`]'s
+//! fields, plus [`enforcer_syntax::languages::generic::gn_quirk`]'s
 //! own fieldless `import_statement` claim.
 
-use enforcer_memory::languages::generic::parse_gn;
+use enforcer_syntax::languages::generic::parse_gn;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

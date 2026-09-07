@@ -1,16 +1,16 @@
 //! Hard tests for Emacs Lisp, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_emacslisp`]). Asserts
+//! ([`enforcer_syntax::languages::generic::parse_emacslisp`]). Asserts
 //! against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::emacslisp`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::emacslisp`]'s own doc
 //! comment: real `function_definition`/`macro_definition` `name`
 //! fields, the missing-`body`-field closure via
-//! [`enforcer_memory::languages::generic::emacslisp_on_method_defined`],
+//! [`enforcer_syntax::languages::generic::emacslisp_on_method_defined`],
 //! and every fieldless `list` node's callee resolution via
-//! [`enforcer_memory::languages::generic::emacslisp_call_override`].
+//! [`enforcer_syntax::languages::generic::emacslisp_call_override`].
 
-use enforcer_memory::languages::generic::parse_emacslisp;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_emacslisp;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_emacslisp";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

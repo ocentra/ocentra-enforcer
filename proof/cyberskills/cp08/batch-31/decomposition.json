@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-31",
+  "baselineCommit": "dbb8d3934831727429d3feb40d5512954c3e16f7",
+  "family": "Digital forensics acquisition, memory/endpoint/network evidence, persistence artifacts, and database/mobile/cloud forensic analysis",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["extracting-credentials-from-memory-dump", "hunting-for-registry-persistence-mechanisms", "hunting-for-registry-run-key-persistence", "performing-cloud-storage-forensic-acquisition", "performing-endpoint-forensics-investigation", "performing-memory-forensics-with-volatility3", "performing-memory-forensics-with-volatility3-plugins", "performing-mobile-device-forensics-with-cellebrite", "performing-network-forensics-with-wireshark", "performing-sqlite-database-forensics"],
+    "reason": "Ten disjoint digital-forensics acquisition and evidence-analysis skills. Native checks are limited to static typed memory/registry/endpoint/cloud-storage/mobile/network/database/credential/evidence-chain manifests and deterministic fixture fields; acquisition, execution, and evidentiary outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "extracting-credentials-from-memory-dump",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/extracting-credentials-from-memory-dump/SKILL.md", "sha256": "98f1c59cb5c0641612a46c62fb0ff5a95f75d22b4b881cb23cb1b3586291bb96", "availability": "available", "license": "Apache-2.0", "anchors": ["# Extracting Credentials from Memory Dump:L62"]},
+      "components": [
+        {"componentId": "extracting-credentials-from-memory-dump::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed memory-dump metadata, credential-evidence, provenance, and chain fields.", "notProved": ["No credential extraction, memory access, validity, attribution, or forensic outcome proof."]},
+        {"componentId": "extracting-credentials-from-memory-dump::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use memory, process, endpoint, credential, and forensic authorities.", "notProved": ["No pinned adapter, acquisition runtime, or normalized evidence."]},
+        {"componentId": "extracting-credentials-from-memory-dump::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain memory-evidence handling guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "extracting-credentials-from-memory-dump::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, chain-of-custody, and analyst decisions.", "notProved": ["No live acquisition proof."]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-registry-persistence-mechanisms",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-registry-persistence-mechanisms/SKILL.md", "sha256": "87c9a1835cc32111e9245cfc134f522afd0c74660e049d53b61f10fec08eaa5e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Hunting For Registry Persistence Mechanisms:L37"]},
+      "components": [
+        {"componentId": "hunting-for-registry-persistence-mechanisms::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed registry-key, persistence, host, timestamp, and evidence manifest fields.", "notProved": ["No registry/process access, live persistence, attribution, or forensic outcome proof."]},
+        {"componentId": "hunting-for-registry-persistence-mechanisms::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use registry, endpoint, process, EDR, and forensic authorities.", "notProved": ["No pinned adapter, collection runtime, or normalized evidence."]},
+        {"componentId": "hunting-for-registry-persistence-mechanisms::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain registry-persistence hunting guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "hunting-for-registry-persistence-mechanisms::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, chain-of-custody, remediation, and escalation decisions.", "notProved": ["No live registry investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-registry-run-key-persistence",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-registry-run-key-persistence/SKILL.md", "sha256": "440e6a7c7760ab38543b839f6625f9d5e9e8b524c6cfd91c232be97f28aeaf99", "availability": "available", "license": "Apache-2.0", "anchors": ["# Hunting for Registry Run Key Persistence:L36"]},
+      "components": [
+        {"componentId": "hunting-for-registry-run-key-persistence::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed run-key, command, host, timestamp, and evidence manifest fields.", "notProved": ["No registry/process access, live persistence, attribution, or forensic outcome proof."]},
+        {"componentId": "hunting-for-registry-run-key-persistence::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use registry, endpoint, process, EDR, and forensic authorities.", "notProved": ["No pinned adapter, collection runtime, or normalized evidence."]},
+        {"componentId": "hunting-for-registry-run-key-persistence::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain run-key persistence hunting guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "hunting-for-registry-run-key-persistence::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, chain-of-custody, remediation, and escalation decisions.", "notProved": ["No live registry investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-cloud-storage-forensic-acquisition",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-cloud-storage-forensic-acquisition/SKILL.md", "sha256": "a551fb4257eff91f7b0a8dcf9e54b41c4da94b555fcd5abdf0cbef399aab65df", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Cloud Storage Forensic Acquisition:L43"]},
+      "components": [
+        {"componentId": "performing-cloud-storage-forensic-acquisition::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed cloud-object, owner, timestamp, hash, acquisition, and evidence-chain fields.", "notProved": ["No cloud access, acquisition, integrity, attribution, or evidentiary validity proof."]},
+        {"componentId": "performing-cloud-storage-forensic-acquisition::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud storage, provider API, acquisition, and forensic authorities.", "notProved": ["No pinned adapter, live acquisition, or normalized evidence."]},
+        {"componentId": "performing-cloud-storage-forensic-acquisition::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cloud-storage acquisition guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-cloud-storage-forensic-acquisition::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, privacy, chain-of-custody, and disclosure decisions.", "notProved": ["No live cloud acquisition proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-endpoint-forensics-investigation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-endpoint-forensics-investigation/SKILL.md", "sha256": "b2863ebcbe8e139754815ca67551bfa1a35b9916c828a89623f9788c679f3dc7", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Endpoint Forensics Investigation:L34"]},
+      "components": [
+        {"componentId": "performing-endpoint-forensics-investigation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed endpoint artifact, host, timeline, provenance, and evidence-chain fields.", "notProved": ["No endpoint acquisition, process/registry access, attribution, or evidentiary validity proof."]},
+        {"componentId": "performing-endpoint-forensics-investigation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use endpoint, process, registry, EDR, imaging, and forensic authorities.", "notProved": ["No pinned adapter, acquisition runtime, or normalized evidence."]},
+        {"componentId": "performing-endpoint-forensics-investigation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain endpoint forensic-investigation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-endpoint-forensics-investigation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, chain-of-custody, analyst, and remediation decisions.", "notProved": ["No live endpoint investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-memory-forensics-with-volatility3",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-memory-forensics-with-volatility3/SKILL.md", "sha256": "61d7e7fb4d0d271016a26b7d71566e320e6a9a4ab1429b21766c837385fef19f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Memory Forensics with Volatility 3:L30"]},
+      "components": [
+        {"componentId": "performing-memory-forensics-with-volatility3::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed memory-image, process, module, timestamp, and evidence manifest fields.", "notProved": ["No memory acquisition, process access, credential validity, attribution, or forensic outcome proof."]},
+        {"componentId": "performing-memory-forensics-with-volatility3::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Volatility, memory-image, process, endpoint, and forensic authorities.", "notProved": ["No pinned adapter, analysis runtime, or normalized evidence."]},
+        {"componentId": "performing-memory-forensics-with-volatility3::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Volatility memory-forensics guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-memory-forensics-with-volatility3::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, chain-of-custody, analyst, and disclosure decisions.", "notProved": ["No live memory analysis proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-memory-forensics-with-volatility3-plugins",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-memory-forensics-with-volatility3-plugins/SKILL.md", "sha256": "4df1dfc0a60516f320d8a1c103b7472eb0614d0271fdded76f5b9ad531ce512d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Memory Forensics with Volatility3 Plugins:L37"]},
+      "components": [
+        {"componentId": "performing-memory-forensics-with-volatility3-plugins::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed plugin, memory-image, process, module, and evidence manifest fields.", "notProved": ["No memory acquisition, plugin execution, process access, attribution, or forensic outcome proof."]},
+        {"componentId": "performing-memory-forensics-with-volatility3-plugins::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Volatility plugins, memory-image, process, endpoint, and forensic authorities.", "notProved": ["No pinned adapter, analysis runtime, or normalized evidence."]},
+        {"componentId": "performing-memory-forensics-with-volatility3-plugins::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain plugin-based memory-forensics guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-memory-forensics-with-volatility3-plugins::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, chain-of-custody, analyst, and disclosure decisions.", "notProved": ["No live plugin analysis proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-mobile-device-forensics-with-cellebrite",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-mobile-device-forensics-with-cellebrite/SKILL.md", "sha256": "efece04a1720b7175d4a74f416ea13f36beefccc83f1614d3e4550e21de9e592", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Mobile Device Forensics with Cellebrite:L30"]},
+      "components": [
+        {"componentId": "performing-mobile-device-forensics-with-cellebrite::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed mobile-device, extraction, timestamp, hash, and evidence-chain fields.", "notProved": ["No mobile access, Cellebrite extraction, integrity, attribution, or evidentiary validity proof."]},
+        {"componentId": "performing-mobile-device-forensics-with-cellebrite::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Cellebrite, mobile OS, device, carrier, and forensic authorities.", "notProved": ["No pinned adapter, acquisition runtime, or normalized evidence."]},
+        {"componentId": "performing-mobile-device-forensics-with-cellebrite::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain mobile forensic acquisition guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-mobile-device-forensics-with-cellebrite::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, privacy, chain-of-custody, and disclosure decisions.", "notProved": ["No live mobile acquisition proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-network-forensics-with-wireshark",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-network-forensics-with-wireshark/SKILL.md", "sha256": "1d58d427a1a0f9f97521aaac89cde29cd32079b8bb51f42060c462cfa35690b5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Network Forensics with Wireshark:L30"]},
+      "components": [
+        {"componentId": "performing-network-forensics-with-wireshark::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed packet-summary, flow, endpoint, timestamp, and evidence-chain fields.", "notProved": ["No packet capture, Wireshark execution, attribution, evidentiary validity, or network outcome proof."]},
+        {"componentId": "performing-network-forensics-with-wireshark::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Wireshark, packet capture, network, NDR, and forensic authorities.", "notProved": ["No pinned adapter, capture runtime, or normalized evidence."]},
+        {"componentId": "performing-network-forensics-with-wireshark::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain network-forensic analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-network-forensics-with-wireshark::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, chain-of-custody, analyst, and disclosure decisions.", "notProved": ["No live packet-forensic proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-sqlite-database-forensics",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-sqlite-database-forensics/SKILL.md", "sha256": "8e6bee916d841f6a610a1b37221fe0e8e5466a3735bab220b5fa673dc1e9bca9", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing SQLite Database Forensics:L35"]},
+      "components": [
+        {"componentId": "performing-sqlite-database-forensics::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed database schema, record, timestamp, hash, and evidence-chain fields.", "notProved": ["No database access, recovery, integrity, attribution, or evidentiary validity proof."]},
+        {"componentId": "performing-sqlite-database-forensics::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SQLite, storage, application, endpoint, and forensic authorities.", "notProved": ["No pinned adapter, acquisition runtime, or normalized evidence."]},
+        {"componentId": "performing-sqlite-database-forensics::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain SQLite database-forensic guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-sqlite-database-forensics::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, legal scope, privacy, chain-of-custody, analyst, and disclosure decisions.", "notProved": ["No live database-forensic proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Volatility, Cellebrite, Wireshark, cloud, endpoint, registry, process, memory, live acquisition, and forensic execution authorities remain blocked external engines.",
+    "No credential extraction, live acquisition, memory/process/registry access, packet capture, cloud/mobile access, attribution, evidentiary validity, or forensic outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

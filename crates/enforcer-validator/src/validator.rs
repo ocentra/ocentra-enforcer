@@ -13,7 +13,11 @@ use enforcer_domain::boundary::validation::ValidationSource;
 use enforcer_domain::findings::{Finding, ScanScope};
 use enforcer_domain::ids::RuleId;
 use enforcer_domain::paths::RelPath;
+use enforcer_domain::syntax_types::{CapabilitySet, FactCapability};
 
+use crate::analysis::{CapabilityMatch, PreparedAnalysis};
+
+/// One file's validated path, source text, and scan scope as seen by a validator.
 #[derive(Debug, Clone, Copy)]
 #[doc = "One file's validated path, source text, and scan scope as seen by a validator."]
 pub struct ValidationInput<'a> {
@@ -40,7 +44,50 @@ pub trait Validator: Send + Sync {
     /// invariant, not just "some finding fired".
     fn rule_id(&self) -> &RuleId;
 
+    /// Declare the closed fact capability required by this validator.
+    fn required_capabilities(&self) -> CapabilitySet {
+        CapabilitySet::empty()
+    }
+
     /// Inspect one file, returning every finding it trips. An empty vec
     /// means the file is clean with respect to this validator's rule.
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding>;
+
+    /// Dispatch with prepared analysis while preserving legacy validators.
+    fn validate_with_analysis(
+        &self,
+        input: ValidationInput<'_>,
+        analysis: Option<&PreparedAnalysis>,
+    ) -> ValidationDispatch {
+        let required = self.required_capabilities();
+        if required.contains(FactCapability::FunctionFacts) {
+            let Some(prepared) = analysis else {
+                return ValidationDispatch::Skipped(AnalysisSkip::NotPrepared);
+            };
+            if prepared.capability_match(FactCapability::FunctionFacts)
+                == CapabilityMatch::NotSatisfied
+            {
+                return ValidationDispatch::Skipped(AnalysisSkip::RequirementUnavailable);
+            }
+        }
+        ValidationDispatch::Ran(self.validate(input))
+    }
+}
+
+/// Explicit result of the analysis-aware dispatch seam.
+#[derive(Debug, PartialEq, Eq)]
+pub enum ValidationDispatch {
+    /// The validator ran and produced its ordinary findings.
+    Ran(Vec<Finding>),
+    /// The validator did not run because its declared fact contract was absent.
+    Skipped(AnalysisSkip),
+}
+
+/// Typed reason a fact-backed validator did not run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnalysisSkip {
+    /// No prepared analysis was supplied.
+    NotPrepared,
+    /// Prepared analysis was unavailable, malformed, unsafe, or incomplete.
+    RequirementUnavailable,
 }

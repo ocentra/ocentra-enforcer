@@ -1,9 +1,9 @@
 //! Hard tests for Erlang, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_erlang`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_erlang`])
 //! -- there is no bespoke `languages::erlang` extractor to prove
 //! zero-regression against (Erlang has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::erlang`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::erlang`]'s own doc
 //! comment directly: `function_clause`'s real `name`/`body` fields (no
 //! quirk needed for the base case), `type_alias`'s own two-level
 //! `type_name` unwrap, `import_attribute`'s own `module`-field IMPORTS
@@ -12,8 +12,8 @@
 //! reconstruction (dropping a remote call's `io:` qualifier, matching
 //! the baseline's own real depth).
 
-use enforcer_memory::languages::generic::parse_erlang;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_erlang;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -23,7 +23,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_erlang";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

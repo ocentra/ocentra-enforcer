@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "workpack": "WP/CP03",
+  "kind": "syntax-facts-consumer-contract",
+  "status": "accepted-for-cp03-scope",
+  "baseCommit": "cd9462ea52c7ff8e42cbc2bb9c58822ca758d63f",
+  "sourcePaths": [
+    "crates/enforcer-scan/tests/cyberskills_syntax_facts_adoption.rs",
+    "proof/cyberskills/cp03/syntax-facts-consumer.json"
+  ],
+  "dependencies": [
+    {
+      "workpack": "EXT/UL04",
+      "path": "proof/universal-language/ul04/inventory.json",
+      "role": "accepted function-declaration fact and parse-honesty inventory",
+      "status": "accepted",
+      "sha256": "60A83802A9FC740254DB22BE72FB63535C1C6D9AD933E1E6714922E9910E04D4"
+    },
+    {
+      "workpack": "EXT/UL04",
+      "path": "proof/universal-language/ul04/provenance.json",
+      "role": "accepted syntax-provider provenance and gate record",
+      "status": "accepted",
+      "sha256": "DEF98B8B09A59749040410EECF600E6FE950A49BABD49C7878561D8CD003D139"
+    },
+    {
+      "workpack": "WP/CP02",
+      "path": "proof/cyberskills/cp02/shared-syntax-adoption.json",
+      "role": "accepted shared syntax consumer ownership and dependency boundary",
+      "status": "accepted",
+      "sha256": "A5C07D541F84B08A35A20A80FD540DA91C1EFD152C1F4B5B715056B163E82B3F"
+    }
+  ],
+  "consumer": {
+    "crate": "enforcer-scan",
+    "sharedSyntaxCrate": "enforcer-syntax",
+    "interface": "enforcer_syntax::facts::function_facts::analyze",
+    "facts": [
+      "typed function declaration names",
+      "checked byte and one-based line spans",
+      "provider provenance and parse outcome",
+      "explicit capability set"
+    ],
+    "ownership": {
+      "factProvider": "EXT/UL04",
+      "consumer": "WP/CP03",
+      "grammar": "EXT/UL02"
+    }
+  },
+  "requirements": [
+    {
+      "id": "CP03-REQ-01",
+      "statement": "The consumer receives a clean typed function-fact result with a checked span.",
+      "disposition": "accepted",
+      "evidence": "crates/enforcer-scan/tests/cyberskills_syntax_facts_adoption.rs"
+    },
+    {
+      "id": "CP03-REQ-02",
+      "statement": "Malformed syntax is recovered as ParsedWithErrors and is never treated as clean.",
+      "disposition": "accepted",
+      "evidence": "crates/enforcer-scan/tests/cyberskills_syntax_facts_adoption.rs"
+    },
+    {
+      "id": "CP03-REQ-03",
+      "statement": "Unsupported, unavailable, and unsafe inputs remain explicit non-clean outcomes.",
+      "disposition": "accepted",
+      "evidence": "crates/enforcer-scan/tests/cyberskills_syntax_facts_adoption.rs"
+    },
+    {
+      "id": "CP03-REQ-04",
+      "statement": "Oversized and resource-limited outcomes are visible to the consumer.",
+      "disposition": "routed-back-to-UL04",
+      "reason": "The accepted UL04 function-facts interface exposes no size or resource-limit outcome; CP03 does not invent one.",
+      "evidence": "proof/universal-language/ul04/inventory.json"
+    },
+    {
+      "id": "CP03-REQ-05",
+      "statement": "The consumer asserts typed behavior without importing parser trees or grammar crates.",
+      "disposition": "accepted",
+      "evidence": "crates/enforcer-scan/tests/cyberskills_syntax_facts_adoption.rs"
+    }
+  ],
+  "gates": {
+    "focusedConsumer": {
+      "command": "cargo test --locked -p enforcer-scan --test cyberskills_syntax_facts_adoption -- --nocapture",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    "ul04Dependency": {
+      "status": "accepted-by-dependency-evidence",
+      "inventory": "proof/universal-language/ul04/inventory.json",
+      "provenance": "proof/universal-language/ul04/provenance.json"
+    },
+    "scanLibrary": {
+      "command": "cargo test --locked -p enforcer-scan --lib --quiet",
+      "status": "passed",
+      "exitCode": 0,
+      "passed": 169,
+      "failed": 0
+    },
+    "checkAndClippy": {
+      "commands": [
+        "cargo check --locked -p enforcer-scan",
+        "cargo clippy --locked -p enforcer-scan --tests --no-deps -- -D warnings"
+      ],
+      "status": "passed",
+      "exitCode": 0
+    },
+    "formatAndDiff": {
+      "commands": [
+        "cargo fmt -p enforcer-scan -- --check",
+        "git diff --check"
+      ],
+      "status": "passed",
+      "exitCode": 0
+    },
+    "enforcer": {
+      "route": "files",
+      "strictScan": "0 findings, 0 violations, 0 warnings",
+      "sourceShape": "0 findings, 0 violations, 0 warnings",
+      "secrets": "0 findings, 0 violations, 0 warnings"
+    },
+    "protectedPath": {
+      "command": "Test-Path -LiteralPath vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md",
+      "exists": false,
+      "read": false,
+      "modified": false
+    }
+  },
+  "externalExecution": "blocked",
+  "proves": [
+    "one CyberSkills consumer crosses the accepted UL04 typed function-fact seam",
+    "clean facts include checked spans and provider provenance",
+    "malformed, unsupported, unavailable, and unsafe inputs cannot silently become clean fact sets",
+    "the consumer test observes behavior rather than raw parser-tree shape"
+  ],
+  "doesNotProve": [
+    "oversized or resource-limited outcome support, which remains an UL04 requirement",
+    "new parser facts, grammar ownership, or all-language coverage",
+    "native implementation of any additional CyberSkills intent",
+    "executable security proof, live external execution, or security outcomes",
+    "overall Universal Language or CyberSkills plan completion",
+    "protected vendor source, which remains excluded and untouched"
+  ]
+}

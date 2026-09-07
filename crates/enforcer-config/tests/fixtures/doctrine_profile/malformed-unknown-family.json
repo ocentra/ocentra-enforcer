@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "profileName": "malformed",
+  "language": "typescript",
+  "requirements": [
+    {
+      "requirement": "parse-at-boundary",
+      "enabled": true,
+      "severity": "error",
+      "families": [
+        { "family": "effect", "enabled": true },
+        { "family": "zod", "enabled": false },
+        { "family": "unknown-family", "enabled": false }
+      ]
+    }
+  ],
+  "ruleToggles": []
+}

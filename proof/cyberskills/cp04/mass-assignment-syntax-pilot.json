@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "workpack": "WP/CP04",
+  "kind": "existing-rule-syntax-pilot",
+  "status": "validated",
+  "baseCommit": "6093de6ec9912ee4d363a2882c5e90181172a6d1",
+  "selectedRule": {
+    "ruleId": "CYBER-MASS-ASSIGN.1",
+    "implementation": "crates/enforcer-lang-security/src/rules/cyberskills/mass_assignment.rs",
+    "source": {
+      "catalogId": "exploiting-mass-assignment-in-rest-apis",
+      "path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-mass-assignment-in-rest-apis/SKILL.md",
+      "sha256": "23393f7b14703375d6487e099a3108186d299b359fab45e7c09281e41b479af9",
+      "anchors": ["# Exploiting Mass Assignment in REST APIs:L32"],
+      "license": "Apache-2.0",
+      "availability": "available"
+    }
+  },
+  "interface": {
+    "provider": "enforcer_syntax::facts::function_facts::analyze",
+    "consumer": "MassAssignmentValidator::validate_with_analysis",
+    "fact": "checked function-declaration byte spans",
+    "nativePredicate": "Apply the existing whole-request binding matcher only to lines contained by a trustworthy function span; retain the legacy text matcher when analysis is unavailable or malformed."
+  },
+  "differentialCases": [
+    {
+      "id": "top-level-prose",
+      "old": "flagged",
+      "new": "clean",
+      "reason": "A comment outside every function must not be treated as an executable mass-assignment sink."
+    },
+    {
+      "id": "python-real-sink",
+      "old": "flagged",
+      "new": "flagged",
+      "reason": "A whole-request update inside a declared function remains detected."
+    },
+    {
+      "id": "javascript-real-sink",
+      "old": "flagged",
+      "new": "flagged",
+      "reason": "A whole-request Model.create call inside a declared JavaScript function remains detected."
+    },
+    {
+      "id": "multiline-call",
+      "old": "clean",
+      "new": "clean",
+      "reason": "Multiline argument reconstruction is not supplied by the accepted function-facts capability."
+    },
+    {
+      "id": "import-alias",
+      "old": "clean",
+      "new": "clean",
+      "reason": "Alias resolution is not supplied by the accepted function-facts capability."
+    },
+    {
+      "id": "malformed-provider-result",
+      "old": "legacy fallback flagged",
+      "new": "explicit skipped",
+      "reason": "ParsedWithErrors is not silently treated as a trustworthy fact set."
+    }
+  ],
+  "gates": {
+    "focused": {
+      "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_mass_assignment -- --nocapture",
+      "exitCode": 0,
+      "passed": 3,
+      "failed": 0
+    },
+    "fixtureParity": [
+      "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/bad/vuln.py",
+      "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.mass-assignment/good/safe.py"
+    ],
+    "securityLibrary": {
+      "command": "cargo test --locked -p enforcer-lang-security --lib",
+      "exitCode": 0,
+      "passed": 69,
+      "failed": 0
+    },
+    "securityCorpus": {
+      "command": "cargo test --locked -p enforcer-lang-security --test cyberskills_corpus -- --nocapture",
+      "exitCode": 0,
+      "passed": 33,
+      "failed": 0
+    },
+    "checkAndClippy": {
+      "commands": [
+        "cargo check --locked -p enforcer-lang-security",
+        "cargo clippy --locked -p enforcer-lang-security --tests --no-deps -- -D warnings"
+      ],
+      "exitCode": 0
+    },
+    "formatAndDiff": {
+      "commands": [
+        "cargo fmt -p enforcer-lang-security -- --check",
+        "git diff --check"
+      ],
+      "exitCode": 0
+    },
+    "enforcer": {
+      "route": "files",
+      "strictScan": "0 findings, 0 violations, 0 warnings",
+      "sourceShape": "0 findings, 0 violations, 0 warnings",
+      "secrets": "0 findings, 0 violations, 0 warnings"
+    },
+    "dependencyLock": {
+      "command": "cargo check --offline -p enforcer-lang-security",
+      "exitCode": 0,
+      "reason": "The focused test consumes the existing enforcer-syntax package as a dev dependency; Cargo.lock is claimed and updated deterministically."
+    },
+    "protectedPath": {
+      "command": "Test-Path -LiteralPath vendor/anthropic-cybersecurity-skills/skills/detecting-fileless-malware-techniques/SKILL.md",
+      "exists": false,
+      "read": false,
+      "modified": false
+    },
+    "externalExecution": "blocked"
+  },
+  "proves": [
+    "one existing CyberSkills rule consumes the accepted function-facts interface",
+    "a demonstrated top-level prose false positive is removed without losing the real Python or JavaScript sink",
+    "malformed provider output is explicit and falls back to the legacy rule path rather than becoming clean"
+  ],
+  "doesNotProve": [
+    "multiline call reconstruction, import-alias resolution, argument binding, or string-literal classification",
+    "new grammar facts or parser capabilities",
+    "live HTTP requests, exploit delivery, authorization bypass, remediation, or security outcomes",
+    "native implementation of the remaining CyberSkills catalog",
+    "overall CyberSkills parity or plan completion",
+    "the protected fileless-malware vendor source, which remains excluded and untouched"
+  ]
+}

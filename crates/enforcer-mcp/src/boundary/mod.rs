@@ -10,6 +10,7 @@
 
 pub mod fingerprint;
 pub mod fingerprint_artifact;
+pub mod harness_run;
 pub mod rpc_request;
 pub mod rpc_response;
 pub mod staleness_report;

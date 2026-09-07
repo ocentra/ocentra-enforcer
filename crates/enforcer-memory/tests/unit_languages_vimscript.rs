@@ -1,10 +1,10 @@
 //! Hard tests for VimScript, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_vimscript`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_vimscript`]) -- there is
 //! no bespoke `languages::vimscript` extractor to prove zero-regression
 //! against (VimScript has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::vimscript`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::vimscript`]'s own doc
 //! comment directly: `function_definition` (the OUTER node) is the sole
 //! `func_types` entry (NOT the nested `function_declaration`, which has
 //! no `body` field of its own -- a real correctness bug the baseline's
@@ -12,8 +12,8 @@
 //! deliberately empty (the baseline's own `"include"` entry names an
 //! anonymous token, never a real named node).
 
-use enforcer_memory::languages::generic::parse_vimscript;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_vimscript;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -23,7 +23,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_vimscript";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

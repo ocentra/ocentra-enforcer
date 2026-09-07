@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-39",
+  "baselineCommit": "f88361cdab7abf07565b125c4c033c31141c26f3",
+  "family": "Digital artifact collection, recovery, evidence-chain, and forensic timeline reconstruction",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["analyzing-slack-space-and-file-system-artifacts", "analyzing-usb-device-connection-history", "building-incident-timeline-with-timesketch", "building-super-timelines-with-plaso", "collecting-volatile-evidence-from-compromised-host", "extracting-browser-history-artifacts", "extracting-memory-artifacts-with-rekall", "parsing-artifacts-with-eric-zimmerman-tools", "performing-file-carving-with-foremost", "performing-timeline-reconstruction-with-plaso"],
+    "reason": "Ten disjoint digital-forensics skills covering file-system and device artifacts, volatile and browser evidence, carving, parsing, evidence chains, and timeline reconstruction. Native checks are limited to static typed supplied manifests; acquisition engines and evidentiary outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-slack-space-and-file-system-artifacts",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-slack-space-and-file-system-artifacts/SKILL.md", "sha256": "a5a89794319ead3dea0fb859e3ec7b45c9318e58e90551553258911aa32a7b37", "availability": "available", "license": "Apache-2.0", "anchors": ["# Analyzing Slack Space and File System Artifacts:L31"]},
+      "components": [
+        {"componentId": "analyzing-slack-space-and-file-system-artifacts::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied artifact, file-system, timestamp, hash, provenance, analyst, and evidence-chain manifests.", "notProved": ["No live file-system access, artifact extraction, timeline truth, evidentiary validity, attribution, or forensic outcome proof."]},
+        {"componentId": "analyzing-slack-space-and-file-system-artifacts::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live filesystems, Slack sources, endpoints, imaging, acquisition, parsing, and production evidence authorities.", "notProved": ["No pinned adapter, acquisition runtime, live source, or normalized evidence."]},
+        {"componentId": "analyzing-slack-space-and-file-system-artifacts::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Slack-space and file-system artifact analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "analyzing-slack-space-and-file-system-artifacts::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live artifact analysis proof."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-usb-device-connection-history",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-usb-device-connection-history/SKILL.md", "sha256": "35487efac10bdb869d141e2fa0d7b8b5810093792f8fae603c26a69409d83e9b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Analyzing USB Device Connection History:L30"]},
+      "components": [
+        {"componentId": "analyzing-usb-device-connection-history::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied USB device, host, timestamp, user, event, hash, provenance, analyst, and evidence manifests.", "notProved": ["No live device or host access, event truth, acquisition, attribution, evidentiary validity, or forensic outcome proof."]},
+        {"componentId": "analyzing-usb-device-connection-history::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use USB devices, hosts, endpoint systems, imaging, acquisition, registry/event sources, and production evidence authorities.", "notProved": ["No pinned adapter, device access, acquisition runtime, or normalized evidence."]},
+        {"componentId": "analyzing-usb-device-connection-history::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain USB connection-history analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "analyzing-usb-device-connection-history::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live device-forensics proof."]}
+      ]
+    },
+    {
+      "catalogId": "building-incident-timeline-with-timesketch",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-incident-timeline-with-timesketch/SKILL.md", "sha256": "f290286d58c11e541d18d879ea3e0a896411309f53a0cffa1cd5b9fc3ecf0ef8", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Incident Timeline with Timesketch:L38"]},
+      "components": [
+        {"componentId": "building-incident-timeline-with-timesketch::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied event, timestamp, source, hash, provenance, timeline, analyst, and evidence-chain manifests.", "notProved": ["No live timeline construction, event truth, attribution, evidentiary validity, incident classification, or forensic outcome proof."]},
+        {"componentId": "building-incident-timeline-with-timesketch::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Timesketch, live filesystems, endpoints, SIEM, acquisition, parsers, imaging, and production evidence authorities.", "notProved": ["No pinned adapter, timeline runtime, live source, or normalized evidence."]},
+        {"componentId": "building-incident-timeline-with-timesketch::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain incident timeline and forensic correlation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-incident-timeline-with-timesketch::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live timeline proof."]}
+      ]
+    },
+    {
+      "catalogId": "building-super-timelines-with-plaso",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/building-super-timelines-with-plaso/SKILL.md", "sha256": "3e60d8e1501f6c454b04c44d35655fa6aea855a37784aa32c17427d77b537e85", "availability": "available", "license": "Apache-2.0", "anchors": ["# Building Super Timelines with Plaso:L23"]},
+      "components": [
+        {"componentId": "building-super-timelines-with-plaso::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied timeline, timestamp, source, artifact, hash, provenance, analyst, and evidence-chain manifests.", "notProved": ["No Plaso execution, event extraction, timeline truth, evidentiary validity, attribution, or forensic outcome proof."]},
+        {"componentId": "building-super-timelines-with-plaso::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Plaso, live filesystems, endpoints, imaging, acquisition, parsers, SIEM, and production evidence authorities.", "notProved": ["No pinned adapter, timeline runtime, acquisition source, or normalized evidence."]},
+        {"componentId": "building-super-timelines-with-plaso::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain super-timeline and forensic correlation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "building-super-timelines-with-plaso::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live super-timeline proof."]}
+      ]
+    },
+    {
+      "catalogId": "collecting-volatile-evidence-from-compromised-host",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/collecting-volatile-evidence-from-compromised-host/SKILL.md", "sha256": "b97d7246ea4c15ba1f22860c3ac2147a219daf28a1722ddebd862f47f78b30e7", "availability": "available", "license": "Apache-2.0", "anchors": ["# Collecting Volatile Evidence from Compromised Hosts:L31"]},
+      "components": [
+        {"componentId": "collecting-volatile-evidence-from-compromised-host::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied acquisition-plan, host, volatile artifact, timestamp, hash, provenance, analyst, and evidence-chain manifests.", "notProved": ["No live host or memory access, acquisition, extraction, timeline truth, evidentiary validity, attribution, or forensic outcome proof."]},
+        {"componentId": "collecting-volatile-evidence-from-compromised-host::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use hosts, memory, endpoints, acquisition tools, imaging, live filesystems, Rekall/Volatility, and production evidence authorities.", "notProved": ["No pinned adapter, host access, acquisition runtime, or normalized evidence."]},
+        {"componentId": "collecting-volatile-evidence-from-compromised-host::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain volatile-evidence collection and preservation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "collecting-volatile-evidence-from-compromised-host::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live volatile-evidence proof."]}
+      ]
+    },
+    {
+      "catalogId": "extracting-browser-history-artifacts",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/extracting-browser-history-artifacts/SKILL.md", "sha256": "cffc9b82939cef7b751c52338205166eda1c9037fbb12a2f8a18390f0c2c8fb7", "availability": "available", "license": "Apache-2.0", "anchors": ["# Extracting Browser History Artifacts:L31"]},
+      "components": [
+        {"componentId": "extracting-browser-history-artifacts::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied browser artifact, URL, timestamp, user, hash, provenance, analyst, and evidence-chain manifests.", "notProved": ["No live browser or host access, extraction, browsing truth, attribution, evidentiary validity, or forensic outcome proof."]},
+        {"componentId": "extracting-browser-history-artifacts::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use browsers, profiles, hosts, endpoints, acquisition, imaging, parsers, live filesystems, and production evidence authorities.", "notProved": ["No pinned adapter, browser runtime, profile access, or normalized evidence."]},
+        {"componentId": "extracting-browser-history-artifacts::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain browser-artifact extraction and interpretation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "extracting-browser-history-artifacts::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live browser-forensics proof."]}
+      ]
+    },
+    {
+      "catalogId": "extracting-memory-artifacts-with-rekall",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/extracting-memory-artifacts-with-rekall/SKILL.md", "sha256": "4c2d8aeb4467df170bd2bb2e41afc3bfa32d69f7a7290ef6bfed1548c022bd54", "availability": "available", "license": "Apache-2.0", "anchors": ["# Extracting Memory Artifacts with Rekall:L35"]},
+      "components": [
+        {"componentId": "extracting-memory-artifacts-with-rekall::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied memory image, artifact, process, timestamp, hash, provenance, analyst, and evidence-chain manifests.", "notProved": ["No live memory access, Rekall extraction, process truth, credential extraction, evidentiary validity, attribution, or forensic outcome proof."]},
+        {"componentId": "extracting-memory-artifacts-with-rekall::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Rekall, memory images, hosts, endpoints, acquisition, imaging, live processes, and production evidence authorities.", "notProved": ["No pinned adapter, memory runtime, acquisition source, or normalized evidence."]},
+        {"componentId": "extracting-memory-artifacts-with-rekall::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain memory-artifact extraction and forensic interpretation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "extracting-memory-artifacts-with-rekall::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live memory-forensics proof."]}
+      ]
+    },
+    {
+      "catalogId": "parsing-artifacts-with-eric-zimmerman-tools",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/parsing-artifacts-with-eric-zimmerman-tools/SKILL.md", "sha256": "a88e86bb9ab6eaf0edfce5c55d24497776f2ea4860885e1af03ff70435ca08ee", "availability": "available", "license": "Apache-2.0", "anchors": ["# Parsing Artifacts with Eric Zimmerman Tools:L23"]},
+      "components": [
+        {"componentId": "parsing-artifacts-with-eric-zimmerman-tools::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Windows artifact, parser, timestamp, hash, provenance, analyst, and evidence-chain manifests.", "notProved": ["No parser execution, artifact extraction, host truth, timeline truth, evidentiary validity, attribution, or forensic outcome proof."]},
+        {"componentId": "parsing-artifacts-with-eric-zimmerman-tools::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Eric Zimmerman tools, hosts, endpoints, live filesystems, acquisition, imaging, parsers, and production evidence authorities.", "notProved": ["No pinned adapter, parser runtime, acquisition source, or normalized evidence."]},
+        {"componentId": "parsing-artifacts-with-eric-zimmerman-tools::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Windows artifact parsing and forensic workflow guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "parsing-artifacts-with-eric-zimmerman-tools::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live artifact parsing proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-file-carving-with-foremost",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-file-carving-with-foremost/SKILL.md", "sha256": "382687fc8fdd19c67ef0cf827476da9a2f1a330cb2735a84270d72a452fbf406", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing File Carving with Foremost:L30"]},
+      "components": [
+        {"componentId": "performing-file-carving-with-foremost::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied image, file fragment, offset, hash, provenance, acquisition-plan, analyst, and evidence-chain manifests.", "notProved": ["No Foremost execution, file recovery, image truth, evidentiary validity, attribution, or forensic outcome proof."]},
+        {"componentId": "performing-file-carving-with-foremost::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Foremost, disk images, live filesystems, hosts, endpoints, acquisition, imaging, and production evidence authorities.", "notProved": ["No pinned adapter, carving runtime, image source, or normalized evidence."]},
+        {"componentId": "performing-file-carving-with-foremost::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain file-carving and recovery guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-file-carving-with-foremost::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live file-carving proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-timeline-reconstruction-with-plaso",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-timeline-reconstruction-with-plaso/SKILL.md", "sha256": "d3712dcf92ceeebf5eb52e5582231dcf1960342848450e390ea3b90fb58ce9be", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Timeline Reconstruction with Plaso:L31"]},
+      "components": [
+        {"componentId": "performing-timeline-reconstruction-with-plaso::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied event, timestamp, source, artifact, hash, provenance, analyst, and evidence-chain manifests.", "notProved": ["No Plaso execution, event extraction, timeline truth, evidentiary validity, attribution, incident classification, or forensic outcome proof."]},
+        {"componentId": "performing-timeline-reconstruction-with-plaso::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Plaso, live filesystems, endpoints, imaging, acquisition, parsers, Timesketch, and production evidence authorities.", "notProved": ["No pinned adapter, timeline runtime, acquisition source, or normalized evidence."]},
+        {"componentId": "performing-timeline-reconstruction-with-plaso::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain forensic timeline reconstruction guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-timeline-reconstruction-with-plaso::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and legal scope, chain of custody, privacy, evidence handling, acquisition safety, analyst interpretation, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No live timeline reconstruction proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Rekall, Plaso, Timesketch, Foremost, Eric Zimmerman tools, browser/device/host/memory sources, live filesystems, endpoints, imaging, acquisition, and production evidence authorities remain blocked external engines.",
+    "No live acquisition, extraction, recovery, timeline truth, evidentiary validity, attribution, chain-of-custody validity, incident classification, remediation, disclosure, or forensic/security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}

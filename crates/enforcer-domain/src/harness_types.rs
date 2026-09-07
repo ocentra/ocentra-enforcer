@@ -391,12 +391,21 @@ impl std::fmt::Display for HarnessLanguage {
 }
 
 // BRAND-INVARIANT: zero is normalized at the adapter seam; oversized values remain explicit.
-/// One-based source line reported by an external tool.
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
 )]
 #[serde(transparent)]
+/// One-based source line reported by an external tool.
 pub struct HarnessSourceLine(u64);
+
+impl std::fmt::Debug for HarnessSourceLine {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("HarnessSourceLine")
+            .field(&self.0)
+            .finish()
+    }
+}
 
 impl HarnessSourceLine {
     /// Validate a one-based external source line without narrowing it.
@@ -491,5 +500,450 @@ impl HarnessRunStatus {
             Self::Passed => "passed",
             Self::Failed => "failed",
         }
+    }
+}
+
+/// Policy class assigned to an allowlisted external tool.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessToolRequirement {
+    /// A non-available tool prevents the policy gate from passing.
+    Required,
+    /// A non-available tool is reported as a warning.
+    Optional,
+    /// A non-available tool is explicitly outside the current run.
+    Advisory,
+}
+
+impl HarnessToolRequirement {
+    /// Stable policy spelling.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Required => "required",
+            Self::Optional => "optional",
+            Self::Advisory => "advisory",
+        }
+    }
+}
+
+/// Typed availability result for an allowlisted tool invocation.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessToolAvailability {
+    Available,
+    Missing,
+    VersionMismatch,
+    Misconfigured,
+    TimedOut,
+    Failed,
+    MalformedOutput,
+}
+
+impl HarnessToolAvailability {
+    /// Stable availability spelling.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Available => "available",
+            Self::Missing => "missing",
+            Self::VersionMismatch => "version-mismatch",
+            Self::Misconfigured => "misconfigured",
+            Self::TimedOut => "timed-out",
+            Self::Failed => "failed",
+            Self::MalformedOutput => "malformed-output",
+        }
+    }
+
+    /// Derive the non-ambiguous policy action for this availability result.
+    #[must_use]
+    pub const fn decision(self, requirement: HarnessToolRequirement) -> HarnessToolDecision {
+        match (self, requirement) {
+            (Self::Available, _) => HarnessToolDecision::Run,
+            (_, HarnessToolRequirement::Required) => HarnessToolDecision::Block,
+            (_, HarnessToolRequirement::Optional) => HarnessToolDecision::Warn,
+            (_, HarnessToolRequirement::Advisory) => HarnessToolDecision::NotApplicable,
+        }
+    }
+}
+
+/// Action a caller must take after resolving allowlisted-tool availability.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessToolDecision {
+    Run,
+    Block,
+    Warn,
+    NotApplicable,
+}
+
+/// Closed execution limits required before an allowlisted tool may run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HarnessExecutionLimits {
+    max_wall_time_ms: std::num::NonZeroU64,
+    max_output_bytes: std::num::NonZeroU64,
+    max_files: std::num::NonZeroU32,
+}
+
+impl HarnessExecutionLimits {
+    /// Construct non-zero wall-time, output, and file-count bounds.
+    pub fn try_new(
+        max_wall_time_ms: u64,
+        max_output_bytes: u64,
+        max_files: u32,
+    ) -> Result<Self, DecodeError> {
+        let max_wall_time_ms = std::num::NonZeroU64::new(max_wall_time_ms)
+            .ok_or_else(|| DecodeError::new("maxWallTimeMs", "must be greater than zero"))?;
+        let max_output_bytes = std::num::NonZeroU64::new(max_output_bytes)
+            .ok_or_else(|| DecodeError::new("maxOutputBytes", "must be greater than zero"))?;
+        let max_files = std::num::NonZeroU32::new(max_files)
+            .ok_or_else(|| DecodeError::new("maxFiles", "must be greater than zero"))?;
+        Ok(Self {
+            max_wall_time_ms,
+            max_output_bytes,
+            max_files,
+        })
+    }
+
+    /// Maximum wall time in milliseconds.
+    #[must_use]
+    pub const fn max_wall_time_ms(self) -> u64 {
+        self.max_wall_time_ms.get()
+    }
+
+    /// Maximum combined captured output in bytes.
+    #[must_use]
+    pub const fn max_output_bytes(self) -> u64 {
+        self.max_output_bytes.get()
+    }
+
+    /// Maximum file count a later adapter may inspect.
+    #[must_use]
+    pub const fn max_files(self) -> u32 {
+        self.max_files.get()
+    }
+}
+
+/// Independent bounds for one explicitly reviewed input-tree scope.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct HarnessInputLimits {
+    max_files: std::num::NonZeroU32,
+    max_depth: std::num::NonZeroU32,
+    max_file_bytes: std::num::NonZeroU64,
+    max_total_bytes: std::num::NonZeroU64,
+}
+
+impl HarnessInputLimits {
+    /// Construct non-zero file-count, depth, per-file, and total-byte bounds.
+    pub fn try_new(
+        max_files: u32,
+        max_depth: u32,
+        max_file_bytes: u64,
+        max_total_bytes: u64,
+    ) -> Result<Self, DecodeError> {
+        let max_files = std::num::NonZeroU32::new(max_files)
+            .ok_or_else(|| DecodeError::new("input.maxFiles", "must be greater than zero"))?;
+        let max_depth = std::num::NonZeroU32::new(max_depth)
+            .ok_or_else(|| DecodeError::new("input.maxDepth", "must be greater than zero"))?;
+        let max_file_bytes = std::num::NonZeroU64::new(max_file_bytes)
+            .ok_or_else(|| DecodeError::new("input.maxFileBytes", "must be greater than zero"))?;
+        let max_total_bytes = std::num::NonZeroU64::new(max_total_bytes)
+            .ok_or_else(|| DecodeError::new("input.maxTotalBytes", "must be greater than zero"))?;
+        Ok(Self {
+            max_files,
+            max_depth,
+            max_file_bytes,
+            max_total_bytes,
+        })
+    }
+
+    /// Maximum number of reviewed regular files.
+    #[must_use]
+    pub const fn max_files(self) -> u32 {
+        self.max_files.get()
+    }
+
+    /// Maximum reviewed directory depth below the disposable cwd.
+    #[must_use]
+    pub const fn max_depth(self) -> u32 {
+        self.max_depth.get()
+    }
+
+    /// Maximum bytes in one reviewed regular file.
+    #[must_use]
+    pub const fn max_file_bytes(self) -> u64 {
+        self.max_file_bytes.get()
+    }
+
+    /// Maximum bytes across all reviewed regular files.
+    #[must_use]
+    pub const fn max_total_bytes(self) -> u64 {
+        self.max_total_bytes.get()
+    }
+}
+
+/// Select the one reviewed output stream from which a tool version is read.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessProbeOutput {
+    /// Read the version record from stdout only.
+    Stdout,
+    /// Read the version record from stderr only.
+    Stderr,
+}
+
+impl HarnessProbeOutput {
+    /// Stable output-stream spelling for probe evidence.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Stdout => "stdout",
+            Self::Stderr => "stderr",
+        }
+    }
+}
+
+/// Reviewed command and exact output contract for one availability probe.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessToolProbe {
+    command: Vec<HarnessCommandArgument>,
+    output: HarnessProbeOutput,
+}
+
+impl HarnessToolProbe {
+    /// Construct a non-empty shell-free probe command and exact version contract.
+    pub fn try_new(
+        command: Vec<HarnessCommandArgument>,
+        output: HarnessProbeOutput,
+    ) -> Result<Self, DecodeError> {
+        if command.is_empty() {
+            return Err(DecodeError::new(
+                "probe.command",
+                "availability probe command must not be empty",
+            ));
+        }
+        Ok(Self { command, output })
+    }
+
+    /// Reviewed executable-and-argument probe command.
+    #[must_use]
+    pub fn command(&self) -> &[HarnessCommandArgument] {
+        &self.command
+    }
+
+    /// Reviewed stream selected for the version record.
+    #[must_use]
+    pub const fn output(&self) -> HarnessProbeOutput {
+        self.output
+    }
+}
+
+/// Reviewed command template and policy for one allowlisted tool.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessToolSpec {
+    tool: HarnessToolName,
+    command: Vec<HarnessCommandArgument>,
+    requirement: HarnessToolRequirement,
+    limits: HarnessExecutionLimits,
+    expected_version: Option<HarnessStepVersion>,
+    probe: Option<HarnessToolProbe>,
+}
+
+impl HarnessToolSpec {
+    /// Construct a spec with a non-empty executable-and-argument template.
+    pub fn try_new(
+        tool: HarnessToolName,
+        command: Vec<HarnessCommandArgument>,
+        requirement: HarnessToolRequirement,
+        limits: HarnessExecutionLimits,
+        expected_version: Option<HarnessStepVersion>,
+    ) -> Result<Self, DecodeError> {
+        if command.is_empty() {
+            return Err(DecodeError::new(
+                "command",
+                "allowlisted tool command must not be empty",
+            ));
+        }
+        Ok(Self {
+            tool,
+            command,
+            requirement,
+            limits,
+            expected_version,
+            probe: None,
+        })
+    }
+
+    /// Attach one reviewed probe contract without changing the main invocation.
+    pub fn with_probe(mut self, probe: HarnessToolProbe) -> Self {
+        self.probe = Some(probe);
+        self
+    }
+
+    /// Reviewed tool identity.
+    #[must_use]
+    pub const fn tool(&self) -> &HarnessToolName {
+        &self.tool
+    }
+
+    /// Reviewed executable-and-argument template.
+    #[must_use]
+    pub fn command(&self) -> &[HarnessCommandArgument] {
+        &self.command
+    }
+
+    /// Required/optional/advisory policy class.
+    #[must_use]
+    pub const fn requirement(&self) -> HarnessToolRequirement {
+        self.requirement
+    }
+
+    /// Bounded execution limits.
+    #[must_use]
+    pub const fn limits(&self) -> HarnessExecutionLimits {
+        self.limits
+    }
+
+    /// Optional version expectation used by a later availability probe.
+    #[must_use]
+    pub const fn expected_version(&self) -> Option<&HarnessStepVersion> {
+        self.expected_version.as_ref()
+    }
+
+    /// Return the reviewed availability probe, if one was attached.
+    #[must_use]
+    pub const fn probe(&self) -> Option<&HarnessToolProbe> {
+        self.probe.as_ref()
+    }
+
+    /// Derive the allowlisted execution spec for the reviewed probe command.
+    pub fn probe_execution_spec(&self) -> Result<Self, DecodeError> {
+        // CLONE-JUSTIFICATION: the derived spec owns the reviewed probe contract
+        // for one bounded execution without mutating the main invocation spec.
+        let probe = self.probe.clone().ok_or_else(|| {
+            DecodeError::new(
+                "probe",
+                "availability probe metadata is required before execution",
+            )
+        })?;
+        let main_executable = self.command.first().ok_or_else(|| {
+            DecodeError::new("command", "allowlisted tool command must not be empty")
+        })?;
+        let probe_executable = probe.command.first().ok_or_else(|| {
+            DecodeError::new(
+                "probe.command",
+                "availability probe command must not be empty",
+            )
+        })?;
+        if main_executable != probe_executable {
+            return Err(DecodeError::new(
+                "probe.command[0]",
+                "availability probe executable must match the main reviewed executable",
+            ));
+        }
+        Ok(Self {
+            // CLONE-JUSTIFICATION: the derived spec must own the same reviewed
+            // tool identity while remaining independent of the caller spec.
+            tool: self.tool.clone(),
+            // CLONE-JUSTIFICATION: the bounded runner consumes an owned command
+            // template for the probe-only execution request.
+            command: probe.command.clone(),
+            requirement: self.requirement,
+            limits: self.limits,
+            // CLONE-JUSTIFICATION: preserve the single expected-version authority
+            // on the derived spec without mutating the main invocation spec.
+            expected_version: self.expected_version.clone(),
+            probe: Some(probe),
+        })
+    }
+}
+
+/// Closed termination outcome for one bounded allowlisted child process.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum HarnessExecutionTermination {
+    /// The child exited with code zero.
+    Completed,
+    /// The child exited with a non-zero code.
+    NonZeroExit,
+    /// The configured executable was not found.
+    MissingExecutable,
+    /// The operating system rejected child creation for another reason.
+    SpawnFailed,
+    /// The wall-time limit elapsed and the child was terminated and reaped.
+    TimedOut,
+    /// The combined stdout/stderr limit was exceeded and the child was terminated and reaped.
+    OutputLimitExceeded,
+}
+
+impl HarnessExecutionTermination {
+    /// Stable termination spelling for later evidence consumers.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Completed => "completed",
+            Self::NonZeroExit => "non-zero-exit",
+            Self::MissingExecutable => "missing-executable",
+            Self::SpawnFailed => "spawn-failed",
+            Self::TimedOut => "timed-out",
+            Self::OutputLimitExceeded => "output-limit-exceeded",
+        }
+    }
+}
+
+/// In-memory result of one bounded allowlisted invocation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HarnessBoundedExecution {
+    termination: HarnessExecutionTermination,
+    stdout: HarnessCapturedOutput,
+    stderr: HarnessCapturedOutput,
+    // BRAND-INVARIANT: absent only when no operating-system exit code exists.
+    exit_code: Option<crate::telemetry_types::ProcessExitCode>,
+    // BRAND-INVARIANT: true only after a spawned child has been reaped; false means no child spawned.
+    child_reaped: bool,
+}
+
+impl HarnessBoundedExecution {
+    /// Construct a result after the runner has completed child cleanup.
+    #[must_use]
+    pub fn from_parts(
+        termination: HarnessExecutionTermination,
+        stdout: HarnessCapturedOutput,
+        stderr: HarnessCapturedOutput,
+        exit_code: Option<crate::telemetry_types::ProcessExitCode>,
+        child_reaped: bool,
+    ) -> Self {
+        Self {
+            termination,
+            stdout,
+            stderr,
+            exit_code,
+            child_reaped,
+        }
+    }
+
+    /// Return the typed child termination outcome.
+    #[must_use]
+    pub const fn termination(&self) -> HarnessExecutionTermination {
+        self.termination
+    }
+
+    /// Return captured stdout, bounded by the reviewed combined-output limit.
+    #[must_use]
+    pub const fn stdout(&self) -> &HarnessCapturedOutput {
+        &self.stdout
+    }
+
+    /// Return captured stderr, bounded by the reviewed combined-output limit.
+    #[must_use]
+    pub const fn stderr(&self) -> &HarnessCapturedOutput {
+        &self.stderr
+    }
+
+    /// Return the operating-system exit code when one was available.
+    #[must_use]
+    pub const fn exit_code(&self) -> Option<crate::telemetry_types::ProcessExitCode> {
+        self.exit_code
+    }
+
+    /// Prove that a spawned child was reaped before the result was returned.
+    #[must_use]
+    pub const fn child_reaped(&self) -> bool {
+        self.child_reaped
     }
 }

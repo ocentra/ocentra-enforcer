@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-28",
+  "baselineCommit": "22b43ab5a8baebb80b37a4d5f0cf4776c13d407e",
+  "family": "Identity governance, phishing-resistant authentication, privileged access, and access certification",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["configuring-multi-factor-authentication-with-duo", "implementing-hardware-security-key-authentication", "implementing-identity-governance-with-sailpoint", "implementing-just-in-time-access-provisioning", "implementing-passwordless-authentication-with-fido2", "implementing-privileged-access-management-with-cyberark", "implementing-privileged-access-workstation", "implementing-privileged-session-monitoring", "implementing-zero-standing-privilege-with-cyberark", "performing-access-review-and-certification"],
+    "reason": "Ten disjoint identity-governance, phishing-resistant-authentication, privileged-access, and certification skills. Native checks are limited to static typed identity/auth-method/access-policy/session/entitlement/ownership/review/certification manifests; live authorities and outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "configuring-multi-factor-authentication-with-duo",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/configuring-multi-factor-authentication-with-duo/SKILL.md", "sha256": "1eeeabee9b01128cc2248a0ba11255c6951f3fe539557cac81427b1b50a3dabd", "availability": "available", "license": "Apache-2.0", "anchors": ["# Configuring Multi-Factor Authentication with Duo:L31"]},
+      "components": [
+        {"componentId": "configuring-multi-factor-authentication-with-duo::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed MFA method, factor, enrollment, recovery, and policy manifest fields.", "notProved": ["No Duo/IdP run, authentication, revocation, or phishing-resistance outcome proof."]},
+        {"componentId": "configuring-multi-factor-authentication-with-duo::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Duo, IdP, device, directory, and live authentication authorities.", "notProved": ["No pinned adapter, runtime, credentials, or normalized evidence."]},
+        {"componentId": "configuring-multi-factor-authentication-with-duo::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain MFA deployment and recovery guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "configuring-multi-factor-authentication-with-duo::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorized owner, break-glass, recovery, and rollout decisions.", "notProved": ["No live authorization proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-hardware-security-key-authentication",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-hardware-security-key-authentication/SKILL.md", "sha256": "95101844c940fffb9c35516992e186fb53240c08fc2036b0d674cae9899aa81a", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Hardware Security Key Authentication:L45"]},
+      "components": [
+        {"componentId": "implementing-hardware-security-key-authentication::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed security-key, authenticator policy, enrollment, and recovery manifest fields.", "notProved": ["No FIDO2/device/IdP ceremony, authentication, or phishing-resistance outcome proof."]},
+        {"componentId": "implementing-hardware-security-key-authentication::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use hardware keys, device management, IdP, and directory authorities.", "notProved": ["No pinned adapter, device runtime, or normalized evidence."]},
+        {"componentId": "implementing-hardware-security-key-authentication::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain key enrollment, lifecycle, and recovery guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-hardware-security-key-authentication::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require user, device-owner, recovery, and rollout decisions.", "notProved": ["No live enrollment proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-identity-governance-with-sailpoint",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-identity-governance-with-sailpoint/SKILL.md", "sha256": "7f4889a7df09a8e39eda14d76cbbd3af40439d255994b0989899bb8b4428ca2a", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Identity Governance with SailPoint:L57"]},
+      "components": [
+        {"componentId": "implementing-identity-governance-with-sailpoint::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed identity, entitlement, owner, lifecycle, and review manifest fields.", "notProved": ["No SailPoint/directory run, effective entitlement, revocation, or least-privilege proof."]},
+        {"componentId": "implementing-identity-governance-with-sailpoint::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use SailPoint, IdP, HR, directory, and application authorities.", "notProved": ["No pinned adapter, live identity graph, or normalized evidence."]},
+        {"componentId": "implementing-identity-governance-with-sailpoint::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain identity lifecycle and governance guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-identity-governance-with-sailpoint::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require entitlement-owner, privacy, review, and exception decisions.", "notProved": ["No live governance proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-just-in-time-access-provisioning",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-just-in-time-access-provisioning/SKILL.md", "sha256": "f03f027b03c2f0eee4617ecc9be497d396afb67dbd3e553913c072f2b23ac85f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Just-In-Time Access Provisioning:L30"]},
+      "components": [
+        {"componentId": "implementing-just-in-time-access-provisioning::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed JIT request, approval, duration, scope, and expiry manifest fields.", "notProved": ["No live provisioning, access, expiry, revocation, or least-privilege outcome proof."]},
+        {"componentId": "implementing-just-in-time-access-provisioning::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use PAM, IdP, directory, ticketing, and authorization authorities.", "notProved": ["No pinned adapter, runtime, or normalized evidence."]},
+        {"componentId": "implementing-just-in-time-access-provisioning::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain JIT design and operational guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-just-in-time-access-provisioning::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require approver, owner, emergency, and exception decisions.", "notProved": ["No live access proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-passwordless-authentication-with-fido2",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-passwordless-authentication-with-fido2/SKILL.md", "sha256": "488b72aaa73beb7a08f2722039305d23bcd33fc637a93107f55b28d6d004076a", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Passwordless Authentication with FIDO2:L39"]},
+      "components": [
+        {"componentId": "implementing-passwordless-authentication-with-fido2::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed passwordless method, authenticator, enrollment, fallback, and recovery fields.", "notProved": ["No FIDO2/IdP/device authentication, adoption, revocation, or phishing-resistance proof."]},
+        {"componentId": "implementing-passwordless-authentication-with-fido2::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use FIDO2 authenticators, IdP, device, and directory authorities.", "notProved": ["No pinned adapter, ceremony runtime, or normalized evidence."]},
+        {"componentId": "implementing-passwordless-authentication-with-fido2::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain passwordless deployment and recovery guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-passwordless-authentication-with-fido2::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require user, device, recovery, and rollout decisions.", "notProved": ["No live authentication proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-privileged-access-management-with-cyberark",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-privileged-access-management-with-cyberark/SKILL.md", "sha256": "c3a66ba51fc0c491f98c4f54dc8dc9883dba7fdb5b98d8775e85e3c5193e48c1", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Privileged Access Management with CyberArk:L57"]},
+      "components": [
+        {"componentId": "implementing-privileged-access-management-with-cyberark::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed privileged-account, vault, approval, rotation, and session-policy fields.", "notProved": ["No CyberArk vault, access, rotation, revocation, session, or least-privilege proof."]},
+        {"componentId": "implementing-privileged-access-management-with-cyberark::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CyberArk, directory, vault, endpoint, and session authorities.", "notProved": ["No pinned adapter, live vault, or normalized evidence."]},
+        {"componentId": "implementing-privileged-access-management-with-cyberark::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain PAM architecture, onboarding, and recovery guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-privileged-access-management-with-cyberark::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require privileged-owner, break-glass, approval, and exception decisions.", "notProved": ["No live PAM proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-privileged-access-workstation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-privileged-access-workstation/SKILL.md", "sha256": "05415412da8319a535a4fea4748c31930e7f2d2d7655e5e759d4f78b1cfd175b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Privileged Access Workstation:L29"]},
+      "components": [
+        {"componentId": "implementing-privileged-access-workstation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed PAW device, identity, software, network, and administrative-policy fields.", "notProved": ["No device posture, session, access, malware, or security outcome proof."]},
+        {"componentId": "implementing-privileged-access-workstation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use device-management, EDR, IdP, directory, and privileged-session authorities.", "notProved": ["No pinned adapter, device runtime, or normalized evidence."]},
+        {"componentId": "implementing-privileged-access-workstation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain PAW architecture and operations guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-privileged-access-workstation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require device-owner, administrator, recovery, and exception decisions.", "notProved": ["No live PAW proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-privileged-session-monitoring",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-privileged-session-monitoring/SKILL.md", "sha256": "54d4f973490c9c8b1528fc405aee4324251051ee7c7847d88a1d75726ae374ff", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Privileged Session Monitoring:L37"]},
+      "components": [
+        {"componentId": "implementing-privileged-session-monitoring::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed session, recording, alert, retention, and reviewer manifest fields.", "notProved": ["No session stream, monitoring, attribution, revocation, or response outcome proof."]},
+        {"componentId": "implementing-privileged-session-monitoring::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use PAM, session, SIEM, EDR, and directory authorities.", "notProved": ["No pinned adapter, live session, or normalized evidence."]},
+        {"componentId": "implementing-privileged-session-monitoring::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain session-monitoring and investigation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-privileged-session-monitoring::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require reviewer, privacy, retention, and incident decisions.", "notProved": ["No live monitoring proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-zero-standing-privilege-with-cyberark",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-standing-privilege-with-cyberark/SKILL.md", "sha256": "e6a7d47c4bc27730c97e780bb5fa6f50a28b4ca3446a622a6f9387ade9bdf81a", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Zero Standing Privilege with CyberArk:L31"]},
+      "components": [
+        {"componentId": "implementing-zero-standing-privilege-with-cyberark::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed standing-entitlement, activation, approval, expiry, and ownership fields.", "notProved": ["No CyberArk access, activation, expiry, revocation, or least-privilege outcome proof."]},
+        {"componentId": "implementing-zero-standing-privilege-with-cyberark::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CyberArk, PAM, IdP, directory, and ticketing authorities.", "notProved": ["No pinned adapter, live authorization, or normalized evidence."]},
+        {"componentId": "implementing-zero-standing-privilege-with-cyberark::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain zero-standing-privilege design guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-zero-standing-privilege-with-cyberark::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require privileged-owner, approval, emergency, and exception decisions.", "notProved": ["No live ZSP proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-access-review-and-certification",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-access-review-and-certification/SKILL.md", "sha256": "6154874c4d62033215054d307bd2e3c5949383e35e7cc2fa586418c640b2bb2f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Access Review and Certification:L30"]},
+      "components": [
+        {"componentId": "performing-access-review-and-certification::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate static typed entitlement, reviewer, decision, evidence, expiry, and certification manifest fields.", "notProved": ["No live review, revocation, effective entitlement, or least-privilege outcome proof."]},
+        {"componentId": "performing-access-review-and-certification::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use identity governance, directory, application, HR, and ticketing authorities.", "notProved": ["No pinned adapter, live entitlement graph, or normalized evidence."]},
+        {"componentId": "performing-access-review-and-certification::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain access-review and certification guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-access-review-and-certification::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require entitlement-owner, reviewer, privacy, exception, and revocation decisions.", "notProved": ["No live certification proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Duo, FIDO2, CyberArk, SailPoint, IdP, device, session, and directory authorities remain blocked external engines.",
+    "No live authentication, access, revocation, session, certification, least-privilege, phishing-resistance, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

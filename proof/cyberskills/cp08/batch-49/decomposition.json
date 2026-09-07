@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-49",
+  "baselineCommit": "48a9b73f2a0c3f190179d8f46fbabc5d74981b0e",
+  "family": "Cloud-native workload, container, Kubernetes, and serverless security",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "escaping-containers-to-host",
+      "hardening-docker-daemon-configuration",
+      "implementing-opa-gatekeeper-for-policy-enforcement",
+      "implementing-pod-security-admission-controller",
+      "implementing-runtime-security-with-tetragon",
+      "performing-docker-bench-security-assessment",
+      "performing-kubernetes-penetration-testing",
+      "securing-helm-chart-deployments",
+      "performing-serverless-function-security-review",
+      "securing-serverless-functions"
+    ],
+    "reason": "Ten disjoint cloud-native workload skills covering container escape risk, Docker daemon hardening, OPA Gatekeeper and Pod Security admission, Tetragon runtime security, Docker Bench assessment, Kubernetes security testing, Helm deployments, and serverless function review and hardening. Native checks are limited to static typed supplied manifests; live clusters, workloads, runtimes, enforcement, invocation, exploitation, and security outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "escaping-containers-to-host",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/escaping-containers-to-host/SKILL.md",
+        "sha256": "f68d22f61782a6a3bddc1fb88d82edbf42c2ca4584503a64b0b4f1b8dbda2ee9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Escaping Containers to Host:L23"]
+      },
+      "components": [
+        {"componentId": "escaping-containers-to-host::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied container, image, capability, namespace, mount, host-interface, workload, owner, scope, provenance, and evidence manifests.", "notProved": ["No live container, host, namespace, capability, mount, escape, privilege, isolation, or security outcome proof."]},
+        {"componentId": "escaping-containers-to-host::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Docker, container runtimes, Kubernetes nodes, kernels, registries, hosts, workloads, network interfaces, or production cloud authorities.", "notProved": ["No live image, container, host, kernel, namespace, capability, runtime, workload, or normalized escape result."]},
+        {"componentId": "escaping-containers-to-host::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive container isolation, capability, namespace, mount, image, runtime, and remediation guidance.", "notProved": ["Guidance is not enforcement and does not prove container isolation or host protection."]},
+        {"componentId": "escaping-containers-to-host::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, tenant and data boundaries, test scope, validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human container, host, test, containment, remediation, rollback, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "hardening-docker-daemon-configuration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hardening-docker-daemon-configuration/SKILL.md",
+        "sha256": "56a5cb91d14ca7820d4887772e3e7d083665f92d16196e794f432f097e70a894",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hardening Docker Daemon Configuration:L30"]
+      },
+      "components": [
+        {"componentId": "hardening-docker-daemon-configuration::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Docker daemon, socket, registry, TLS, rootless, capability, storage, network, host, owner, change, and evidence manifests.", "notProved": ["No live Docker daemon, socket, registry, TLS, rootless mode, storage, network, hardening, availability, or security outcome proof."]},
+        {"componentId": "hardening-docker-daemon-configuration::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Docker daemon, hosts, sockets, registries, container runtimes, operating systems, networks, scanners, or production deployment authorities.", "notProved": ["No live daemon, socket, host, registry, container, configuration, scanner, deployment, or normalized hardening result."]},
+        {"componentId": "hardening-docker-daemon-configuration::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Docker daemon, socket, registry, TLS, rootless, capability, storage, logging, and rollback guidance.", "notProved": ["Guidance is not enforcement and does not prove Docker hardening or availability."]},
+        {"componentId": "hardening-docker-daemon-configuration::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host and workload ownership, legal/privacy/safety review, daemon-change approval, data handling, validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human daemon, host, change, containment, remediation, rollback, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-opa-gatekeeper-for-policy-enforcement",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-opa-gatekeeper-for-policy-enforcement/SKILL.md",
+        "sha256": "85e9e5ea95c3f3312dd1d4c88b258edacf6436989ad7a6ede35b623a725fb746",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing OPA Gatekeeper for Policy Enforcement:L29"]
+      },
+      "components": [
+        {"componentId": "implementing-opa-gatekeeper-for-policy-enforcement::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Gatekeeper constraint, template, resource, namespace, field, exception, owner, decision, provenance, and evidence manifests.", "notProved": ["No live OPA evaluation, Kubernetes admission, policy enforcement, resource rejection, exception behavior, or security outcome proof."]},
+        {"componentId": "implementing-opa-gatekeeper-for-policy-enforcement::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use OPA Gatekeeper, Kubernetes APIs, admission webhooks, clusters, controllers, workloads, policy engines, or production deployment authorities.", "notProved": ["No live constraint, template, cluster, admission request, controller, workload, rejection, or normalized enforcement result."]},
+        {"componentId": "implementing-opa-gatekeeper-for-policy-enforcement::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive OPA, constraint, admission, exception, policy lifecycle, and Kubernetes governance guidance.", "notProved": ["Guidance is not enforcement and does not prove policy correctness or admission behavior."]},
+        {"componentId": "implementing-opa-gatekeeper-for-policy-enforcement::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, policy approval, exception governance, validation, severity, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human policy, exception, admission, remediation, rollback, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-pod-security-admission-controller",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-pod-security-admission-controller/SKILL.md",
+        "sha256": "91669e49dacb903629b8a86627e8bbb5c4c2df6954e52afd1f0ff0d6470b72d8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Pod Security Admission Controller:L28"]
+      },
+      "components": [
+        {"componentId": "implementing-pod-security-admission-controller::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Pod Security profile, namespace, pod, security context, capability, host access, owner, exception, and evidence manifests.", "notProved": ["No live Kubernetes admission, pod validation, capability restriction, host isolation, exception behavior, or security outcome proof."]},
+        {"componentId": "implementing-pod-security-admission-controller::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Kubernetes API servers, Pod Security Admission, clusters, namespaces, controllers, pods, admission requests, or production deployment authorities.", "notProved": ["No live pod, namespace, admission request, controller, capability, host access, rejection, or normalized policy result."]},
+        {"componentId": "implementing-pod-security-admission-controller::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Pod Security, namespace profile, capability, host-access, exception, and admission governance guidance.", "notProved": ["Guidance is not enforcement and does not prove pod policy or admission behavior."]},
+        {"componentId": "implementing-pod-security-admission-controller::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, profile approval, exception governance, validation, severity, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human profile, exception, admission, remediation, rollback, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-runtime-security-with-tetragon",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-runtime-security-with-tetragon/SKILL.md",
+        "sha256": "fa43c3899e4f4f765e4b23987954b2c719d2405bfa3d85f163b19aca155cb457",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Runtime Security with Tetragon:L41"]
+      },
+      "components": [
+        {"componentId": "implementing-runtime-security-with-tetragon::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Tetragon policy, eBPF hook, event, process, syscall, workload, namespace, action, owner, provenance, and evidence manifests.", "notProved": ["No live kernel, eBPF hook, process, syscall, workload, event, enforcement, performance, or security outcome proof."]},
+        {"componentId": "implementing-runtime-security-with-tetragon::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Tetragon, eBPF, kernels, Kubernetes nodes, workloads, process hooks, runtime engines, SIEM, or production response authorities.", "notProved": ["No live kernel, hook, process, syscall, workload, event, action, collector, or normalized runtime result."]},
+        {"componentId": "implementing-runtime-security-with-tetragon::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Tetragon, eBPF runtime, policy, event, action, tuning, privacy, and rollback guidance.", "notProved": ["Guidance is not enforcement and does not prove runtime visibility, detection, or blocking."]},
+        {"componentId": "implementing-runtime-security-with-tetragon::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, kernel and hook approval, data handling, validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human runtime, hook, action, containment, remediation, rollback, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-docker-bench-security-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-docker-bench-security-assessment/SKILL.md",
+        "sha256": "9b9c86a61881a82e7fd349a7c975517978591fef66f3c3149c6bb5d34c0fa511",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Docker Bench Security Assessment:L28"]
+      },
+      "components": [
+        {"componentId": "performing-docker-bench-security-assessment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Docker host, daemon, image, container, registry, control, finding, severity, owner, exception, and evidence manifests.", "notProved": ["No live Docker Bench scan, daemon, host, image, container, finding truth, remediation, or security outcome proof."]},
+        {"componentId": "performing-docker-bench-security-assessment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Docker Bench, Docker daemon, hosts, containers, images, registries, scanners, operating systems, or production assessment authorities.", "notProved": ["No live scan, daemon, host, image, container, control, finding, remediation, or normalized assessment result."]},
+        {"componentId": "performing-docker-bench-security-assessment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Docker Bench, host, daemon, image, container, control-assessment, and remediation guidance.", "notProved": ["Guidance is not enforcement and does not prove Docker posture or finding validity."]},
+        {"componentId": "performing-docker-bench-security-assessment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host and workload ownership, legal/privacy/safety review, scan approval, data handling, analyst validation, severity, exception, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human scan, finding, exception, remediation, rollback, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-kubernetes-penetration-testing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-kubernetes-penetration-testing/SKILL.md",
+        "sha256": "82d0f2907966322b9377eec2619bbbbc60355240a50d078e374884d4f0a73227",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Kubernetes Penetration Testing:L28"]
+      },
+      "components": [
+        {"componentId": "performing-kubernetes-penetration-testing::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Kubernetes target, namespace, workload, identity, scope, test case, expected evidence, owner, authorization, and report manifests.", "notProved": ["No live Kubernetes access, enumeration, exploit, privilege escalation, breakout, data exposure, finding, or security outcome proof."]},
+        {"componentId": "performing-kubernetes-penetration-testing::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Kubernetes APIs, clusters, pods, nodes, kubectl, scanners, exploit tools, cloud platforms, networks, or production penetration-testing authorities.", "notProved": ["No live cluster, API, pod, node, identity, exploit, scanner, network, cloud, or normalized test result."]},
+        {"componentId": "performing-kubernetes-penetration-testing::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Kubernetes assessment, scope, test planning, isolation, evidence, reporting, and remediation guidance.", "notProved": ["Guidance is not execution and does not prove a finding, exploitability, or cluster security."]},
+        {"componentId": "performing-kubernetes-penetration-testing::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, tenant and data boundaries, test approval, stop conditions, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human penetration-test, stop, finding, containment, remediation, rollback, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "securing-helm-chart-deployments",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-helm-chart-deployments/SKILL.md",
+        "sha256": "571f0b2c51a31b87d4ff84eeaad9de8bfeade94d6d88662be4c91f45cac2f282",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Helm Chart Deployments:L30"]
+      },
+      "components": [
+        {"componentId": "securing-helm-chart-deployments::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Helm chart, template, value, image, namespace, RBAC, secret, resource, owner, version, provenance, and evidence manifests.", "notProved": ["No live Helm rendering, chart deployment, Kubernetes object, image, secret, RBAC, rollout, or security outcome proof."]},
+        {"componentId": "securing-helm-chart-deployments::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Helm, Kubernetes APIs, clusters, registries, CI/CD, admission controllers, secrets systems, cloud platforms, or production deployment authorities.", "notProved": ["No live chart, value, image, cluster, object, registry, secret, rollout, or normalized deployment result."]},
+        {"componentId": "securing-helm-chart-deployments::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Helm chart, values, image, RBAC, secret, resource, provenance, release, and rollback guidance.", "notProved": ["Guidance is not enforcement and does not prove chart security or deployment correctness."]},
+        {"componentId": "securing-helm-chart-deployments::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, cluster/workload ownership, legal/privacy/safety review, chart and release approval, secret handling, validation, severity, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human chart, release, secret, remediation, rollback, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-serverless-function-security-review",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-serverless-function-security-review/SKILL.md",
+        "sha256": "70b331ce7f8e63e3d868938a31707bbcd156fc2b5a8d6166fa244dc316e01ff5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Serverless Function Security Review:L34"]
+      },
+      "components": [
+        {"componentId": "performing-serverless-function-security-review::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied serverless function, runtime, trigger, event, IAM, dependency, secret, network, data, owner, scope, and evidence manifests.", "notProved": ["No live function invocation, cloud runtime, IAM access, dependency behavior, trigger, data exposure, exploit, or security outcome proof."]},
+        {"componentId": "performing-serverless-function-security-review::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud serverless platforms, functions, triggers, IAM, runtimes, logs, APIs, scanners, networks, or production cloud authorities.", "notProved": ["No live function, trigger, runtime, IAM, dependency, log, API, scanner, network, or normalized review result."]},
+        {"componentId": "performing-serverless-function-security-review::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive serverless function, runtime, trigger, IAM, dependency, secret, network, data, and review guidance.", "notProved": ["Guidance is not enforcement and does not prove function security or cloud posture."]},
+        {"componentId": "performing-serverless-function-security-review::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, function and tenant ownership, legal/privacy/safety review, data boundaries, cloud scope, dependency approval, validation, severity, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human serverless, IAM, data, remediation, rollback, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "securing-serverless-functions",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/securing-serverless-functions/SKILL.md",
+        "sha256": "3e2dcca6e33c4c34c9eccef272eb0bbb72aefc039d8b32302524fd7cb07edd71",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Securing Serverless Functions:L34"]
+      },
+      "components": [
+        {"componentId": "securing-serverless-functions::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied serverless function, runtime, trigger, IAM, dependency, secret, network, data, logging, owner, change, and evidence manifests.", "notProved": ["No live function deployment, invocation, IAM enforcement, runtime, dependency, logging, data protection, or security outcome proof."]},
+        {"componentId": "securing-serverless-functions::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud serverless platforms, functions, triggers, IAM, runtimes, logs, APIs, registries, scanners, networks, or production deployment authorities.", "notProved": ["No live function, trigger, runtime, IAM, dependency, log, API, registry, scanner, network, or normalized security result."]},
+        {"componentId": "securing-serverless-functions::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive serverless hardening, least privilege, dependencies, secrets, logging, network, data, deployment, and rollback guidance.", "notProved": ["Guidance is not enforcement and does not prove serverless protection or cloud security."]},
+        {"componentId": "securing-serverless-functions::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, function and tenant ownership, legal/privacy/safety review, data boundaries, cloud scope, dependency and release approval, validation, severity, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human serverless, release, data, remediation, rollback, or recovery decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Docker, Kubernetes, OPA Gatekeeper, Pod Security Admission, Tetragon/eBPF, Helm, cloud/serverless platforms, registries, scanners, clusters, nodes, workloads, runtimes, networks, and production deployment, enforcement, assessment, or response authorities remain blocked external engines.",
+    "No live cluster, workload, container escape, daemon posture, policy enforcement, runtime detection, penetration-test finding, Helm deployment, serverless invocation, IAM decision, data exposure, exploitation, remediation, rollback, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}

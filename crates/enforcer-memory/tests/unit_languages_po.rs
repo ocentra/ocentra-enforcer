@@ -1,12 +1,12 @@
 //! Hard tests for PO (gettext translation catalog), onboarded directly
 //! through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_po`]). PO is a Tier-0
+//! ([`enforcer_syntax::languages::generic::parse_po`]). PO is a Tier-0
 //! nominal language (see
-//! [`enforcer_memory::languages::spec::LangSpec::po`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::po`]'s own doc
 //! comment): only its own real root node kind (`source_file`, matching
 //! baseline) is asserted.
 
-use enforcer_memory::languages::generic::parse_po;
+use enforcer_syntax::languages::generic::parse_po;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

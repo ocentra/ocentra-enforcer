@@ -1,0 +1,137 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-79",
+  "baselineCommit": "9ea23146bc3f3554be8ee63d066814375fbf0273",
+  "family": "Static threat assessment, emulation, intelligence, modeling, and behavior evidence manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-ssrf-vulnerability-exploitation",
+      "performing-steganography-detection",
+      "performing-supply-chain-attack-simulation",
+      "performing-thick-client-application-penetration-test",
+      "performing-threat-emulation-with-atomic-red-team",
+      "performing-threat-hunting-with-elastic-siem",
+      "performing-threat-intelligence-sharing-with-misp",
+      "performing-threat-landscape-assessment-for-sector",
+      "performing-threat-modeling-with-owasp-threat-dragon",
+      "performing-user-behavior-analytics"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-78."
+  },
+  "accounting": {"acceptedPrior": 780, "proposed": 10, "overlap": 0, "combined": 790, "protectedExcluded": 1},
+  "skills": [
+    {
+      "catalogId": "performing-ssrf-vulnerability-exploitation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssrf-vulnerability-exploitation/SKILL.md", "sha256": "254a1436ee357a9a46977835d185a9088c4b8e45fcbaf5031be5e95504b17806", "availability": "available", "license": "Apache-2.0", "anchors": ["# For authorized penetration testing and lab environments only:L59"]},
+      "components": [
+        {"id": "performing-ssrf-vulnerability-exploitation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed URL, scheme, route, redirect, target, cloud-metadata, DNS-rebinding, authorization, scope, and evidence-manifest fields without request execution.", "notProved": ["SSRF", "metadata access", "internal reachability"]},
+        {"id": "performing-ssrf-vulnerability-exploitation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep HTTP clients, endpoints, cloud metadata, DNS, rebinding infrastructure, scanners, servers, credentials, and production networks external.", "notProved": ["live request", "bypass", "data exposure"]},
+        {"id": "performing-ssrf-vulnerability-exploitation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain SSRF prevention, URL validation, egress controls, cloud metadata protection, and defensive testing guidance as advisory.", "notProved": ["exploitability", "finding validity", "remediation effectiveness"]},
+        {"id": "performing-ssrf-vulnerability-exploitation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, target ownership, legal/safety/data review, bounded scope, stop conditions, analyst validation, and remediation decisions.", "notProved": ["authorization", "live exploit", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-steganography-detection",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-steganography-detection/SKILL.md", "sha256": "d4b7e8c827eb67b5bd712cbd791e8814833878077c1f4a813624f0380aa1e01a", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Steganography Detection:L30"]},
+      "components": [
+        {"id": "performing-steganography-detection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed file, format, metadata, hash, size, entropy, container, source, custody, and evidence-manifest fields without file analysis or extraction.", "notProved": ["hidden data", "steganography", "file content"]},
+        {"id": "performing-steganography-detection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep StegDetect, zsteg, stegsolve, binwalk, steghide, OpenStego, ExifTool, extraction tools, filesystems, and endpoint storage external.", "notProved": ["steganalysis", "extraction", "malware"]},
+        {"id": "performing-steganography-detection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain covert-channel triage, metadata review, steganalysis, forensic handling, and defensive investigation guidance as advisory.", "notProved": ["detection efficacy", "content validity", "attribution"]},
+        {"id": "performing-steganography-detection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, evidence ownership, chain of custody, legal/privacy review, analyst interpretation, disclosure, and remediation decisions.", "notProved": ["authorization", "live analysis", "evidentiary validity"]}
+      ]
+    },
+    {
+      "catalogId": "performing-supply-chain-attack-simulation",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-supply-chain-attack-simulation/SKILL.md", "sha256": "9bf9841d3d6b352fe7f6bcd7a8231171d724756f4b1ec462ae4e8a6b341fa2bf", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Supply Chain Attack Simulation:L33"]},
+      "components": [
+        {"id": "performing-supply-chain-attack-simulation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed package, registry, dependency, version, hash, owner, advisory, resolution, scope, and evidence-manifest fields without publication or installation.", "notProved": ["typosquatting", "dependency confusion", "vulnerability"]},
+        {"id": "performing-supply-chain-attack-simulation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep package registries, PyPI, pip, pip-audit, OSV, PyPA databases, scanners, package installers, CI runners, and deployment systems external.", "notProved": ["package behavior", "CVE truth", "supply-chain compromise"]},
+        {"id": "performing-supply-chain-attack-simulation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain dependency pinning, hash verification, registry governance, SBOM, advisory review, and defensive release guidance as advisory.", "notProved": ["finding validity", "package safety", "remediation effectiveness"]},
+        {"id": "performing-supply-chain-attack-simulation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, package and repository ownership, release approval, legal/license review, severity validation, rollback, disclosure, and remediation decisions.", "notProved": ["authorization", "live simulation", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-thick-client-application-penetration-test",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-thick-client-application-penetration-test/SKILL.md", "sha256": "7149ad678c2fb057773f1b7556f99cc693f290d0862704173410eb6f883807b8", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Thick Client Application Penetration Test:L40"]},
+      "components": [
+        {"id": "performing-thick-client-application-penetration-test::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed application, binary, configuration, signature, certificate, route, process, file, scope, and evidence-manifest fields without client execution or endpoint access.", "notProved": ["binary behavior", "memory state", "vulnerability"]},
+        {"id": "performing-thick-client-application-penetration-test::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep dnSpy, Procmon, Process Hacker, Wireshark, Burp Suite, Echo Mirage, Fiddler, IDA, Ghidra, processes, memory, endpoints, and networks external.", "notProved": ["dynamic analysis", "traffic", "credential exposure"]},
+        {"id": "performing-thick-client-application-penetration-test::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain desktop-application hardening, binary review, certificate pinning, secure storage, process monitoring, and defensive testing guidance as advisory.", "notProved": ["finding validity", "exploitability", "remediation effectiveness"]},
+        {"id": "performing-thick-client-application-penetration-test::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application and host ownership, legal/privacy/safety review, test scope, stop conditions, analyst validation, cleanup, and remediation decisions.", "notProved": ["authorization", "live penetration test", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-threat-emulation-with-atomic-red-team",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-emulation-with-atomic-red-team/SKILL.md", "sha256": "1f0aab02d769d9853e27ea003120fb71716d59515e146ae17290b684fcd736fe", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Threat Emulation with Atomic Red Team:L48"]},
+      "components": [
+        {"id": "performing-threat-emulation-with-atomic-red-team::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed ATT&CK technique, atomic definition, platform, expected telemetry, scope, authorization, cleanup, and evidence-manifest fields without test execution.", "notProved": ["atomic execution", "telemetry", "detection coverage"]},
+        {"id": "performing-threat-emulation-with-atomic-red-team::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Atomic Red Team, atomic-operator, test repositories, PowerShell, endpoints, SIEM, EDR, networks, and production systems external.", "notProved": ["attack technique", "alert generation", "control efficacy"]},
+        {"id": "performing-threat-emulation-with-atomic-red-team::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain ATT&CK mapping, safe emulation planning, detection engineering, cleanup, threat intelligence, and defensive validation guidance as advisory.", "notProved": ["coverage", "detection efficacy", "remediation"]},
+        {"id": "performing-threat-emulation-with-atomic-red-team::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system ownership, legal/safety review, risk acceptance, stop conditions, cleanup approval, analyst validation, and remediation decisions.", "notProved": ["authorization", "live emulation", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-threat-hunting-with-elastic-siem",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-hunting-with-elastic-siem/SKILL.md", "sha256": "5d51cae4eca2dee33f994822bff621fa03fc614e8bbcac09e06af554e313c39f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Threat Hunting with Elastic SIEM:L50"]},
+      "components": [
+        {"id": "performing-threat-hunting-with-elastic-siem::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed hunting hypothesis, KQL/EQL query, ECS event, indicator, timestamp, timeline, confidence, scope, and evidence-manifest fields without SIEM access.", "notProved": ["event truth", "threat finding", "detection coverage"]},
+        {"id": "performing-threat-hunting-with-elastic-siem::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Elastic Security, Kibana, Elasticsearch, Elastic Agent, Beats, Endpoint Security, historical logs, timelines, and production telemetry external.", "notProved": ["live hunt", "alert state", "incident attribution"]},
+        {"id": "performing-threat-hunting-with-elastic-siem::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain hypothesis-driven hunting, ATT&CK mapping, query design, investigation, triage, and defensive detection guidance as advisory.", "notProved": ["hunting efficacy", "coverage", "containment"]},
+        {"id": "performing-threat-hunting-with-elastic-siem::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, telemetry ownership, privacy/data review, analyst interpretation, escalation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "live hunt", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-threat-intelligence-sharing-with-misp",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-intelligence-sharing-with-misp/SKILL.md", "sha256": "3489fd90fdc7daedd10b6ea275773f9639afae5eb1bade52d22329b7c4ea8fe9", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Threat Intelligence Sharing with MISP:L31"]},
+      "components": [
+        {"id": "performing-threat-intelligence-sharing-with-misp::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed IOC, event, attribute, tag, galaxy, STIX, distribution, sharing-group, source, confidence, and provenance-manifest fields without MISP access.", "notProved": ["IOC validity", "threat truth", "STIX validity"]},
+        {"id": "performing-threat-intelligence-sharing-with-misp::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep MISP, PyMISP, REST APIs, API keys, threat feeds, enrichment, STIX exporters, sharing groups, and production intelligence platforms external.", "notProved": ["publication", "feed freshness", "community acceptance"]},
+        {"id": "performing-threat-intelligence-sharing-with-misp::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain IOC normalization, source evaluation, distribution governance, ATT&CK tagging, sharing, and defensive intelligence guidance as advisory.", "notProved": ["source truth", "attribution", "detection efficacy"]},
+        {"id": "performing-threat-intelligence-sharing-with-misp::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source terms, legal/privacy/ethics review, data handling, analyst validation, sharing approval, disclosure, and escalation decisions.", "notProved": ["authorization", "live sharing", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-threat-landscape-assessment-for-sector",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-landscape-assessment-for-sector/SKILL.md", "sha256": "89a353efeabfa60edc4a39520bf4a8e65e30c2d5a36ea9eb3795dd4df94b2ac2", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Threat Landscape Assessment for Sector:L37"]},
+      "components": [
+        {"id": "performing-threat-landscape-assessment-for-sector::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed sector, actor, TTP, vulnerability, incident, trend, source, confidence, timestamp, and evidence-manifest fields without feed access.", "notProved": ["threat landscape", "actor targeting", "sector risk"]},
+        {"id": "performing-threat-landscape-assessment-for-sector::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep attackcti, AlienVault OTX, MISP, ISACs, CISA/FBI/NSA, vendor reports, requests, feeds, and live OSINT authorities external.", "notProved": ["freshness", "attribution", "incident trend"]},
+        {"id": "performing-threat-landscape-assessment-for-sector::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain sector risk analysis, ATT&CK mapping, source uncertainty, vulnerability trends, investment prioritization, and board reporting guidance as advisory.", "notProved": ["risk truth", "forecast accuracy", "prioritization correctness"]},
+        {"id": "performing-threat-landscape-assessment-for-sector::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source terms, legal/privacy/ethics review, sector-owner validation, analyst interpretation, attribution, dissemination, and disclosure decisions.", "notProved": ["authorization", "live collection", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-threat-modeling-with-owasp-threat-dragon",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-modeling-with-owasp-threat-dragon/SKILL.md", "sha256": "f343a1c66955144e9c38a0839af1a0d51134ea33383933568444e94adb062737", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing Threat Modeling with OWASP Threat Dragon:L39"]},
+      "components": [
+        {"id": "performing-threat-modeling-with-owasp-threat-dragon::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed system, data-flow, asset, trust-boundary, threat, STRIDE/LINDDUN category, mitigation, owner, priority, and evidence-manifest fields without model-tool execution.", "notProved": ["architecture truth", "threat validity", "mitigation efficacy"]},
+        {"id": "performing-threat-modeling-with-owasp-threat-dragon::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep OWASP Threat Dragon desktop/web applications, rule engines, diagrams, PDF generation, repositories, and production architecture systems external.", "notProved": ["automated threats", "model completeness", "security posture"]},
+        {"id": "performing-threat-modeling-with-owasp-threat-dragon::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain STRIDE, LINDDUN, CIA, privacy, trust-boundary, mitigation, and secure-design guidance as advisory.", "notProved": ["threat coverage", "risk ranking", "remediation effectiveness"]},
+        {"id": "performing-threat-modeling-with-owasp-threat-dragon::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require system-owner authorization, scope, privacy/legal review, architect and analyst interpretation, threat acceptance, owner assignment, and remediation decisions.", "notProved": ["authorization", "model approval", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-user-behavior-analytics",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-user-behavior-analytics/SKILL.md", "sha256": "442b96b1a1ceb1c3cce3b1a0bb91db1d8894874c852370ac6a0d22738102e848", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing User Behavior Analytics:L35"]},
+      "components": [
+        {"id": "performing-user-behavior-analytics::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed user, entity, event, baseline, threshold, anomaly, confidence, case, privacy, owner, and evidence-manifest fields without telemetry or model execution.", "notProved": ["behavior baseline", "anomaly", "insider threat"]},
+        {"id": "performing-user-behavior-analytics::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep SIEM, authentication logs, access logs, UEBA/statistical engines, ML systems, endpoints, data stores, and production monitoring external.", "notProved": ["live analytics", "user attribution", "detection efficacy"]},
+        {"id": "performing-user-behavior-analytics::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain behavioral-baseline, impossible-travel, access-pattern, insider-risk, privacy, triage, and defensive monitoring guidance as advisory.", "notProved": ["coverage", "anomaly validity", "response effectiveness"]},
+        {"id": "performing-user-behavior-analytics::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, privacy/legal/HR review, data-owner validation, analyst interpretation, escalation, access to sensitive data, containment, and remediation decisions.", "notProved": ["authorization", "live UEBA", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "protectedExcludedSkills": 1, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, database, mail, SIEM, EDR, OT, package registry, MISP, threat feed, or production system state is proved.",
+    "No SSRF, steganography finding, supply-chain compromise, thick-client vulnerability, atomic execution, threat hunt, MISP publication, sector attribution, threat-model validity, UEBA detection, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, sharing decision, or disclosure decision is proved.",
+    "No security, privacy, operational, compliance, or safety outcome is proved."
+  ]
+}

@@ -14,11 +14,6 @@ use enforcer_domain::core_types::ExitCode;
 use enforcer_domain::install_types::{
     CheckStatus, DoctorCommand, InstallCommand, InstallRequestContext,
 };
-use enforcer_install::adapters::{
-    aider::AiderAdapter, antigravity::AntigravityAdapter, claude::ClaudeAdapter,
-    codex::CodexAdapter, cursor::CursorAdapter, gemini::GeminiAdapter, kilocode::KiloCodeAdapter,
-    kiro::KiroAdapter, opencode::OpenCodeAdapter, windsurf::WindsurfAdapter, zed::ZedAdapter,
-};
 use enforcer_install::core::HarnessAdapter;
 use enforcer_install::error::InstallError;
 
@@ -96,113 +91,11 @@ fn home_dir() -> Result<PathBuf, InstallCommandFailure> {
         .ok_or_else(|| InstallCommandFailure::environment("HOME"))
 }
 
-fn codex_home(home: &std::path::Path) -> PathBuf {
-    non_empty_env("CODEX_HOME")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| home.join(".codex"))
-}
-
-fn platform_config_root(home: &std::path::Path) -> PathBuf {
-    #[cfg(windows)]
-    {
-        non_empty_env("APPDATA")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| home.join("AppData").join("Roaming"))
-    }
-    #[cfg(target_os = "macos")]
-    {
-        home.join("Library").join("Application Support")
-    }
-    #[cfg(all(unix, not(target_os = "macos")))]
-    {
-        non_empty_env("XDG_CONFIG_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|| home.join(".config"))
-    }
-}
-
-fn adapter_registry(
-    home: &std::path::Path,
-    binary: &std::path::Path,
-) -> Result<Vec<Box<dyn HarnessAdapter>>, InstallCommandFailure> {
-    let config_root = platform_config_root(home);
-    let binary = binary.to_path_buf();
-    let adapters: Vec<Box<dyn HarnessAdapter>> = vec![
-        Box::new(
-            AntigravityAdapter::try_new(home.to_path_buf(), binary.clone())
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(
-            ClaudeAdapter::try_new(home.to_path_buf(), binary.clone())
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(
-            CodexAdapter::try_new(codex_home(home), binary.clone())
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(
-            CursorAdapter::try_new(home.to_path_buf(), binary.clone())
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(
-            GeminiAdapter::try_new(home.to_path_buf(), binary.clone())
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(
-            KiloCodeAdapter::try_new(config_root.join("Code").join("User"), binary.clone())
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(
-            KiroAdapter::try_new(home.to_path_buf(), binary.clone())
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(
-            WindsurfAdapter::try_new(home.to_path_buf(), binary.clone())
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(
-            ZedAdapter::try_new(config_root.join("Zed"), binary)
-                .map_err(InstallError::from)
-                .map_err(InstallCommandFailure::from)?,
-        ),
-        Box::new(AiderAdapter::new()),
-        Box::new(OpenCodeAdapter::new()),
-    ];
-    Ok(adapters)
-}
-
-/// Apply every native user-level harness registration and verify the result.
-pub(crate) fn run() -> Result<ExitCode, InstallCommandFailure> {
-    let binary = std::env::current_exe().map_err(|error| InstallCommandFailure {
-        class: FailureClass::Internal,
-        message: format!("cannot resolve the running enforcer binary: {error}"),
-    })?;
-    let context = InstallRequestContext::try_with_defaults(binary.clone())
-        .map_err(InstallError::from)
-        .map_err(InstallCommandFailure::from)?;
-    let home = home_dir()?;
-    let registry = adapter_registry(&home, &binary)?;
-    let adapters: Vec<&dyn HarnessAdapter> =
-        registry.iter().map(std::convert::AsRef::as_ref).collect();
-
-    enforcer_install::core::install(
-        &adapters,
-        &InstallCommand {
-            context: context.clone(),
-            only_harnesses: Vec::new(),
-        },
-    )
-    .map_err(InstallCommandFailure::from)?;
-
-    let reports = enforcer_install::core::doctor(&adapters, &context, &DoctorCommand::default())
+fn doctor_reports(
+    adapters: &[&dyn HarnessAdapter],
+    context: &InstallRequestContext,
+) -> Result<ExitCode, InstallCommandFailure> {
+    let reports = enforcer_install::core::doctor(adapters, context, &DoctorCommand::default())
         .map_err(InstallCommandFailure::from)?;
     let verified = reports.iter().all(|(_, report)| {
         report
@@ -215,4 +108,58 @@ pub(crate) fn run() -> Result<ExitCode, InstallCommandFailure> {
     } else {
         ExitCode::Violations
     })
+}
+
+fn doctor_with_current_environment() -> Result<ExitCode, InstallCommandFailure> {
+    let binary = std::env::current_exe().map_err(|error| InstallCommandFailure {
+        class: FailureClass::Internal,
+        message: format!("cannot resolve the running enforcer binary: {error}"),
+    })?;
+    let context = InstallRequestContext::try_with_defaults(binary)
+        .map_err(InstallError::from)
+        .map_err(InstallCommandFailure::from)?;
+    let home = home_dir()?;
+    let home = enforcer_domain::install_types::InstallRootPath::try_from(home)
+        .map_err(InstallError::from)
+        .map_err(InstallCommandFailure::from)?;
+    let registry = enforcer_install::factory::adapter_registry(&home, &context.binary_path)
+        .map_err(InstallCommandFailure::from)?;
+    let adapters: Vec<&dyn HarnessAdapter> =
+        registry.iter().map(std::convert::AsRef::as_ref).collect();
+
+    doctor_reports(&adapters, &context)
+}
+
+/// Verify every native user-level harness registration without changing files.
+pub(crate) fn doctor() -> Result<ExitCode, InstallCommandFailure> {
+    doctor_with_current_environment()
+}
+
+/// Apply every native user-level harness registration and verify the result.
+pub(crate) fn run() -> Result<ExitCode, InstallCommandFailure> {
+    let binary = std::env::current_exe().map_err(|error| InstallCommandFailure {
+        class: FailureClass::Internal,
+        message: format!("cannot resolve the running enforcer binary: {error}"),
+    })?;
+    let context = InstallRequestContext::try_with_defaults(binary)
+        .map_err(InstallError::from)
+        .map_err(InstallCommandFailure::from)?;
+    let home = home_dir()?;
+    let home = enforcer_domain::install_types::InstallRootPath::try_from(home)
+        .map_err(InstallError::from)
+        .map_err(InstallCommandFailure::from)?;
+    let registry = enforcer_install::factory::adapter_registry(&home, &context.binary_path)
+        .map_err(InstallCommandFailure::from)?;
+    let adapters: Vec<&dyn HarnessAdapter> =
+        registry.iter().map(std::convert::AsRef::as_ref).collect();
+
+    enforcer_install::core::install(
+        &adapters,
+        &InstallCommand {
+            context: context.clone(),
+            only_harnesses: Vec::new(),
+        },
+    )
+    .map_err(InstallCommandFailure::from)?;
+    doctor_reports(&adapters, &context)
 }

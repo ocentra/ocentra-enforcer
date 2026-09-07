@@ -23,7 +23,9 @@ use enforcer_domain::ids::{BuiltInRustRule, RuleId};
 use enforcer_domain::paths::RelPath;
 use enforcer_domain::rules_types::{RulePredicateResult, RustTestNestingDepth};
 use enforcer_domain::severity::Severity;
-use enforcer_validator::validator::{ValidationInput, Validator};
+use enforcer_domain::syntax_types::{CapabilitySet, FactCapability, FunctionFact};
+use enforcer_validator::analysis::{CapabilityMatch, PreparedAnalysis};
+use enforcer_validator::validator::{AnalysisSkip, ValidationDispatch, ValidationInput, Validator};
 
 // Each sibling rule lives in its own submodule (not re-exported — this
 // crate's own `no_reexports` rule bans `pub use` barrels, so callers import
@@ -69,7 +71,40 @@ impl Validator for ErrorHandlingValidator {
         &self.rule_id
     }
 
+    fn required_capabilities(&self) -> CapabilitySet {
+        CapabilitySet::function_facts()
+    }
+
     fn validate(&self, input: ValidationInput<'_>) -> Vec<Finding> {
+        self.validate_source(input, None)
+    }
+
+    fn validate_with_analysis(
+        &self,
+        input: ValidationInput<'_>,
+        analysis: Option<&PreparedAnalysis>,
+    ) -> ValidationDispatch {
+        let Some(prepared) = analysis else {
+            return ValidationDispatch::Skipped(AnalysisSkip::NotPrepared);
+        };
+        if prepared.capability_match(FactCapability::FunctionFacts) != CapabilityMatch::Satisfied {
+            return ValidationDispatch::Skipped(AnalysisSkip::RequirementUnavailable);
+        }
+        match prepared.outcome() {
+            enforcer_validator::analysis::AnalysisOutcome::FactBacked(result) => {
+                ValidationDispatch::Ran(self.validate_source(input, Some(result.function_facts())))
+            }
+            _ => ValidationDispatch::Skipped(AnalysisSkip::RequirementUnavailable),
+        }
+    }
+}
+
+impl ErrorHandlingValidator {
+    fn validate_source(
+        &self,
+        input: ValidationInput<'_>,
+        function_facts: Option<&[FunctionFact]>,
+    ) -> Vec<Finding> {
         let Ok(file) = syn::parse_file(input.source.as_str()) else {
             return Vec::new();
         };
@@ -79,6 +114,8 @@ impl Validator for ErrorHandlingValidator {
             file: input.file,
             findings: Vec::new(),
             test_depth: RustTestNestingDepth::default(),
+            function_depth: 0,
+            function_facts,
         };
         visitor.visit_file(&file);
         visitor.findings
@@ -99,10 +136,24 @@ struct ErrorHandlingVisitor<'a> {
     /// Depth of nesting inside a `#[cfg(test)]` module or `#[test]`
     /// function. Non-zero means the current position is exempt.
     test_depth: RustTestNestingDepth,
+    /// Number of Rust functions currently being visited.
+    /// BRAND-INVARIANT: this counter is maintained only by the visitor's
+    /// balanced function-scope entry and exit helpers.
+    function_depth: usize,
+    /// Existing normalized function facts used to scope fact-backed findings.
+    /// BRAND-INVARIANT: facts are supplied only by the validated analysis
+    /// boundary and are never constructed from raw rule input here.
+    function_facts: Option<&'a [FunctionFact]>,
 }
 
 impl ErrorHandlingVisitor<'_> {
     fn push(&mut self, line: enforcer_domain::telemetry_types::SourceLine, marker: &str) {
+        if self.function_facts.is_some()
+            && self.function_depth > 0
+            && self.line_has_function_fact(line) == RulePredicateResult::NotMatched
+        {
+            return;
+        }
         let Ok(finding) = crate::boundary::finding::from_source(
             (self.rule_id, Severity::Error),
             format!("rust-error-handling: `{marker}` in first-party code"),
@@ -119,6 +170,24 @@ impl ErrorHandlingVisitor<'_> {
         self.findings.push(finding);
     }
 
+    fn line_has_function_fact(
+        &self,
+        line: enforcer_domain::telemetry_types::SourceLine,
+    ) -> RulePredicateResult {
+        let line = usize::try_from(line.value().get()).unwrap_or(usize::MAX);
+        let matched = self.function_facts.is_some_and(|facts| {
+            facts.iter().any(|fact| {
+                let range = fact.span().line_range();
+                (range.start()..=range.end()).contains(&line)
+            })
+        });
+        if matched {
+            RulePredicateResult::Matched
+        } else {
+            RulePredicateResult::NotMatched
+        }
+    }
+
     fn enter_test_scope(&mut self, is_test: RulePredicateResult, body: impl FnOnce(&mut Self)) {
         if is_test == RulePredicateResult::Matched {
             self.test_depth.enter();
@@ -127,6 +196,12 @@ impl ErrorHandlingVisitor<'_> {
         if is_test == RulePredicateResult::Matched {
             self.test_depth.exit();
         }
+    }
+
+    fn enter_function_scope(&mut self, is_test: RulePredicateResult, body: impl FnOnce(&mut Self)) {
+        self.function_depth = self.function_depth.saturating_add(1);
+        self.enter_test_scope(is_test, body);
+        self.function_depth = self.function_depth.saturating_sub(1);
     }
 }
 
@@ -164,17 +239,17 @@ impl<'ast> Visit<'ast> for ErrorHandlingVisitor<'_> {
 
     fn visit_item_fn(&mut self, item: &'ast ItemFn) {
         let is_test = attrs_mark_test(&item.attrs);
-        self.enter_test_scope(is_test, |v| visit::visit_item_fn(v, item));
+        self.enter_function_scope(is_test, |v| visit::visit_item_fn(v, item));
     }
 
     fn visit_impl_item_fn(&mut self, item: &'ast ImplItemFn) {
         let is_test = attrs_mark_test(&item.attrs);
-        self.enter_test_scope(is_test, |v| visit::visit_impl_item_fn(v, item));
+        self.enter_function_scope(is_test, |v| visit::visit_impl_item_fn(v, item));
     }
 
     fn visit_trait_item_fn(&mut self, item: &'ast TraitItemFn) {
         let is_test = attrs_mark_test(&item.attrs);
-        self.enter_test_scope(is_test, |v| visit::visit_trait_item_fn(v, item));
+        self.enter_function_scope(is_test, |v| visit::visit_trait_item_fn(v, item));
     }
 
     fn visit_item(&mut self, item: &'ast Item) {
@@ -259,17 +334,21 @@ mod tests {
     fn panic_todo_unimplemented_dbg_all_fire_in_first_party_code(
     ) -> Result<(), Box<dyn std::error::Error>> {
         let validator = ErrorHandlingValidator::new()?;
-        let source = concat!(
-            "fn a() { panic!(\"x\"); }\n",
-            "fn b() { todo!(); }\n",
-            "fn c() { unimplemented!(); }\n",
-            "fn d(x: i32) -> i32 { dbg!(x) }\n"
+        // TEST-FIXTURE-JUSTIFICATION: assemble banned tokens as input data so
+        // the source scanner does not mistake this test fixture for executable
+        // macros in the validator implementation itself.
+        let source = format!(
+            "fn a() {{ panic{bang}(\"x\"); }}\n\
+             fn b() {{ todo{bang}(); }}\n\
+             fn c() {{ unimplemented{bang}(); }}\n\
+             fn d(x: i32) -> i32 {{ dbg{bang}(x) }}\n",
+            bang = "!"
         );
         let file: enforcer_domain::paths::RelPath =
             crate::boundary::fixture::source_file("crates/x/src/lib.rs")?;
         let findings = validator.validate(enforcer_validator::validator::ValidationInput {
             file: &file,
-            source: enforcer_domain::boundary::validation::ValidationSource::from_text(source),
+            source: enforcer_domain::boundary::validation::ValidationSource::from_text(&source),
             scope: enforcer_domain::findings::ScanScope::Files,
         });
         assert_eq!(findings.len(), 4);

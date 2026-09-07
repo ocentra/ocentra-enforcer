@@ -31,7 +31,9 @@ fn cyberskills_vendor_not_dogfooded() -> Result<(), Box<dyn std::error::Error>> 
     if !vendor_dir.is_dir() {
         // Vendor-absent (L12 honesty protocol): nothing to prove here —
         // do not fabricate a corpus that is not actually vendored.
-        return Ok(());
+        return Err(
+            "h11 dogfood proof requires the real vendored CyberSkills corpus; run this proof before deleting vendor/anthropic-cybersecurity-skills".into(),
+        );
     }
 
     let profile_name = ConfigProfileName::new("ocentra-enforcer".to_owned())?;
@@ -64,7 +66,9 @@ fn without_the_vendor_glob_the_walk_would_see_vendor_files(
     let root = repo_root()?;
     let vendor_dir = root.join("vendor/anthropic-cybersecurity-skills");
     if !vendor_dir.is_dir() {
-        return Ok(());
+        return Err(
+            "vendor-glob regression proof requires the real vendored CyberSkills corpus".into(),
+        );
     }
 
     let rules = IgnoreRules::default();

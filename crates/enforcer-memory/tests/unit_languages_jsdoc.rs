@@ -1,7 +1,7 @@
 //! Hard tests for JSDoc (standalone comment body), onboarded directly
 //! through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_jsdoc`]) -- grammar:
-//! `tree-sitter-jsdoc` 0.25.0. No [`enforcer_memory::parsers::classify`]
+//! ([`enforcer_syntax::languages::generic::parse_jsdoc`]) -- grammar:
+//! `tree-sitter-jsdoc` 0.25.0. No [`enforcer_syntax::parsers::classify`]
 //! extension wiring at all (no baseline `EXT_TABLE` entry exists for
 //! this language either) -- reached only via direct calls to
 //! `parse_jsdoc`, matching the baseline's own fully nominal row
@@ -9,8 +9,8 @@
 //! the one real structural signal this crate can record, a module
 //! symbol for the comment's own `document` root.
 
-use enforcer_memory::languages::generic::parse_jsdoc;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_jsdoc;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

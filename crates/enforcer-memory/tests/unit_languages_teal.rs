@@ -1,17 +1,17 @@
 //! Hard tests for Teal, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_teal`]) -- there is no
+//! ([`enforcer_syntax::languages::generic::parse_teal`]) -- there is no
 //! bespoke `languages::teal` extractor to prove zero-regression against,
 //! so these tests assert against the grammar-shape ground truth recorded
-//! in [`enforcer_memory::languages::spec::LangSpec::teal`]'s own doc
+//! in [`enforcer_syntax::languages::spec::LangSpec::teal`]'s own doc
 //! comment directly: plain/dotted `function_statement` naming,
 //! `record_declaration` DEFINES nesting, `function_call`'s own
 //! `called_object` field, and branch recognition (including the
 //! `numeric_for_statement` correction over baseline's bare
 //! `for_statement`).
 
-use enforcer_memory::languages::generic::parse_teal;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_teal;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_teal";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

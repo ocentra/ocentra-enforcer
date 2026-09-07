@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-89",
+  "family": "IF/vulnerability-management",
+  "baselineCommit": "8a144d7f081a4f239c803064e7278d62e7d35641",
+  "scope": "Retain the second vulnerability-management packet covering scanner references, remediation SLAs, assessment manifests, asset criticality, authenticated scans, and KEV prioritization from immutable CP08 evidence; native predicates are limited to static supplied asset, vulnerability, finding, score, exception, remediation, SLA, owner, patch, assessment, credential-reference, evidence, and notification manifests; live scanners, Rapid7, Greenbone, OpenVAS, AD, Nessus, CISA KEV, ticketing, endpoint, network, cloud, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-rapid7-insightvm-for-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-rapid7-insightvm-for-scanning/SKILL.md",
+        "sha256": "e9d0f4a8b69d2f0671f895cdfe30a368ee3903ef04bd0426a69fee6240b55810",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Rapid7 InsightVM for Scanning:L28"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-69/decomposition.json",
+        "artifactSha256": "760ef48f47b5dd9ee8c3068f68cf5adb4670830243542e0d6eb511eaf9ce7d58"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authorized scanning, credential handling, triage, severity review, exception, and defensive remediation guidance as advisory.",
+        "notProved": ["No scan completeness, finding accuracy, prioritization, or remediation efficacy is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, target and data ownership, legal/privacy/safety review, scope approval, analyst validation, severity, remediation, rollback, and disclosure decisions.",
+        "notProved": ["No authorization, finding validity, scan execution, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-vulnerability-management-with-greenbone",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-vulnerability-management-with-greenbone/SKILL.md",
+        "sha256": "10a01a1091c903eba5b72470224f0da8df0dfcdc1c186076f0527a1b05773760",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Vulnerability Management with Greenbone:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Greenbone-oriented vulnerability-management, finding review, prioritization, and remediation guidance as advisory.",
+        "notProved": ["No Greenbone execution, scan result, asset discovery, exploitability, or remediation proof is made."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, asset ownership, severity, remediation, legal, and data-handling decisions.",
+        "notProved": ["No live vulnerability-management approval, scan, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-vulnerability-remediation-sla",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-vulnerability-remediation-sla/SKILL.md",
+        "sha256": "a0b1e5078a6e93541d9d43c63f71856d87835f1459b6a76f13606095ad2d34c4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Vulnerability Remediation SLA:L28"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain vulnerability remediation SLA, ownership, exception, prioritization, and defensive planning guidance as advisory.",
+        "notProved": ["No remediation completion, SLA compliance, risk reduction, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, owner validation, severity, remediation assignment, exception approval, and legal/data-handling decisions.",
+        "notProved": ["No live remediation approval, SLA decision, or completion proof is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-vulnerability-sla-breach-alerting",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-vulnerability-sla-breach-alerting/SKILL.md",
+        "sha256": "ed50f967501ef1bc4e72b1e4a2552ce79fb6ceb524c0573dc7a84509f51ac5ce",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Vulnerability SLA Breach Alerting:L29"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain SLA breach alerting, escalation, notification, and defensive remediation guidance as advisory.",
+        "notProved": ["No live breach calculation, alert delivery, escalation, remediation, or SLA outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require owner validation, severity, escalation authorization, remediation, legal, and data-handling decisions.",
+        "notProved": ["No live alert delivery, escalation approval, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-active-directory-vulnerability-assessment",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-active-directory-vulnerability-assessment/SKILL.md",
+        "sha256": "b15c9a0f917f9968c7f6fbe5f75313ffcfffcabe59a660853f3603c9d84bcbda",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Active Directory Vulnerability Assessment:L39"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-10/decomposition.json",
+        "artifactSha256": "3c4af801bddea54495639e64296bb98bc9495cd5b328475c52666ce5ce7592a2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain directory-assessment scope planning, scanner selection, evidence, remediation, and reporting guidance as advisory.",
+        "notProved": ["No directory vulnerability-assessment completeness, scanner coverage, or finding truth is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, directory and scanner ownership, safe windows, exclusions, evidence handling, and remediation decisions.",
+        "notProved": ["No live directory, scanner, credential, authorization, or remediation proof is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-agentless-vulnerability-scanning",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-agentless-vulnerability-scanning/SKILL.md",
+        "sha256": "d007a112c5d36cbe1092d98ef6b11a84f1c4ca1ef4f03ba15ab7329653af2226",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Agentless Vulnerability Scanning:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-72/decomposition.json",
+        "artifactSha256": "59869f0a621f4eb61bd1c68ad48da9a9ee00098731becb3d46a2be43d15fa1e1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain agentless assessment, scan planning, vulnerability triage, and defensive remediation guidance as advisory.",
+        "notProved": ["No finding validity, priority truth, scan coverage, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset ownership, legal/privacy/safety review, scope, data handling, analyst validation, severity, and remediation decisions.",
+        "notProved": ["No authorization, scan delivery, asset discovery, or remediation completion is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-asset-criticality-scoring-for-vulns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-asset-criticality-scoring-for-vulns/SKILL.md",
+        "sha256": "52158a11f6ca20333cbc7f2dc226459d812ea5a27022a4198fc1b7c391881d12",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Asset Criticality Scoring for Vulns:L29"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-33/decomposition.json",
+        "artifactSha256": "3a64ef3f1569696b4056b166356f5f963122b7276eb80f27284aabae37b7bc11"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain asset criticality, business impact, ownership, exposure, and vulnerability prioritization guidance as advisory.",
+        "notProved": ["No authoritative asset inventory, criticality truth, exposure, prioritization, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written scope, asset-owner validation, business impact, severity, remediation, authorization, and legal/data-handling decisions.",
+        "notProved": ["No authoritative criticality decision, finding, or remediation proof is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-authenticated-scan-with-openvas",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-authenticated-scan-with-openvas/SKILL.md",
+        "sha256": "40673c6f2de09532c9b22125ab23361f88a34dfb8373d5cbd9fb095fbf6b94ac",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Authenticated Scan with OpenVAS:L32"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json",
+        "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authenticated scanning design, vulnerability triage, hardening, and defensive remediation guidance as advisory.",
+        "notProved": ["No severity, priority truth, authenticated coverage, finding accuracy, or remediation effectiveness is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset ownership, legal/privacy/safety review, credential handling, scope, analyst validation, and remediation decisions.",
+        "notProved": ["No authorization, credential validity, scan delivery, or security outcome is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-authenticated-vulnerability-scan",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-authenticated-vulnerability-scan/SKILL.md",
+        "sha256": "fbca14d16a6af61ff25d85e71d71e9ea670707e23a6f9557dae1db5f4f2a53d9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Authenticated Vulnerability Scan:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-73/decomposition.json",
+        "artifactSha256": "b1c0f51787b01b7c154b70dfa50192499624718bb9edfb9f5b1dd5fe5a178b26"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authenticated assessment, vulnerability management, prioritization, and defensive remediation guidance as advisory.",
+        "notProved": ["No finding validity, risk score, authenticated access, scan output, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and data ownership, legal/privacy/safety review, credential custody, scope, analyst validation, and remediation decisions.",
+        "notProved": ["No authorization, credential validity, scan execution, or remediation completion is proved."]
+      }
+    },
+    {
+      "catalogId": "performing-cve-prioritization-with-kev-catalog",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cve-prioritization-with-kev-catalog/SKILL.md",
+        "sha256": "0a03aadc7a9edb1f8e87d44e3fd2fe46744b10bee698dcd3d3e56781d7aff708",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing CVE Prioritization with KEV Catalog:L36"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-74/decomposition.json",
+        "artifactSha256": "3bcb86f48ec982e443eb42ede1d4d60c34bdf15543f4b1353f70aa3bce181ffe"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain vulnerability prioritization, risk review, owner coordination, exception handling, and remediation guidance as advisory.",
+        "notProved": ["No severity, KEV freshness, exploitability, priority truth, SLA completion, or security outcome is proved."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset ownership, legal/data handling review, analyst validation, severity and exception approval, and remediation decisions.",
+        "notProved": ["No authorization, CVE applicability, catalog truth, remediation, or security outcome is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live scanner, Rapid7, Greenbone, OpenVAS, Active Directory, Nessus, CISA KEV, ticketing, endpoint, network, cloud, credential, or production execution is proved.",
+    "No vulnerability truth, exploitability, priority, remediation, SLA, delivery, approval, assessment, asset criticality, or security outcome is proved.",
+    "This packet covers the second ten vulnerability-management skills; the family remains incomplete until its remaining packet is retained.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External repositories, scanners, platforms, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

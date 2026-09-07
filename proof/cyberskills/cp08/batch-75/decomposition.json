@@ -1,0 +1,155 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-75",
+  "baselineCommit": "26b9f44ee1d5ecb65deb3823d3ae9c5739a9784a",
+  "family": "Static defensive analysis, threat-evidence, identity, API, malware, and remediation manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "performing-firmware-extraction-with-binwalk",
+      "performing-fuzzing-with-aflplusplus",
+      "performing-graphql-depth-limit-attack",
+      "performing-graphql-introspection-attack",
+      "performing-hash-cracking-with-hashcat",
+      "performing-http-parameter-pollution-attack",
+      "performing-indicator-lifecycle-management",
+      "performing-initial-access-with-evilginx3",
+      "performing-insider-threat-investigation",
+      "performing-ioc-enrichment-automation"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-74."
+  },
+  "accounting": {
+    "acceptedPrior": 740,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 750,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "performing-firmware-extraction-with-binwalk",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-firmware-extraction-with-binwalk/SKILL.md","sha256":"ee0aebde3da369802a25de83b09d8efcc3016539eecc5fdca5b236236dec24df","availability":"available","license":"Apache-2.0","anchors":["# Performing Firmware Extraction with Binwalk:L62"]},
+      "components": [
+        {"id":"performing-firmware-extraction-with-binwalk::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed firmware, image, component, hash, extraction-plan, owner, custody, and evidence-manifest fields without extraction or device access.","notProved":["firmware contents","vulnerability","device state"]},
+        {"id":"performing-firmware-extraction-with-binwalk::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Binwalk, firmware images, filesystems, embedded devices, interfaces, processes, and production hardware external.","notProved":["extraction","code execution","device compromise"]},
+        {"id":"performing-firmware-extraction-with-binwalk::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain firmware analysis, supply-chain review, embedded hardening, custody, and defensive remediation guidance as advisory.","notProved":["sample truth","finding validity","remediation effectiveness"]},
+        {"id":"performing-firmware-extraction-with-binwalk::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, image and device ownership, legal/safety review, chain of custody, isolated handling, analyst validation, and disclosure decisions.","notProved":["authorization","live extraction","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-fuzzing-with-aflplusplus",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-fuzzing-with-aflplusplus/SKILL.md","sha256":"216c588dabe7f2e0531d5f09932fd4e9162079d4381ca8f3fc0ec6c6330087b6","availability":"available","license":"Apache-2.0","anchors":["# Performing Fuzzing with AFL++:L42"]},
+      "components": [
+        {"id":"performing-fuzzing-with-aflplusplus::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed target, harness, input, mutation, timeout, scope, stop-condition, owner, and evidence-manifest fields without fuzz execution.","notProved":["crash","vulnerability","coverage"]},
+        {"id":"performing-fuzzing-with-aflplusplus::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep AFL++, compilers, harnesses, binaries, processes, filesystems, endpoints, and network services external.","notProved":["execution","input discovery","exploitability"]},
+        {"id":"performing-fuzzing-with-aflplusplus::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain fuzz-plan design, secure parser review, crash triage, safety, and defensive remediation guidance as advisory.","notProved":["coverage truth","finding validity","security outcome"]},
+        {"id":"performing-fuzzing-with-aflplusplus::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, target ownership, isolated scope, legal/safety review, resource limits, stop conditions, analyst validation, and disclosure decisions.","notProved":["authorization","live fuzzing","compromise"]}
+      ]
+    },
+    {
+      "catalogId": "performing-graphql-depth-limit-attack",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-graphql-depth-limit-attack/SKILL.md","sha256":"18eca70b625f4e75a027d7ceb3235a0fecd4a722bc397bfaaec9ef145a689055","availability":"available","license":"Apache-2.0","anchors":["# Performing GraphQL Depth Limit Attack:L30"]},
+      "components": [
+        {"id":"performing-graphql-depth-limit-attack::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed schema, route, query-depth, role, limit, scope, authorization, and evidence-manifest fields without endpoint calls.","notProved":["depth enforcement","resource exhaustion","API vulnerability"]},
+        {"id":"performing-graphql-depth-limit-attack::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep GraphQL endpoints, servers, browsers, fuzzers, payloads, sessions, authentication, and production systems external.","notProved":["query execution","availability impact","data exposure"]},
+        {"id":"performing-graphql-depth-limit-attack::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain GraphQL schema hardening, depth-limit design, authorized testing, and defensive remediation guidance as advisory.","notProved":["finding validity","control effectiveness","security outcome"]},
+        {"id":"performing-graphql-depth-limit-attack::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, API ownership, legal/safety/data review, bounded scope, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live attack","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-graphql-introspection-attack",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-graphql-introspection-attack/SKILL.md","sha256":"10e754e49e8e8919090bcab8d8aad3c10b047c04234cc55e87194d69e6dca51b","availability":"available","license":"Apache-2.0","anchors":["# Performing GraphQL Introspection Attack:L34"]},
+      "components": [
+        {"id":"performing-graphql-introspection-attack::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed schema, introspection-policy, route, role, authorization, scope, and evidence-manifest fields without live requests.","notProved":["schema disclosure","authorization","API exposure"]},
+        {"id":"performing-graphql-introspection-attack::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep GraphQL servers, endpoints, browsers, clients, Burp, ZAP, payloads, sessions, and production authorities external.","notProved":["introspection response","data exposure","security outcome"]},
+        {"id":"performing-graphql-introspection-attack::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain GraphQL schema governance, introspection hardening, defensive testing, and remediation guidance as advisory.","notProved":["finding validity","coverage","control effectiveness"]},
+        {"id":"performing-graphql-introspection-attack::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, API ownership, legal/safety/data review, role validation, scope, stop conditions, and remediation decisions.","notProved":["authorization","live query","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-hash-cracking-with-hashcat",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-hash-cracking-with-hashcat/SKILL.md","sha256":"462ce2482a1791212a54386657eb60983f178a5dd91cf9d9b944d4f3daaaf1ac","availability":"available","license":"Apache-2.0","anchors":["# Performing Hash Cracking with Hashcat:L26"]},
+      "components": [
+        {"id":"performing-hash-cracking-with-hashcat::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed hash, algorithm, account, wordlist reference, authorization, scope, custody, and evidence-manifest fields without cracking.","notProved":["password strength","hash recovery","credential access"]},
+        {"id":"performing-hash-cracking-with-hashcat::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep Hashcat, GPUs, password databases, wordlists, credentials, endpoints, memory, and authentication systems external.","notProved":["cracking","password recovery","login"]},
+        {"id":"performing-hash-cracking-with-hashcat::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain password-risk assessment, hashing policy, secret hygiene, defensive hardening, and response guidance as advisory.","notProved":["exposure","credential validity","risk reduction"]},
+        {"id":"performing-hash-cracking-with-hashcat::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, account and data ownership, legal/privacy/ethics review, key custody, isolated scope, analyst validation, and remediation decisions.","notProved":["authorization","credential recovery","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-http-parameter-pollution-attack",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-http-parameter-pollution-attack/SKILL.md","sha256":"70cd901ee9d7b34073769dd09dcc9a2c685b01a25510ae4a22c8c7bf12342178","availability":"available","license":"Apache-2.0","anchors":["# Performing HTTP Parameter Pollution Attack:L32"]},
+      "components": [
+        {"id":"performing-http-parameter-pollution-attack::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed route, parameter, parser, method, identity, scope, authorization, and evidence-manifest fields without HTTP requests.","notProved":["parser behavior","parameter pollution","data exposure"]},
+        {"id":"performing-http-parameter-pollution-attack::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep HTTP endpoints, servers, browsers, proxies, fuzzers, payloads, sessions, authentication, and production networks external.","notProved":["request result","bypass","impact"]},
+        {"id":"performing-http-parameter-pollution-attack::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain request parsing, duplicate-parameter handling, API hardening, authorized testing, and remediation guidance as advisory.","notProved":["vulnerability","control effectiveness","security outcome"]},
+        {"id":"performing-http-parameter-pollution-attack::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, application ownership, legal/safety/data review, bounded scope, stop conditions, analyst validation, and remediation decisions.","notProved":["authorization","live attack","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-indicator-lifecycle-management",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-indicator-lifecycle-management/SKILL.md","sha256":"e9731106ecfc2ac5007e5e2114cffc0c14facafb0b884d31a29241ae1d686cbe","availability":"available","license":"Apache-2.0","anchors":["# Performing Indicator Lifecycle Management:L30"]},
+      "components": [
+        {"id":"performing-indicator-lifecycle-management::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed indicator, source, confidence, timestamps, status, owner, handling, expiry, relationship, and evidence-manifest fields only.","notProved":["IOC validity","freshness","threat activity"]},
+        {"id":"performing-indicator-lifecycle-management::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep MISP, OpenCTI, TIPs, OSINT, DNS, WHOIS, enrichment feeds, SIEM, EDR, and live network authorities external.","notProved":["enrichment","attribution","detection"]},
+        {"id":"performing-indicator-lifecycle-management::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain IOC handling, uncertainty, source evaluation, sharing, expiry, triage, and defensive response guidance as advisory.","notProved":["source truth","coverage","response effectiveness"]},
+        {"id":"performing-indicator-lifecycle-management::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, dissemination, escalation, and disclosure decisions.","notProved":["authorization","live enrichment","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-initial-access-with-evilginx3",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-initial-access-with-evilginx3/SKILL.md","sha256":"ef2fffce18f9c9d4f246dede51ef761482292cd1c25aef1c4364f8146b1f4766","availability":"available","license":"Apache-2.0","anchors":["# Performing Initial Access with EvilGinx3:L71"]},
+      "components": [
+        {"id":"performing-initial-access-with-evilginx3::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed campaign, domain, message, authorization, identity, MFA, scope, safety, and evidence-manifest fields without delivery or credential capture.","notProved":["phishing","credential capture","session compromise"]},
+        {"id":"performing-initial-access-with-evilginx3::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep EvilGinx3, mail, browsers, IdPs, MFA, sessions, domains, social channels, endpoints, and networks external.","notProved":["delivery","authentication","initial access"]},
+        {"id":"performing-initial-access-with-evilginx3::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain phishing-resistance, awareness, authorized assessment, identity hardening, and defensive response guidance as advisory.","notProved":["susceptibility","detection efficacy","security outcome"]},
+        {"id":"performing-initial-access-with-evilginx3::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require explicit written authorization, legal/privacy/ethics/safety review, owner approval, safe audience, stop conditions, notification, containment, and disclosure decisions.","notProved":["authorization","live delivery","compromise"]}
+      ]
+    },
+    {
+      "catalogId": "performing-insider-threat-investigation",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-insider-threat-investigation/SKILL.md","sha256":"23d928ccba2330c0d0231e6312a80a7e572c735594f6f009a7f0e5bfc736e885","availability":"available","license":"Apache-2.0","anchors":["# Performing Insider Threat Investigation:L35"]},
+      "components": [
+        {"id":"performing-insider-threat-investigation::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed case, person, role, indicator, timeline, source, confidence, legal hold, owner, and evidence-manifest fields without personnel or telemetry access.","notProved":["insider activity","person attribution","case validity"]},
+        {"id":"performing-insider-threat-investigation::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep HR, identity, endpoint, DLP, SIEM, EDR, email, file, network, and production investigation authorities external.","notProved":["behavior","intent","data access"]},
+        {"id":"performing-insider-threat-investigation::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain insider-risk triage, privacy-aware investigation, evidence handling, escalation, and defensive response guidance as advisory.","notProved":["finding truth","attribution","response effectiveness"]},
+        {"id":"performing-insider-threat-investigation::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, HR/legal/privacy review, case scope, chain of custody, analyst and counsel validation, notification, containment, and disclosure decisions.","notProved":["authorization","investigation outcome","security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "performing-ioc-enrichment-automation",
+      "source": {"path":"vendor/anthropic-cybersecurity-skills/skills/performing-ioc-enrichment-automation/SKILL.md","sha256":"7bb61b4af62aff3daa84de774eab18f415dfdab742b28b2aba3ed3f3a14dd1d9","availability":"available","license":"Apache-2.0","anchors":["# Performing IOC Enrichment Automation:L35"]},
+      "components": [
+        {"id":"performing-ioc-enrichment-automation::native-predicate","kind":"native-predicate","status":"proposed","predicateOrPurpose":"Validate supplied typed IOC, enrichment request, source, timestamp, confidence, relationship, cache, owner, and evidence-manifest fields without live lookups.","notProved":["enrichment","IOC validity","source truth"]},
+        {"id":"performing-ioc-enrichment-automation::external-engine","kind":"external-engine","status":"blocked","predicateOrPurpose":"Keep MISP, OpenCTI, VirusTotal, DNS, WHOIS, certificate, hosting, AI/LLM, SOAR, TIP, and live feed authorities external.","notProved":["freshness","attribution","detection"]},
+        {"id":"performing-ioc-enrichment-automation::advisory","kind":"advisory","status":"retained","predicateOrPurpose":"Retain enrichment workflow design, source uncertainty, normalization, sharing, triage, and defensive response guidance as advisory.","notProved":["coverage","indicator truth","response effectiveness"]},
+        {"id":"performing-ioc-enrichment-automation::manual","kind":"manual","status":"retained","predicateOrPurpose":"Require written authorization, legal/privacy/ethics review, source terms, data handling, analyst validation, dissemination, escalation, and disclosure decisions.","notProved":["authorization","live enrichment","security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, OT, HR, or production telemetry is proved.",
+    "No firmware extraction, fuzzing, GraphQL attack, hash cracking, HTTP attack, IOC enrichment, phishing, insider finding, execution, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}

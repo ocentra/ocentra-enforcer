@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-33",
+  "family": "IF/identity-access-management",
+  "baselineCommit": "5d7d861315a38bda20b42b719b30654a47121982",
+  "scope": "Retain advisory and manual content for the deterministic identity-access-management packet from immutable CP08 evidence; no native implementation, live identity, authentication, access, session, directory, device, cloud, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-active-directory-acl-abuse",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-active-directory-acl-abuse/SKILL.md",
+        "sha256": "e72ab21e752ec57aff3ecd6b612add8c18b7df0b3ace10789209eeca1c01b2d5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Analyzing Active Directory ACL Abuse:L28"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-10/decomposition.json",
+        "artifactSha256": "3c4af801bddea54495639e64296bb98bc9495cd5b328475c52666ce5ce7592a2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "attacking-entra-id-with-roadtools",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/attacking-entra-id-with-roadtools/SKILL.md",
+        "sha256": "83afbeca7b79e6c62e26a244226ea83d983b4d7f56b1dd439875f4869522e5ff",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Attacking Entra ID with ROADtools:L23"
+        ],
+        "references": [
+          "Tools and Resources",
+          "Validation Criteria"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-06/decomposition.json",
+        "artifactSha256": "60b0609032666c033137b7bbca6cb081cbbf9557e16fab46841446b515a068b5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "attacking-oauth-with-device-code-phishing",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/attacking-oauth-with-device-code-phishing/SKILL.md",
+        "sha256": "495fa21b8ee65d4c4d8475b0621caa5e66eea1b577e1ee31cbc42b41a32b1964",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Attacking OAuth with Device-Code Phishing:L23"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-09/decomposition.json",
+        "artifactSha256": "6e8649af278f30d2762bcaffaa3730386b5bee5396552c82527751ae833e4ee2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "auditing-entra-id-with-aadinternals",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/auditing-entra-id-with-aadinternals/SKILL.md",
+        "sha256": "850057f40326bdc0740dac8d94e1b54366f294a2a666a443fcd216923fa3bb64",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Auditing Entra ID with AADInternals:L23"
+        ],
+        "references": [
+          "Tools and Resources",
+          "Validation Criteria"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-06/decomposition.json",
+        "artifactSha256": "60b0609032666c033137b7bbca6cb081cbbf9557e16fab46841446b515a068b5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-identity-federation-with-saml-azure-ad",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-identity-federation-with-saml-azure-ad/SKILL.md",
+        "sha256": "512846afb2da565564427acb8ef8afca26130d88c73fc5a04b107020002eec32",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Building Identity Federation with SAML Azure AD:L59"
+        ],
+        "references": [
+          "Validation Checklist",
+          "References"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-06/decomposition.json",
+        "artifactSha256": "60b0609032666c033137b7bbca6cb081cbbf9557e16fab46841446b515a068b5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-identity-governance-lifecycle-process",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-identity-governance-lifecycle-process/SKILL.md",
+        "sha256": "e6c8daa0b22859247c2969c7b78106c3d2f1ce29578937379cd105255a976489",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Building Identity Governance Lifecycle Process:L66"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-09/decomposition.json",
+        "artifactSha256": "6e8649af278f30d2762bcaffaa3730386b5bee5396552c82527751ae833e4ee2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "building-role-mining-for-rbac-optimization",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/building-role-mining-for-rbac-optimization/SKILL.md",
+        "sha256": "6d8df79f1a1001fa79bb92d48d5badc53bb072771c488e71c4b029be252206b0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Building Role Mining for RBAC Optimization:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-54/decomposition.json",
+        "artifactSha256": "1d512f7350503833b6921265d19d19cf1b20f791dd9576e9d97b7686cef36ee3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-active-directory-tiered-model",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-active-directory-tiered-model/SKILL.md",
+        "sha256": "cce690d68bc13de2f6c4611cfd2935db0950421d95bd49b1b6492570249c8ce6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Configuring Active Directory Tiered Model:L31"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-10/decomposition.json",
+        "artifactSha256": "3c4af801bddea54495639e64296bb98bc9495cd5b328475c52666ce5ce7592a2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-ldap-security-hardening",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-ldap-security-hardening/SKILL.md",
+        "sha256": "0b1f311dc4b7781134d462b5c33b62cfd33dd8046b0a821b49e8d838d3944185",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring LDAP Security Hardening:L52"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-56/decomposition.json",
+        "artifactSha256": "5731959bc5bf97804672c8a5d360bc8f54aa1b0e6c0670d4c9ee8fab7a5aabb1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-multi-factor-authentication-with-duo",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-multi-factor-authentication-with-duo/SKILL.md",
+        "sha256": "1eeeabee9b01128cc2248a0ba11255c6951f3fe539557cac81427b1b50a3dabd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring Multi-Factor Authentication with Duo:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-28/decomposition.json",
+        "artifactSha256": "0be802ffed0586ca8f5932e8d538eef24c3c3c4c927bb50ce0edef0ab5758055"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain identity, role, entitlement, federation, authentication, session, ownership, review, certification, least-privilege, and defensive guidance.",
+        "notProved": [
+          "Guidance is not live identity, authentication, access, or session enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, tenant and system ownership, privacy, legal and safety scope, data handling, least privilege, enrollment, revocation, exception, analyst validation, remediation, and disclosure decisions.",
+        "notProved": [
+          "No live identity action or security conclusion is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live identity, authentication, authorization, role, entitlement, federation, SAML, OAuth, MFA, session, directory, device, cloud, endpoint, or production execution is proved.",
+    "No credential capture, privilege escalation, access, revocation, certification, least-privilege, phishing, account compromise, attribution, remediation success, privacy, legal, safety, or security outcome is proved.",
+    "This packet contains the first ten identity-access-management skills; the remaining thirty family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

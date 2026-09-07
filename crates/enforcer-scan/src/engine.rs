@@ -28,10 +28,11 @@
 
 use rayon::iter::ParallelIterator;
 use rayon::prelude::IntoParallelRefIterator;
+use std::collections::BTreeMap;
 use std::num::NonZeroU32;
 
 use enforcer_domain::boundary::validation::ValidationSourceText;
-use enforcer_domain::config_types::InlineTestPolicy;
+use enforcer_domain::config_types::{InlineTestPolicy, PrivateRustTestModuleAllowlistEntry};
 use enforcer_domain::findings::{
     Finding, FindingDetail, FindingLine, FindingSnippet, FindingTitle, Report, ReportOutcome,
     ScanScope, Violation,
@@ -40,6 +41,8 @@ use enforcer_domain::paths::{RelPath, RepoRoot};
 use enforcer_domain::scan_types::{LanguageFamily, ResolvedScope};
 use enforcer_domain::severity::Severity;
 use enforcer_domain::telemetry_types::SourceLine;
+use enforcer_validator::analysis::{AnalysisProvider, LegacyAnalysisProvider, PreparedAnalysis};
+use enforcer_validator::validator::ValidationDispatch;
 use enforcer_validator::validator::{ValidationInput, Validator};
 
 use crate::cargo_workspace_policy;
@@ -55,6 +58,7 @@ pub struct FamilyValidators {
     rust: Vec<Box<dyn Validator>>,
     typescript: Vec<Box<dyn Validator>>,
     python: Vec<Box<dyn Validator>>,
+    dart: Vec<Box<dyn Validator>>,
     common: Vec<Box<dyn Validator>>,
     security: Vec<Box<dyn Validator>>,
     cyberskills: Vec<Box<dyn Validator>>,
@@ -69,6 +73,7 @@ impl std::fmt::Debug for FamilyValidators {
             .field("rust", &self.rust.len())
             .field("typescript", &self.typescript.len())
             .field("python", &self.python.len())
+            .field("dart", &self.dart.len())
             .field("common", &self.common.len())
             .field("security", &self.security.len())
             .field("cyberskills", &self.cyberskills.len())
@@ -107,6 +112,9 @@ impl FamilyValidators {
             }
             LanguageFamily::Python => {
                 out.extend(self.python.iter().map(std::convert::AsRef::as_ref));
+            }
+            LanguageFamily::Dart => {
+                out.extend(self.dart.iter().map(std::convert::AsRef::as_ref));
             }
             LanguageFamily::Terraform => {
                 out.extend(self.iac.iter().map(std::convert::AsRef::as_ref));
@@ -190,6 +198,8 @@ pub fn build_family_validators(
 
     let python: Vec<Box<dyn Validator>> = enforcer_lang_py::all_validators()?;
 
+    let dart: Vec<Box<dyn Validator>> = enforcer_lang_dart::all_validators()?;
+
     let common: Vec<Box<dyn Validator>> = enforcer_lang_common::registry::all(
         enforcer_lang_common::port_platform::DeclaredScope::Undeclared,
     );
@@ -219,6 +229,7 @@ pub fn build_family_validators(
         rust,
         typescript,
         python,
+        dart,
         common,
         security,
         cyberskills,
@@ -244,6 +255,40 @@ pub fn run(scope: &ResolvedScope, files: &[RelPath], validators: &FamilyValidato
     run_with_inline_test_policy(scope, files, validators, InlineTestPolicy::Forbid)
 }
 
+/// Run only the cross-language common validator family over every selected
+/// file. This is the semantic backing for MCP's advertised `common` filter;
+/// it is not a file-extension alias.
+pub fn run_common(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    validators: &FamilyValidators,
+) -> Report {
+    let mut findings = files
+        .par_iter()
+        .filter_map(|file| read_file_utf8(&scope.repo_root, file).map(|source| (file, source)))
+        .filter(|(file, _source)| {
+            should_scan_source(scope, file) && !is_native_detector_authoring_surface(file, scope)
+        })
+        .flat_map_iter(|(file, source)| {
+            validators
+                .common
+                .iter()
+                .flat_map(|validator| {
+                    validator.validate(ValidationInput {
+                        file,
+                        source: source.as_source(),
+                        scope: scope.kind,
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>();
+    findings.sort_by(|left, right| {
+        (&left.file, left.line, &left.rule_id).cmp(&(&right.file, right.line, &right.rule_id))
+    });
+    fold_report(scope.kind, findings)
+}
+
 /// Run the engine with the resolved policy for non-Rust inline tests declared
 /// in production modules. Rust's `#[cfg(test)]` modules are idiomatic unit
 /// tests and are exempt from `TEST-2.2`; [`InlineTestPolicy::Forbid`] makes a
@@ -254,6 +299,22 @@ pub fn run_with_inline_test_policy(
     scope: &ResolvedScope,
     files: &[RelPath],
     validators: &FamilyValidators,
+    inline_test_policy: InlineTestPolicy,
+) -> Report {
+    let provider = LegacyAnalysisProvider;
+    run_with_analysis_provider(scope, files, validators, &provider, inline_test_policy)
+}
+
+/// Run the engine with one parse-once analysis provider.
+///
+/// The default entry point remains legacy-compatible. This additive seam
+/// prepares each source once per `(file, content hash, provider version)` and
+/// passes the retained result to validators that declare a fact capability.
+pub fn run_with_analysis_provider(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    validators: &FamilyValidators,
+    provider: &dyn AnalysisProvider,
     inline_test_policy: InlineTestPolicy,
 ) -> Report {
     let mut sources: Vec<(RelPath, Option<ValidationSourceText>)> = files
@@ -273,6 +334,20 @@ pub fn run_with_inline_test_policy(
         }
     }
 
+    let mut analysis_cache = crate::analysis_cache::AnalysisCache::default();
+    let analyses: BTreeMap<RelPath, PreparedAnalysis> = sources
+        .iter()
+        .filter_map(|(file, source)| source.as_ref().map(|source| (file, source)))
+        .map(|(file, source)| {
+            (
+                file.clone(),
+                analysis_cache
+                    .prepare(file, source.as_source(), scope.kind, provider)
+                    .clone(),
+            )
+        })
+        .collect();
+
     let mut all_findings = sources
         .par_iter()
         .filter_map(|(file, source)| source.as_ref().map(|source| (file, source)))
@@ -285,7 +360,17 @@ pub fn run_with_inline_test_policy(
                     source: source.as_source(),
                     scope: scope.kind,
                 };
-                per_file.extend(validator.validate(input));
+                match validator.validate_with_analysis(input, analyses.get(file)) {
+                    ValidationDispatch::Ran(findings) => per_file.extend(findings),
+                    ValidationDispatch::Skipped(_) => {
+                        // The default provider is deliberately legacy text-only. A
+                        // validator that can use facts must still retain its legacy
+                        // `validate` behavior when those facts are unavailable;
+                        // otherwise an unsupported analysis provider would silently
+                        // turn a required rule into zero findings.
+                        per_file.extend(validator.validate(input));
+                    }
+                }
             }
             per_file
         })
@@ -303,6 +388,555 @@ pub fn run_with_inline_test_policy(
     all_findings.extend(inline_test_findings(&sources, inline_test_policy));
 
     fold_report(scope.kind, all_findings)
+}
+
+/// Run the native Cargo local-path dependency policy over a resolved scope.
+///
+/// This is deliberately narrower than [`run_with_inline_test_policy`]: CI's
+/// dependency-policy gate needs the real Cargo-manifest invariant, not every
+/// language family piggybacking on a generic source scan. The implementation
+/// still uses the same UTF-8 read boundary and complete workspace manifest
+/// inventory as the full engine, so a scoped member cannot hide an external
+/// path behind an unscanned sibling manifest.
+pub fn run_dependency_policy(scope: &ResolvedScope, files: &[RelPath]) -> Report {
+    let workspace_inventory = workspace_manifest_inventory(&scope.repo_root);
+    let workspace_manifests = workspace_inventory
+        .iter()
+        .map(|(file, _source)| file)
+        .collect::<std::collections::BTreeSet<_>>();
+    let mut sources: Vec<(RelPath, Option<ValidationSourceText>)> = files
+        .par_iter()
+        .filter(|file| file.as_str().ends_with("Cargo.toml"))
+        .filter(|file| file.as_str() == "Cargo.toml" || workspace_manifests.contains(file))
+        .map(|file| (file.clone(), read_file_utf8(&scope.repo_root, file)))
+        .collect();
+    if let Ok(workspace_manifest) = RelPath::try_new("Cargo.toml") {
+        if !sources.iter().any(|(file, _)| file == &workspace_manifest) {
+            sources.push((
+                workspace_manifest.clone(),
+                read_file_utf8(&scope.repo_root, &workspace_manifest),
+            ));
+        }
+    }
+    let findings =
+        cargo_workspace_policy::findings_for_sources_with_inventory(&sources, &workspace_inventory);
+    fold_report(scope.kind, findings)
+}
+
+/// Run the native secret policy over a resolved source scope.
+///
+/// This is intentionally a narrow dispatch of the frozen standalone check's
+/// concrete `SEC-1.1` and `SEC-1.2` validators. A `secrets` gate must not
+/// masquerade as a full language scan, add the broader `SEC-2` family, or
+/// depend on the legacy Node collector. The validators own both detection and
+/// diagnostic redaction; this engine seam owns only source I/O, path-role
+/// routing, deterministic folding, and the report boundary.
+pub fn run_secret_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
+    let sources = files
+        .par_iter()
+        .filter(|file| should_scan_source(scope, file))
+        .map(|file| {
+            // SensitiveFilesValidator is path-only and must still see a selected
+            // file when its bytes are not valid UTF-8. Inline content scanning
+            // receives an empty source in that case rather than silently
+            // removing the path from the secret gate.
+            let source = read_file_utf8(&scope.repo_root, file)
+                .unwrap_or_else(|| ValidationSourceText::try_new(String::new()));
+            (file.clone(), source)
+        })
+        .collect::<Vec<_>>();
+    run_secret_policy_for_sources(scope, &sources)
+}
+
+/// Run the secret validators over source bytes supplied by an authoritative
+/// transport boundary, such as Git's staged index rather than the worktree.
+pub fn run_secret_policy_for_sources(
+    scope: &ResolvedScope,
+    sources: &[(RelPath, ValidationSourceText)],
+) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
+    let validators: Vec<Box<dyn Validator>> = vec![
+        Box::new(enforcer_lang_security::rules::secret_scan::InlineSecretsValidator::new()?),
+        Box::new(enforcer_lang_security::rules::secret_scan::SensitiveFilesValidator::new()?),
+    ];
+    let mut findings = sources
+        .par_iter()
+        .filter(|(file, _source)| !is_native_detector_authoring_surface(file, scope))
+        .map(|(file, source)| {
+            let input = ValidationInput {
+                file,
+                source: source.as_source(),
+                scope: scope.kind,
+            };
+            validators
+                .iter()
+                .flat_map(|validator| validator.validate(input))
+                .collect::<Vec<_>>()
+        })
+        .reduce(Vec::new, |mut left, mut right| {
+            left.append(&mut right);
+            left
+        });
+    findings.sort_by(|a, b| (&a.file, a.line, &a.rule_id).cmp(&(&b.file, b.line, &b.rule_id)));
+    Ok(fold_report(scope.kind, findings))
+}
+
+/// Run only the concrete TypeScript import-boundary validator. This avoids
+/// the broad scan-and-filter adapter used by generic named MCP checks.
+pub fn run_import_boundaries_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
+    let validator = enforcer_lang_ts::rules::import_boundaries::ImportBoundariesValidator::new()?;
+    let mut findings = files
+        .par_iter()
+        .filter(|file| matches!(classify(file), LanguageFamily::TypeScript))
+        .filter_map(|file| read_file_utf8(&scope.repo_root, file).map(|source| (file, source)))
+        .flat_map_iter(|(file, source)| {
+            validator.validate(ValidationInput {
+                file,
+                source: source.as_source(),
+                scope: scope.kind,
+            })
+        })
+        .collect::<Vec<_>>();
+    findings.sort_by(|left, right| {
+        (&left.file, left.line, &left.rule_id).cmp(&(&right.file, right.line, &right.rule_id))
+    });
+    Ok(fold_report(scope.kind, findings))
+}
+
+/// Run only the concrete Rust re-export validators.
+pub fn run_reexports_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+) -> Result<Report, enforcer_domain::boundary::decode_error::DecodeError> {
+    let validator = enforcer_lang_rust::rules::no_reexports::NoReexportsValidator::new()?;
+    let findings = files
+        .iter()
+        .filter(|file| matches!(classify(file), LanguageFamily::Rust))
+        .filter_map(|file| read_file_utf8(&scope.repo_root, file).map(|source| (file, source)))
+        .flat_map(|(file, source)| {
+            validator.validate(ValidationInput {
+                file,
+                source: source.as_source(),
+                scope: scope.kind,
+            })
+        })
+        .collect::<Vec<_>>();
+    Ok(fold_report(scope.kind, findings))
+}
+
+/// Run the Rust-native portion of the named string-boundary policy.
+pub fn run_rust_string_boundaries_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    config: &enforcer_domain::config_types::EffectiveConfig,
+) -> Result<Report, String> {
+    crate::string_boundaries::check(scope, files, config)
+}
+
+/// Enforce that first-party package and crate roots have an organized test
+/// tree. This is deliberately a filesystem policy rather than a marker
+/// validator: `TEST-2.1` is about project structure, not source text.
+pub fn run_required_test_policy(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    strict_empty_test_trees: bool,
+    private_rust_test_module_allowlist: &[PrivateRustTestModuleAllowlistEntry],
+) -> Report {
+    let mut findings = Vec::new();
+    for workspace in ["crates", "packages", "apps"] {
+        let root = std::path::Path::new(scope.repo_root.as_str()).join(workspace);
+        let Ok(entries) = std::fs::read_dir(root) else {
+            continue;
+        };
+        for entry in entries
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        {
+            let project = entry.path();
+            let rel = match project
+                .strip_prefix(scope.repo_root.as_str())
+                .ok()
+                .and_then(|path| path.to_str())
+                .map(|path| path.replace('\\', "/"))
+            {
+                Some(path) => path,
+                None => continue,
+            };
+            if !project_is_in_scope(&rel, files, scope.kind) {
+                continue;
+            }
+            let manifest = if workspace == "crates" {
+                project.join("Cargo.toml")
+            } else {
+                project.join("package.json")
+            };
+            if !manifest.is_file() {
+                continue;
+            }
+            if workspace != "crates" && !project.join("src").is_dir() {
+                continue;
+            }
+            let tests = project.join("tests");
+            let has_tests = if workspace == "crates" {
+                has_extension(&tests, "rs")
+            } else {
+                has_test_script(&tests)
+            };
+            if !has_tests {
+                if let Some(finding) = required_test_finding(
+                    &scope.repo_root,
+                    &rel,
+                    &manifest,
+                    "project is missing organized tests under tests/",
+                ) {
+                    findings.push(finding);
+                }
+            }
+            if strict_empty_test_trees && tests.is_dir() {
+                findings.extend(empty_test_tree_findings(&scope.repo_root, &rel, &tests));
+            }
+        }
+    }
+    findings.extend(required_inline_test_findings(
+        scope,
+        files,
+        private_rust_test_module_allowlist,
+    ));
+    fold_report(scope.kind, findings)
+}
+
+fn required_inline_test_findings(
+    scope: &ResolvedScope,
+    files: &[RelPath],
+    allowlist: &[PrivateRustTestModuleAllowlistEntry],
+) -> Vec<Finding> {
+    files
+        .iter()
+        .filter(|file| is_first_party_source_file(&scope.repo_root, file))
+        .filter_map(|file| {
+            let source = std::fs::read_to_string(
+                std::path::Path::new(scope.repo_root.as_str()).join(file.as_str()),
+            )
+            .ok()?;
+            let lines = source.lines().collect::<Vec<_>>();
+            let (index, snippet) = inline_test_marker(file, &lines)?;
+            if file.as_str().ends_with(".rs")
+                && is_allowlisted_private_rust_test_module(
+                    &scope.repo_root,
+                    file,
+                    &lines,
+                    index,
+                    allowlist,
+                )
+            {
+                return None;
+            }
+            inline_test_finding(file, index + 1, snippet)
+        })
+        .collect()
+}
+
+fn is_first_party_source_file(root: &RepoRoot, file: &RelPath) -> bool {
+    let mut segments = file.as_str().split('/');
+    let Some(workspace) = segments.next() else {
+        return false;
+    };
+    if !matches!(workspace, "crates" | "packages" | "apps") {
+        return false;
+    }
+    let Some(project) = segments.next() else {
+        return false;
+    };
+    if segments.next() != Some("src") {
+        return false;
+    }
+    let manifest = if workspace == "crates" {
+        "Cargo.toml"
+    } else {
+        "package.json"
+    };
+    std::path::Path::new(root.as_str())
+        .join(workspace)
+        .join(project)
+        .join(manifest)
+        .is_file()
+}
+
+fn inline_test_marker<'a>(file: &RelPath, lines: &[&'a str]) -> Option<(usize, &'a str)> {
+    if file.as_str().ends_with(".rs") {
+        return lines
+            .iter()
+            .position(|line| is_rust_inline_test_marker(line))
+            .map(|index| (index, "#[cfg(test)]"));
+    }
+    if file.as_str().ends_with(".py") {
+        return lines
+            .iter()
+            .position(|line| is_python_inline_test_marker(line))
+            .and_then(|index| lines.get(index).map(|line| (index, line.trim())));
+    }
+    if matches!(
+        file.as_str().rsplit('.').next(),
+        Some("js" | "cjs" | "mjs" | "ts" | "cts" | "mts" | "tsx" | "jsx")
+    ) {
+        return lines
+            .iter()
+            .position(|line| is_typescript_inline_test(line))
+            .and_then(|index| lines.get(index).map(|line| (index, line.trim())));
+    }
+    None
+}
+
+fn is_rust_inline_test_marker(line: &str) -> bool {
+    let compact: String = line
+        .chars()
+        .filter(|character| !character.is_whitespace())
+        .collect();
+    compact.starts_with("#[cfg(test)]")
+}
+
+fn is_python_inline_test_marker(line: &str) -> bool {
+    let Some(rest) = line.strip_prefix("def test_") else {
+        return false;
+    };
+    let identifier_length = rest
+        .chars()
+        .take_while(|character| character.is_ascii_alphanumeric() || *character == '_')
+        .count();
+    identifier_length > 0
+        && rest
+            .get(identifier_length..)
+            .is_some_and(|suffix| suffix.trim_start().starts_with('('))
+}
+
+fn is_typescript_inline_test(line: &str) -> bool {
+    for name in ["describe", "it", "test"] {
+        let Some(rest) = line.trim_start().strip_prefix(name) else {
+            continue;
+        };
+        let rest = rest.trim_start();
+        let rest = match rest.strip_prefix('.') {
+            Some(rest) => {
+                let rest = rest.trim_start();
+                let Some(rest) = ["skip", "only", "todo", "concurrent"]
+                    .iter()
+                    .find_map(|modifier| rest.strip_prefix(modifier))
+                else {
+                    continue;
+                };
+                rest.trim_start()
+            }
+            None => rest,
+        };
+        if rest.starts_with('(') {
+            return true;
+        }
+    }
+    false
+}
+
+fn is_allowlisted_private_rust_test_module(
+    root: &RepoRoot,
+    file: &RelPath,
+    lines: &[&str],
+    index: usize,
+    allowlist: &[PrivateRustTestModuleAllowlistEntry],
+) -> bool {
+    let Some(entry) = allowlist.iter().find(|entry| entry.owner_file() == file) else {
+        return false;
+    };
+    let expected_path = entry
+        .module_file()
+        .as_str()
+        .rsplit('/')
+        .next()
+        .unwrap_or_default();
+    lines
+        .iter()
+        .filter(|line| line.trim() == "#[cfg(test)]")
+        .count()
+        == 1
+        && lines
+            .get(index + 1)
+            .is_some_and(|line| is_private_test_path_attribute(line, expected_path))
+        && lines
+            .get(index + 2)
+            .is_some_and(|line| line.trim() == format!("mod {};", entry.module_name()))
+        && std::path::Path::new(root.as_str())
+            .join(entry.module_file().as_str())
+            .is_file()
+}
+
+fn is_private_test_path_attribute(line: &str, expected_path: &str) -> bool {
+    let Some(after_path) = line.trim().strip_prefix("#[path") else {
+        return false;
+    };
+    let Some(after_equals) = after_path.trim_start().strip_prefix('=') else {
+        return false;
+    };
+    after_equals.trim_start() == format!("\"{expected_path}\"]")
+}
+
+fn inline_test_finding(file: &RelPath, line_number: usize, snippet: &str) -> Option<Finding> {
+    let rule_id = "TEST-2.2".parse().ok()?;
+    let line = SourceLine::try_new(NonZeroU32::new(u32::try_from(line_number).ok()?)?);
+    Some(Finding { rule_id, severity: Severity::Error, title: FindingTitle::new("inline test in production source".to_owned()).ok()?, detail: FindingDetail::new("move this test into the project's organized test root; Rust private modules require one exact allowlist entry".to_owned()).ok()?, file: file.clone(), line: FindingLine::known(line), snippet: Some(FindingSnippet::new(snippet.to_owned()).ok()?) })
+}
+
+fn project_is_in_scope(project: &str, files: &[RelPath], scope: ScanScope) -> bool {
+    !matches!(scope, ScanScope::Files | ScanScope::Diff)
+        || files.iter().any(|file| {
+            file.as_str() == project || file.as_str().starts_with(&format!("{project}/"))
+        })
+}
+
+fn has_extension(root: &std::path::Path, extension: &str) -> bool {
+    test_tree_files(root)
+        .iter()
+        .any(|path| path.extension().and_then(|value| value.to_str()) == Some(extension))
+}
+
+fn has_test_script(root: &std::path::Path) -> bool {
+    test_tree_files(root).iter().any(|path| {
+        path.file_name()
+            .and_then(|value| value.to_str())
+            .is_some_and(|name| {
+                [".test.", ".spec."]
+                    .iter()
+                    .any(|marker| name.contains(marker))
+                    && is_typescript_test_filename(name)
+            })
+    })
+}
+
+fn is_typescript_test_filename(name: &str) -> bool {
+    let Some(extension) = name.rsplit('.').next() else {
+        return false;
+    };
+    let extension = extension
+        .strip_prefix('c')
+        .or_else(|| extension.strip_prefix('m'))
+        .unwrap_or(extension);
+    matches!(extension, "ts" | "tsx")
+}
+
+fn empty_test_tree_findings(
+    root: &RepoRoot,
+    project: &str,
+    tests: &std::path::Path,
+) -> Vec<Finding> {
+    let mut findings = Vec::new();
+    for directory in test_tree_directories(tests) {
+        let Ok(children) = std::fs::read_dir(&directory) else {
+            continue;
+        };
+        let children = children.filter_map(Result::ok).collect::<Vec<_>>();
+        if children
+            .iter()
+            .any(|child| child.file_type().is_ok_and(|kind| kind.is_dir()))
+        {
+            continue;
+        }
+        if children.is_empty() || children.iter().all(|child| child.file_name() == ".gitkeep") {
+            let suffix = directory
+                .strip_prefix(tests)
+                .ok()
+                .and_then(|value| value.to_str())
+                .unwrap_or("")
+                .replace('\\', "/");
+            if let Some(finding) = required_test_finding(
+                root,
+                project,
+                &directory,
+                &format!("tests/{suffix} is an empty test tree"),
+            ) {
+                findings.push(finding);
+            }
+        }
+    }
+    findings
+}
+
+fn test_tree_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut files = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        let Ok(entries) = std::fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in entries.filter_map(Result::ok) {
+            if entry.file_type().is_ok_and(|kind| kind.is_dir()) {
+                pending.push(entry.path());
+            } else if entry.file_type().is_ok_and(|kind| kind.is_file()) {
+                files.push(entry.path());
+            }
+        }
+    }
+    files
+}
+
+fn test_tree_directories(root: &std::path::Path) -> Vec<std::path::PathBuf> {
+    let mut directories = Vec::new();
+    let mut pending = vec![root.to_path_buf()];
+    while let Some(directory) = pending.pop() {
+        directories.push(directory.clone());
+        let Ok(entries) = std::fs::read_dir(directory) else {
+            continue;
+        };
+        for entry in entries
+            .filter_map(Result::ok)
+            .filter(|entry| entry.file_type().is_ok_and(|kind| kind.is_dir()))
+        {
+            pending.push(entry.path());
+        }
+    }
+    directories
+}
+
+fn required_test_finding(
+    root: &RepoRoot,
+    project: &str,
+    path: &std::path::Path,
+    detail: &str,
+) -> Option<Finding> {
+    let relative = match path.strip_prefix(root.as_str()) {
+        Ok(value) => value.to_str().unwrap_or(project),
+        Err(_) => project,
+    }
+    .replace('\\', "/");
+    let file = match RelPath::try_new(&relative) {
+        Ok(value) => value,
+        Err(_) => match RelPath::try_new(project) {
+            Ok(value) => value,
+            Err(_) => return None,
+        },
+    };
+    let rule_id = match "TEST-2.1".parse() {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
+    let title = match FindingTitle::new("project test tree is required".to_owned()) {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
+    let detail = match FindingDetail::new(detail.to_owned()) {
+        Ok(value) => value,
+        Err(_) => return None,
+    };
+    Some(Finding {
+        rule_id,
+        severity: Severity::Error,
+        title,
+        detail,
+        file,
+        line: FindingLine::known(SourceLine::try_new(NonZeroU32::MIN)),
+        snippet: None,
+    })
 }
 
 fn should_scan_source(scope: &ResolvedScope, file: &RelPath) -> bool {
@@ -541,9 +1175,12 @@ fn fold_report(scope: ScanScope, findings: impl IntoIterator<Item = Finding>) ->
 
 #[cfg(test)]
 mod tests {
-    use super::{build_family_validators, fold_report, run};
+    use super::{
+        build_family_validators, fold_report, run, run_dependency_policy, run_required_test_policy,
+    };
+    use enforcer_domain::config_types::PrivateRustTestModuleAllowlistEntry;
     use enforcer_domain::findings::{Finding, FindingLine, ReportOutcome, ScanScope};
-    use enforcer_domain::paths::RepoRoot;
+    use enforcer_domain::paths::{RelPath, RepoRoot};
     use enforcer_domain::scan_types::ScopeRequest;
     use enforcer_domain::severity::Severity;
     use enforcer_domain::telemetry_types::SourceLine;
@@ -560,12 +1197,249 @@ mod tests {
     }
 
     #[test]
+    fn dependency_policy_ignores_unregistered_nested_cargo_packages(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "Cargo.toml",
+            "[workspace]\nmembers = [\"crates/member\"]\nresolver = \"2\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/member/Cargo.toml",
+            "[package]\nname = \"member\"\nversion = \"0.1.0\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "scratch/rogue/Cargo.toml",
+            "[package]\nname = \"rogue\"\nversion = \"0.1.0\"\n[dependencies]\noutside = { path = \"../outside\" }\n",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_dependency_policy(&resolved, &files);
+        assert_eq!(report.ok, ReportOutcome::Clean);
+        assert!(report
+            .findings
+            .iter()
+            .all(|finding| finding.file.as_str() != "scratch/rogue/Cargo.toml"));
+        Ok(())
+    }
+
+    #[test]
+    fn required_tests_fails_for_missing_tests_and_strict_empty_tree(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "crates/missing/Cargo.toml",
+            "[package]\nname=\"missing\"\nversion=\"0.1.0\"\n",
+        )?;
+        write_file(temp.path(), "crates/missing/tests/unit/.gitkeep", "")?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_required_test_policy(&resolved, &files, true, &[]);
+        assert_eq!(report.ok, ReportOutcome::Violations);
+        assert!(report
+            .findings
+            .iter()
+            .any(|finding| finding.rule_id.as_str() == "TEST-2.1"));
+        Ok(())
+    }
+
+    #[test]
+    fn required_tests_allows_only_the_exact_private_rust_module_shape(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "crates/example/Cargo.toml",
+            "[package]\nname=\"example\"\nversion=\"0.1.0\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/tests/integration.rs",
+            "#[test]\nfn organized() {}\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/src/lib.rs",
+            "#[cfg(test)]\n#[path = \"lib_private_tests.rs\"]\nmod lib_private_tests;\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/src/lib_private_tests.rs",
+            "#[test]\nfn private() {}\n",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let owner: RelPath = "crates/example/src/lib.rs".parse()?;
+        let module: RelPath = "crates/example/src/lib_private_tests.rs".parse()?;
+        let allowlist = vec![PrivateRustTestModuleAllowlistEntry::try_new(
+            owner,
+            module,
+            "lib_private_tests".to_owned(),
+        )?];
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_required_test_policy(&resolved, &files, true, &allowlist);
+        assert_eq!(report.ok, ReportOutcome::Clean);
+        Ok(())
+    }
+
+    #[test]
+    fn required_tests_matches_frozen_project_and_private_module_shapes(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "packages/no-src/package.json",
+            "{\"name\":\"no-src\"}",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/js-only/package.json",
+            "{\"name\":\"js-only\"}",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/js-only/src/view.ts",
+            "export const view = 1;\n",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/js-only/tests/view.test.js",
+            "test('x', () => {});\n",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/typescript/package.json",
+            "{\"name\":\"typescript\"}",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/typescript/src/view.ts",
+            "export const view = 1;\n",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/typescript/tests/view.spec.mtsx",
+            "test('x', () => {});\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/Cargo.toml",
+            "[package]\nname=\"example\"\nversion=\"0.1.0\"\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/tests/integration.rs",
+            "#[test]\nfn ok() {}\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/src/lib.rs",
+            "#[cfg(test)]\n#[path=\"lib_private_tests.rs\"]\nmod lib_private_tests;\n",
+        )?;
+        write_file(
+            temp.path(),
+            "crates/example/src/lib_private_tests.rs",
+            "#[test]\nfn ok() {}\n",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let allowlist = vec![PrivateRustTestModuleAllowlistEntry::try_new(
+            "crates/example/src/lib.rs".parse()?,
+            "crates/example/src/lib_private_tests.rs".parse()?,
+            "lib_private_tests".to_owned(),
+        )?];
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_required_test_policy(&resolved, &files, false, &allowlist);
+        assert_eq!(report.ok, ReportOutcome::Violations);
+        assert_eq!(report.findings.len(), 1, "{:?}", report.findings);
+        assert_eq!(
+            report.findings[0].file.as_str(),
+            "packages/js-only/package.json"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn required_tests_detects_typescript_and_python_inline_tests_and_only_real_test_extensions(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "packages/web/package.json",
+            "{\"name\":\"web\"}",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/web/tests/looks.test.txt",
+            "not an executable test",
+        )?;
+        write_file(
+            temp.path(),
+            "packages/web/src/view.ts",
+            "describe(\"inline\", () => {});",
+        )?;
+        write_file(
+            temp.path(),
+            "apps/python/package.json",
+            "{\"name\":\"python\"}",
+        )?;
+        write_file(
+            temp.path(),
+            "apps/python/tests/main.test.ts",
+            "test(\"organized\", () => {});",
+        )?;
+        write_file(
+            temp.path(),
+            "apps/python/src/main.py",
+            "def test_inline():\n    pass\n",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let report = run_required_test_policy(&resolved, &files, false, &[]);
+        assert!(report.findings.iter().any(|finding| {
+            finding.rule_id.as_str() == "TEST-2.1"
+                && finding.file.as_str() == "packages/web/package.json"
+        }));
+        assert!(report.findings.iter().any(|finding| {
+            finding.rule_id.as_str() == "TEST-2.2"
+                && finding.file.as_str() == "packages/web/src/view.ts"
+        }));
+        assert!(report.findings.iter().any(|finding| {
+            finding.rule_id.as_str() == "TEST-2.2"
+                && finding.file.as_str() == "apps/python/src/main.py"
+        }));
+        assert!(!report.findings.iter().any(|finding| {
+            finding.rule_id.as_str() == "TEST-2.1"
+                && finding.file.as_str() == "apps/python/package.json"
+        }));
+        Ok(())
+    }
+
+    #[test]
     fn family_validators_build_cleanly() -> Result<(), Box<dyn std::error::Error>> {
         let validators = build_family_validators()?;
         assert_eq!(
             validators.rust.len(),
             2,
             "the Rust baseline registry is complete"
+        );
+        assert!(
+            !validators.dart.is_empty(),
+            "the Dart validator registry must be wired into the scan engine"
+        );
+        assert!(
+            validators
+                .dart
+                .iter()
+                .any(|validator| validator.rule_id().as_str() == "DART-BANG-1.1"),
+            "the Dart scan family must expose its real validator rules"
         );
         for expected in [
             "CYBER-FILELESS-MALWARE.1",
@@ -580,6 +1454,30 @@ mod tests {
                 "production scan registry is missing {expected}"
             );
         }
+        Ok(())
+    }
+
+    #[test]
+    fn dart_scan_executes_registered_validator_on_dart_source(
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let temp = tempfile::tempdir()?;
+        write_file(
+            temp.path(),
+            "lib/main.dart",
+            "class OrderPage { void load(Map<String, String> params) { final id = int.parse(params['id']!); print(id); } }",
+        )?;
+        let root: RepoRoot = temp.path().to_string_lossy().parse()?;
+        let resolved = resolve(&ScopeRequest::All, &root)?;
+        let files = walk(temp.path(), &IgnoreRules::default())?;
+        let validators = build_family_validators()?;
+        let report = run(&resolved, &files, &validators);
+        assert!(
+            report
+                .findings
+                .iter()
+                .any(|finding| finding.rule_id.as_str() == "DART-BANG-1.1"),
+            "Dart source must reach the registered Dart validator family"
+        );
         Ok(())
     }
 

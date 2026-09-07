@@ -1,0 +1,43 @@
+{
+  "schemaVersion": "cyberskills.security-engine-consumer.v1",
+  "engineId": "security-engine-reference",
+  "targetKinds": ["source-tree", "artifact-manifest", "dependency-lock"],
+  "outputProtocol": {
+    "name": "cyberskills-recorded-adapter",
+    "version": "1"
+  },
+  "policy": {
+    "executable": "security-engine-reference",
+    "argumentTemplate": ["--input", "{target}"],
+    "workingDirectory": "repo-relative",
+    "environment": "allowlist-only",
+    "network": "denied",
+    "credentials": "denied",
+    "timeoutMs": 1000,
+    "maxOutputBytes": 8192,
+    "maxArtifacts": 4
+  },
+  "requiredEvidence": [
+    "tool-version",
+    "executable-fingerprint",
+    "command-digest",
+    "configuration-digest",
+    "input-hashes",
+    "timestamps",
+    "normalized-findings",
+    "coverage-limitations"
+  ],
+  "outcomes": [
+    "ran",
+    "unavailable",
+    "policy-rejected",
+    "timed-out",
+    "errored",
+    "invalid-output"
+  ],
+  "sourceOwner": "docs/plans/cyberskills-parity-plan/workpacks/cp06-external-engine-module.md",
+  "generator": "hand-authored CP06 consumer conformance source",
+  "provenance": "sourceOwner: docs/plans/cyberskills-parity-plan/workpacks/cp06-external-engine-module.md; generator: hand-authored CP06 consumer conformance source",
+  "schemaHash": "sha256:6544d45bb1e35f0ad3f6266d8f539a6cfd1595f7b47fae1c06eee8961f2e32b7",
+  "reproducibilityHash": "sha256:6544d45bb1e35f0ad3f6266d8f539a6cfd1595f7b47fae1c06eee8961f2e32b7"
+}

@@ -1,16 +1,16 @@
 //! Hard tests for Apex, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_apex`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_apex`])
 //! -- there is no bespoke `languages::apex` extractor to prove
 //! zero-regression against (Apex has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::apex`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::apex`]'s own doc
 //! comment directly: class/interface/enum heritage (this grammar is
 //! Java-shaped throughout), field DEFINES, annotations as DECORATES, and
 //! full `method_invocation` callee reconstruction.
 
 use enforcer_domain::memory_types::ReceiverHint;
-use enforcer_memory::languages::generic::parse_apex;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_apex;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_apex";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

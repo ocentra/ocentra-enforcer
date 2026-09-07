@@ -1,14 +1,14 @@
 //! Hard tests for KDL, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_kdl`]). KDL is a
+//! ([`enforcer_syntax::languages::generic::parse_kdl`]). KDL is a
 //! Tier-0 nominal language (see
-//! [`enforcer_memory::languages::spec::LangSpec::kdl`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::kdl`]'s own doc
 //! comment): only its own real root node kind (`document`, matching
 //! baseline) is asserted. NOT the same concept as this crate's own
 //! Kubernetes-manifest handling (`Language::K8s`/`Language::Kustomize`,
 //! both deferred -- see `parsers::Language`'s own doc comments).
 
-use enforcer_memory::languages::generic::parse_kdl;
+use enforcer_syntax::languages::generic::parse_kdl;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

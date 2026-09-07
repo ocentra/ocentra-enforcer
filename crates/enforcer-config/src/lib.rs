@@ -24,6 +24,8 @@
 //! [`model::EffectiveConfig`] â€” never raw files or environment variables
 //! directly.
 
+#[path = "boundary/doctrine_profile.rs"]
+pub mod doctrine_profile;
 #[path = "boundary/serde/env.rs"]
 pub mod env;
 pub mod error;

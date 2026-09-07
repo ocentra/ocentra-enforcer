@@ -274,11 +274,13 @@ macro_rules! literal_owned_text {
         pub struct $name(String);
 
         impl $name {
+            /// Construct the owned scanner value at an accepted text boundary.
             #[must_use]
             pub fn from_owned(value: String) -> Self {
                 Self(value)
             }
 
+            /// Borrow the canonical scanner text without exposing storage.
             #[must_use]
             pub fn as_str(&self) -> &str {
                 &self.0
@@ -362,6 +364,7 @@ impl LiteralFindingPath {
         Ok(Self(value))
     }
 
+    /// Borrow the normalized finding path without exposing storage.
     #[must_use]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -617,6 +620,7 @@ impl LiteralLanguageId {
         Ok(Self(String::from(value)))
     }
 
+    /// Borrow the canonical language identifier without exposing storage.
     #[doc = "The as_str operation for this canonical domain value."]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -650,6 +654,7 @@ impl std::str::FromStr for LiteralLanguageId {
 pub struct LiteralRenderedReport(String);
 
 impl LiteralRenderedReport {
+    /// Borrow rendered report text at a presentation boundary.
     #[doc = "The as_str operation for this canonical domain value."]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -675,6 +680,7 @@ impl std::fmt::Display for LiteralRenderedReport {
 pub struct LiteralRenderedLine(String);
 
 impl LiteralRenderedLine {
+    /// Borrow one rendered JSON-lines record at a presentation boundary.
     #[doc = "The as_str operation for this canonical domain value."]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -986,6 +992,7 @@ impl std::str::FromStr for LiteralRiskCategory {
 
 /// A validated git revision expression used as one endpoint of a scan diff.
 // SERIALIZATION-DOC: this stable wire representation is consumed by durable adapters.
+/// Validated git revision expression retained by a scan diff scope.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 #[serde(try_from = "String", into = "String")]
 #[doc = "Canonical domain representation for CommitRef."]
@@ -993,6 +1000,7 @@ impl std::str::FromStr for LiteralRiskCategory {
 pub struct CommitRef(String);
 
 impl CommitRef {
+    /// Borrow the validated commit reference without exposing storage.
     #[doc = "The as_str operation for this canonical domain value."]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -1005,6 +1013,12 @@ impl std::str::FromStr for CommitRef {
         let trimmed = raw.trim();
         if trimmed.is_empty() {
             return Err(DecodeError::new("scope.commitRef", "must not be empty"));
+        }
+        if trimmed.starts_with('-') {
+            return Err(DecodeError::new(
+                "scope.commitRef",
+                "must not begin with `-` because Git would interpret it as an option",
+            ));
         }
         // ALLOC-JUSTIFICATION: the canonical domain value owns this text beyond the caller lifetime.
         Ok(Self(trimmed.to_owned()))
@@ -1055,6 +1069,7 @@ pub struct ResolvedScope {
 
 /// A non-empty reason explaining why a scan target was not run.
 // SERIALIZATION-DOC: this stable wire representation is consumed by durable adapters.
+/// Validated reason explaining why a scan target was skipped.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, ts_rs::TS)]
 #[serde(try_from = "String", into = "String")]
 #[doc = "Canonical domain representation for SkipReason."]
@@ -1062,6 +1077,7 @@ pub struct ResolvedScope {
 pub struct SkipReason(String);
 
 impl SkipReason {
+    /// Construct a non-empty skip reason.
     #[doc = "The try_new operation for this canonical domain value."]
     pub fn try_new(value: String) -> Result<Self, DecodeError> {
         if value.trim().is_empty() {
@@ -1072,6 +1088,7 @@ impl SkipReason {
         }
         Ok(Self(value))
     }
+    /// Borrow the validated skip reason without exposing storage.
     #[doc = "The as_str operation for this canonical domain value."]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -1149,8 +1166,10 @@ impl<'de> serde::Deserialize<'de> for ScanValidatorCount {
 /// Zero is valid: an empty selection and a fully skipped scan are both
 /// meaningful states that the anti-silent-skip gate must distinguish.
 /// ZERO-VALID: zero explicitly represents a scan selection with no targets.
+/// Canonical domain representation for ScanTargetCount.
+/// BRAND-INVARIANT: scan coverage counts cannot be confused with unrelated usize values.
+/// Count of files selected as scan targets.
 #[derive(
-    Debug,
     Default,
     Clone,
     Copy,
@@ -1167,6 +1186,8 @@ impl<'de> serde::Deserialize<'de> for ScanValidatorCount {
 #[ts(type = "number")]
 #[doc = "Canonical domain representation for ScanTargetCount."]
 #[doc = "BRAND-INVARIANT: scan coverage counts cannot be confused with unrelated usize values."]
+/// Count of files selected as scan targets.
+#[derive(Debug)]
 pub struct ScanTargetCount(usize);
 
 impl ScanTargetCount {
@@ -1244,13 +1265,17 @@ pub struct ProjectRegistration {
 
 /// The explicit result for each scan candidate.
 // SERIALIZATION-DOC: this stable wire representation is consumed by durable adapters.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
+/// Outcome recorded for one scan candidate.
+/// Canonical domain representation for Outcome.
+#[derive(Clone, PartialEq, Eq, serde::Serialize, ts_rs::TS)]
 #[serde(
     tag = "kind",
     rename_all = "camelCase",
     rename_all_fields = "camelCase"
 )]
 #[doc = "Canonical domain representation for Outcome."]
+/// Explicit result for one scan candidate.
+#[derive(Debug)]
 pub enum Outcome {
     Ran { validator_count: ScanValidatorCount },
     Skipped { reason: SkipReason },
@@ -1269,6 +1294,7 @@ impl Outcome {
 
 /// Named caller intent for a scan run.
 // SERIALIZATION-DOC: this stable wire representation is consumed by durable adapters.
+/// Named caller intent selecting a scan mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 #[serde(tag = "kind", rename_all = "kebab-case")]
 #[doc = "Canonical domain representation for ScanMode."]
@@ -1392,6 +1418,7 @@ pub struct ResolvedScanPlan {
 pub struct IgnoreDirectorySegment(String);
 
 impl IgnoreDirectorySegment {
+    /// Construct one validated directory segment.
     #[doc = "The new operation for this canonical domain value."]
     pub fn try_new(value: String) -> Result<Self, DecodeError> {
         let trimmed = value.trim();
@@ -1409,6 +1436,7 @@ impl IgnoreDirectorySegment {
         }
     }
 
+    /// Borrow the validated directory segment without exposing storage.
     #[doc = "The as_str operation for this canonical domain value."]
     pub fn as_str(&self) -> &str {
         &self.0
@@ -1422,6 +1450,7 @@ pub enum LanguageFamily {
     Rust,
     TypeScript,
     Python,
+    Dart,
     Terraform,
     YamlOrConfig,
     Unknown,
@@ -1431,6 +1460,7 @@ pub enum LanguageFamily {
 // SERDE-TAG-JUSTIFICATION: the established external wire form uses closed variant names.
 // SERDE-TAG-JUSTIFICATION: the established external wire form uses closed variant names.
 // SERDE-TAG-JUSTIFICATION: the established external wire form uses closed variant names.
+/// Rich language identity used by route-plan construction.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[doc = "Canonical domain representation for DetectedLanguage."]
 pub enum DetectedLanguage {
@@ -1445,12 +1475,14 @@ pub enum DetectedLanguage {
 
 /// Canonical rule-pack selection key.
 // SERDE-TAG-JUSTIFICATION: the established external wire form uses closed variant names.
+/// Canonical rule-pack selection key.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[doc = "Canonical domain representation for RulePack."]
 pub enum RulePack {
     Rust,
     TypeScript,
     Python,
+    Dart,
     Security,
     LiteralScanFloor,
     SecurityAudit,
@@ -1471,6 +1503,7 @@ pub enum RouteScope {
 }
 
 impl RouteScope {
+    /// Return the repository-relative root when the scope is rooted.
     #[doc = "The root operation for this canonical domain value."]
     pub fn root(&self) -> Option<&RelPath> {
         match self {
@@ -1521,6 +1554,7 @@ serde_camel_case_unit_enum!(RulePack, {
     RulePack::Rust => "rust",
     RulePack::TypeScript => "typeScript",
     RulePack::Python => "python",
+    RulePack::Dart => "dart",
     RulePack::Security => "security",
     RulePack::LiteralScanFloor => "literalScanFloor",
     RulePack::SecurityAudit => "securityAudit",

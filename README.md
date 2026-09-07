@@ -59,6 +59,15 @@ The Rust workspace separates the concerns deliberately:
 See [the architecture guide](docs/ARCHITECTURE.md) for boundaries and runtime
 flow.
 
+## Research Grounding
+
+The engine's context-budget, AST-backed validation, baseline-ratchet,
+dependency-visible deferred work, and rules-as-structured-data choices are
+documented with numbered sources in
+[docs/research-grounding.md](docs/research-grounding.md). This is a
+documentation-only design record; it defines no validator and cannot promote
+a workpack without executable proof [S1][S3][S4][S6][S7].
+
 ## Build from source
 
 Requirements:

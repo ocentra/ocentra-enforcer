@@ -1,13 +1,13 @@
 //! Hard tests for Go Mod (`go.mod` file grammar), onboarded directly
 //! through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_gomod`]) -- grammar
+//! ([`enforcer_syntax::languages::generic::parse_gomod`]) -- grammar
 //! VENDORED (`vendor/tree-sitter-gomod-local/`). Asserts the real
 //! `require_directive` -> IMPORTS correction documented in
-//! [`enforcer_memory::languages::spec::LangSpec::gomod`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::gomod`]'s own doc
 //! comment (baseline's own `gomod_import_types` names a dead
 //! `"require"` node kind that does not exist in this real grammar).
 
-use enforcer_memory::languages::generic::parse_gomod;
+use enforcer_syntax::languages::generic::parse_gomod;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

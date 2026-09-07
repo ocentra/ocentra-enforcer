@@ -1,6 +1,6 @@
 //! Hard tests for ReScript onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_rescript`] --
+//! ([`enforcer_syntax::languages::generic::parse_rescript`] --
 //! language-parity wave G2.2e). ReScript has no pre-existing bespoke
 //! `languages::rescript` extractor, so these tests assert directly
 //! against the grammar's own real shape -- both the `arborium-rescript`
@@ -12,14 +12,14 @@
 //! doc comment for the specifics -- not byte-for-byte parity with
 //! prior behavior.
 
-use enforcer_memory::languages::generic::parse_rescript;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_rescript;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 
 type TestResult = Result<(), Box<dyn Error>>;
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

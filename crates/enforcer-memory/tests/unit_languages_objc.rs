@@ -1,9 +1,9 @@
 //! Hard tests for Objective-C, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_objc`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_objc`])
 //! -- there is no bespoke `languages::objc` extractor to prove
 //! zero-regression against (Objective-C has never had one in this
 //! crate), so these tests assert against the grammar-shape ground truth
-//! recorded in [`enforcer_memory::languages::spec::LangSpec::objc`]'s
+//! recorded in [`enforcer_syntax::languages::spec::LangSpec::objc`]'s
 //! own doc comment directly: `class_interface`/`class_implementation`
 //! positional naming + `superclass`-field INHERITS, multi-keyword
 //! selector naming for both method definitions/declarations AND
@@ -13,8 +13,8 @@
 //! DEFINES-scoped method bodies.
 
 use enforcer_domain::memory_types::ReceiverHint;
-use enforcer_memory::languages::generic::parse_objc;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_objc;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -24,7 +24,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_objc";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

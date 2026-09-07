@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-71",
+  "baselineCommit": "837cf05be540befbc247c1e6d3ddb9799d77a4dc",
+  "family": "Threat modeling, incident operations, endpoint control, application telemetry, CI assurance, intelligence, and attack-path evidence predicates",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "implementing-threat-modeling-with-mitre-attack",
+      "implementing-ticketing-system-for-incidents",
+      "implementing-usb-device-control-policy",
+      "implementing-velociraptor-for-ir-collection",
+      "implementing-web-application-logging-with-modsecurity",
+      "integrating-sast-into-github-actions-pipeline",
+      "investigating-insider-threat-indicators",
+      "managing-intelligence-lifecycle",
+      "managing-third-party-vendor-risk",
+      "mapping-attack-paths-with-bloodhound-ce"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-70."
+  },
+  "accounting": {
+    "acceptedPrior": 700,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 710,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-threat-modeling-with-mitre-attack",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-threat-modeling-with-mitre-attack/SKILL.md",
+        "sha256": "d6ec7e5b911133d53e4425769ba3f2c8744ef44ab42e50de028b59dbc8213adb",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Threat Modeling with MITRE ATT&CK:L48"]
+      },
+      "components": [
+        {"id": "implementing-threat-modeling-with-mitre-attack::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed asset, threat, technique, control, scenario, owner, scope, confidence, and evidence-manifest fields without threat-intelligence or detection-engine access.", "notProved": ["threat activity", "technique prevalence", "control effectiveness"]},
+        {"id": "implementing-threat-modeling-with-mitre-attack::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep MITRE tooling, SIEM, EDR, threat-intelligence feeds, endpoints, networks, and production telemetry authorities external.", "notProved": ["coverage truth", "detection efficacy", "attack-path reality"]},
+        {"id": "implementing-threat-modeling-with-mitre-attack::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain threat modeling, ATT&CK mapping, control review, risk analysis, prioritization, and defensive design guidance as advisory.", "notProved": ["completeness", "risk score", "incident resolution"]},
+        {"id": "implementing-threat-modeling-with-mitre-attack::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, system ownership, legal/privacy/safety review, analyst validation, severity, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "threat finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-ticketing-system-for-incidents",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ticketing-system-for-incidents/SKILL.md",
+        "sha256": "8d20bfb3ba25b6e9f4683f8f326923876aacaaabaaf13fee26afc5455d499066",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Ticketing System for Incidents:L35"]
+      },
+      "components": [
+        {"id": "implementing-ticketing-system-for-incidents::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed incident, case, severity, status, owner, task, timestamp, SLA, scope, and evidence-manifest fields without ticketing or incident-system access.", "notProved": ["incident existence", "case completeness", "SLA compliance"]},
+        {"id": "implementing-ticketing-system-for-incidents::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep ticketing platforms, SIEM, SOAR, email, endpoints, production responders, and live incident authorities external.", "notProved": ["ticket state", "notification delivery", "response outcome"]},
+        {"id": "implementing-ticketing-system-for-incidents::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain incident intake, triage, escalation, status, ownership, communications, metrics, and defensive response guidance as advisory.", "notProved": ["coverage", "case accuracy", "incident resolution"]},
+        {"id": "implementing-ticketing-system-for-incidents::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, service and data ownership, legal/privacy/ethics review, severity, notification, analyst validation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["authorization", "incident validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-usb-device-control-policy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-usb-device-control-policy/SKILL.md",
+        "sha256": "8beac606bcdd67d883d9816dfa4114a8b230e3acebc2a323bfd295c22f93ffc9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing USB Device Control Policy:L33"]
+      },
+      "components": [
+        {"id": "implementing-usb-device-control-policy::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed device, media, user, host, policy, exception, owner, scope, approval, and evidence-manifest fields without endpoint or device access.", "notProved": ["device inventory", "media activity", "policy enforcement"]},
+        {"id": "implementing-usb-device-control-policy::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep USB devices, endpoints, MDM, EDR, operating systems, removable media, and production device-control authorities external.", "notProved": ["device state", "access attempt", "blocking efficacy"]},
+        {"id": "implementing-usb-device-control-policy::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain removable-media governance, least privilege, exception handling, encryption, monitoring, and defensive device-control guidance as advisory.", "notProved": ["coverage", "policy efficacy", "data-loss prevention"]},
+        {"id": "implementing-usb-device-control-policy::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, device and data ownership, legal/privacy/safety review, exception approval, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "device finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-velociraptor-for-ir-collection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-velociraptor-for-ir-collection/SKILL.md",
+        "sha256": "5b2b2950ff908b43b155e0437d87ee15f934a0e70a2b3e63e8940e2b74d90574",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Velociraptor for IR Collection:L39"]
+      },
+      "components": [
+        {"id": "implementing-velociraptor-for-ir-collection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed host, artifact, collection, timestamp, hash, scope, analyst, owner, and evidence-chain manifest fields without endpoint or filesystem access.", "notProved": ["host state", "artifact presence", "evidentiary validity"]},
+        {"id": "implementing-velociraptor-for-ir-collection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Velociraptor, endpoints, hosts, filesystems, memory, networks, acquisition tools, and production evidence authorities external.", "notProved": ["live acquisition", "collection completeness", "forensic outcome"]},
+        {"id": "implementing-velociraptor-for-ir-collection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain incident collection planning, artifact selection, triage, preservation, analysis, and defensive forensic guidance as advisory.", "notProved": ["coverage", "artifact truth", "incident resolution"]},
+        {"id": "implementing-velociraptor-for-ir-collection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host and data ownership, legal scope, chain of custody, privacy and safety review, analyst interpretation, containment, remediation, recovery, and disclosure decisions.", "notProved": ["authorization", "evidence validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-web-application-logging-with-modsecurity",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-web-application-logging-with-modsecurity/SKILL.md",
+        "sha256": "db2b1a83aa5a3944c48863cc84194c574900d32ee165fc78a8d7ec5b82b1bfe9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Web Application Logging with ModSecurity:L43"]
+      },
+      "components": [
+        {"id": "implementing-web-application-logging-with-modsecurity::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed request, response, rule, event, route, timestamp, application, owner, scope, and evidence-manifest fields without web or WAF access.", "notProved": ["request behavior", "log completeness", "attack detection"]},
+        {"id": "implementing-web-application-logging-with-modsecurity::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep ModSecurity, web servers, WAFs, browsers, endpoints, networks, SIEM, and production request authorities external.", "notProved": ["traffic state", "rule execution", "blocking efficacy"]},
+        {"id": "implementing-web-application-logging-with-modsecurity::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain web logging, rule review, normalization, privacy, alert triage, retention, and defensive application-security guidance as advisory.", "notProved": ["coverage", "detection efficacy", "incident resolution"]},
+        {"id": "implementing-web-application-logging-with-modsecurity::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, application and data ownership, legal/privacy/safety review, analyst validation, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "web finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "integrating-sast-into-github-actions-pipeline",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/integrating-sast-into-github-actions-pipeline/SKILL.md",
+        "sha256": "5767c9ddf1fe9b5cdb7739ea88fc745807ec42afe53f05321236a3f331f9ec4b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Integrating SAST into GitHub Actions Pipeline:L33"]
+      },
+      "components": [
+        {"id": "integrating-sast-into-github-actions-pipeline::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed repository, workflow, job, rule, finding, artifact, owner, scope, and evidence-manifest fields without CI or SAST execution.", "notProved": ["pipeline state", "scan result", "release safety"]},
+        {"id": "integrating-sast-into-github-actions-pipeline::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep GitHub Actions, SAST scanners, repositories, runners, secrets, artifact stores, and deployment systems external.", "notProved": ["workflow execution", "finding accuracy", "deployment outcome"]},
+        {"id": "integrating-sast-into-github-actions-pipeline::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain secure CI design, rule selection, finding triage, branch protection, artifact handling, and defensive DevSecOps guidance as advisory.", "notProved": ["coverage", "scan efficacy", "remediation effectiveness"]},
+        {"id": "integrating-sast-into-github-actions-pipeline::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository and release ownership, secret custody, legal/privacy/safety review, analyst validation, approval, rollback, and disclosure decisions.", "notProved": ["authorization", "pipeline finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "investigating-insider-threat-indicators",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/investigating-insider-threat-indicators/SKILL.md",
+        "sha256": "ed11964e8661cdd81ccabd7d5432dfc8986b52080b76e5f685e7b8f0b46de256",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Investigating Insider Threat Indicators:L35"]
+      },
+      "components": [
+        {"id": "investigating-insider-threat-indicators::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed subject, event, access, behavior, indicator, source, confidence, owner, scope, and evidence-manifest fields without personnel or telemetry access.", "notProved": ["insider activity", "intent", "finding validity"]},
+        {"id": "investigating-insider-threat-indicators::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep HR systems, identity providers, endpoints, SIEM, EDR, DLP, monitoring, and live personnel authorities external.", "notProved": ["behavior truth", "data access", "attribution"]},
+        {"id": "investigating-insider-threat-indicators::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain insider-risk triage, privacy-preserving analysis, behavioral context, escalation, and defensive investigation guidance as advisory.", "notProved": ["coverage", "indicator accuracy", "case resolution"]},
+        {"id": "investigating-insider-threat-indicators::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, employment and data ownership, legal/privacy/ethics review, due process, analyst validation, notification, remediation, and disclosure decisions.", "notProved": ["authorization", "insider finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "managing-intelligence-lifecycle",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/managing-intelligence-lifecycle/SKILL.md",
+        "sha256": "ea35b92c49d47f44fab5db9564455f5321b462caf379ba2d8ab358d6ca3de53d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Managing Intelligence Lifecycle:L35"]
+      },
+      "components": [
+        {"id": "managing-intelligence-lifecycle::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed requirement, source, collection, analysis, confidence, dissemination, review, owner, scope, and evidence-manifest fields without collection or enrichment access.", "notProved": ["intelligence freshness", "source truth", "analytic conclusion"]},
+        {"id": "managing-intelligence-lifecycle::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep OSINT, threat-intelligence platforms, feeds, enrichment, dark-web sources, DNS, network services, and production intelligence authorities external.", "notProved": ["collection outcome", "enrichment accuracy", "attribution"]},
+        {"id": "managing-intelligence-lifecycle::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain intelligence requirements, collection planning, source evaluation, analysis, confidence, dissemination, and defensive lifecycle guidance as advisory.", "notProved": ["completeness", "intelligence efficacy", "detection outcome"]},
+        {"id": "managing-intelligence-lifecycle::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, source and data ownership, legal/privacy/ethics review, terms and handling approval, analyst validation, uncertainty, escalation, remediation, and disclosure decisions.", "notProved": ["authorization", "intelligence validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "managing-third-party-vendor-risk",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/managing-third-party-vendor-risk/SKILL.md",
+        "sha256": "6a0cd12c697e162c9b85128710058cdc2310e13cf387c947ea196af07bcdc0ba",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Managing Third-Party Vendor Risk:L47"]
+      },
+      "components": [
+        {"id": "managing-third-party-vendor-risk::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed vendor, service, contract, control, assessment, dependency, owner, scope, exception, and evidence-manifest fields without vendor-system access.", "notProved": ["vendor posture", "control effectiveness", "supply-chain safety"]},
+        {"id": "managing-third-party-vendor-risk::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep vendor portals, attestations, questionnaires, scanners, cloud services, legal systems, and production third-party authorities external.", "notProved": ["vendor claims", "assessment truth", "contract enforcement"]},
+        {"id": "managing-third-party-vendor-risk::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain due diligence, contract controls, dependency review, monitoring, exception handling, and defensive supplier-risk guidance as advisory.", "notProved": ["coverage", "vendor assurance", "risk reduction"]},
+        {"id": "managing-third-party-vendor-risk::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, vendor and data ownership, legal/privacy/ethics review, procurement approval, analyst validation, exception, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "vendor finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "mapping-attack-paths-with-bloodhound-ce",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/mapping-attack-paths-with-bloodhound-ce/SKILL.md",
+        "sha256": "4b16d50ad505f303bbdd33a578d1ea2fe2f9d1e9e03b321ab4471821ca72ccbd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Mapping Attack Paths with BloodHound CE:L23"]
+      },
+      "components": [
+        {"id": "mapping-attack-paths-with-bloodhound-ce::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed identity, asset, relationship, privilege, path, owner, scope, confidence, and evidence-manifest fields without directory or graph access.", "notProved": ["attack path", "privilege state", "exploitability"]},
+        {"id": "mapping-attack-paths-with-bloodhound-ce::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep BloodHound, Active Directory, Entra ID, LDAP, endpoints, credentials, networks, and live identity authorities external.", "notProved": ["directory state", "relationship truth", "privilege escalation"]},
+        {"id": "mapping-attack-paths-with-bloodhound-ce::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain attack-path review, identity governance, least privilege, graph interpretation, remediation, and defensive assessment guidance as advisory.", "notProved": ["completeness", "path validity", "risk reduction"]},
+        {"id": "mapping-attack-paths-with-bloodhound-ce::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, directory and asset ownership, legal/privacy/safety review, scope approval, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "attack-path finding validity", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, mobile device, database, mail, SIEM, EDR, OT, HR, or production telemetry is proved.",
+    "No threat model, incident ticket, USB control, forensic collection, web logging, SAST pipeline, insider-threat finding, intelligence lifecycle, vendor-risk assessment, attack path, execution, compromise, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No detection efficacy, attribution, data exposure, source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}

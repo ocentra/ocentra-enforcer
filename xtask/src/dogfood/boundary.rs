@@ -14,11 +14,74 @@ use std::path::Path;
 use std::process::Command;
 
 use enforcer_domain::config_types::{Glob, RuleEnabled};
-use enforcer_domain::scan_types::IgnoreDirectorySegment;
-use enforcer_domain::xtask_types::{ToolchainOutcome, ToolchainStepOutcome, XtaskFailureDetail};
+use enforcer_domain::scan_types::{IgnoreDirectorySegment, ScanTargetCount};
+use enforcer_domain::telemetry_types::{FindingCount, RecordSchemaVersion};
+use enforcer_domain::xtask_types::{
+    DogfoodExecution, DogfoodGateVerdict, ToolchainOutcome, ToolchainStepOutcome,
+    XtaskFailureDetail,
+};
 use enforcer_scan::walk;
 
-use crate::dogfood::DogfoodError;
+use crate::dogfood::{DogfoodError, DogfoodOutcome};
+
+/// Machine-readable native-only evidence emitted by `xtask dogfood`.
+/// This is output data rather than a persisted proof artifact, so a normal
+/// scan gate remains free of output-file side effects.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NativeDogfoodManifestDto {
+    schema_version: RecordSchemaVersion,
+    execution: DogfoodExecution,
+    ran_count: ScanTargetCount,
+    finding_count: FindingCount,
+    new_violation_count: FindingCount,
+    baselined_violation_count: FindingCount,
+    toolchain_included: bool,
+    verdict: DogfoodGateVerdict,
+}
+
+impl NativeDogfoodManifestDto {
+    /// Encode one native dogfood result. No legacy or external scanner
+    /// identity is representable in this closed record.
+    pub fn from_outcome(outcome: &DogfoodOutcome) -> Self {
+        let scan = &outcome.rust_rule_scan;
+        let toolchain_green = outcome
+            .toolchain
+            .as_ref()
+            .is_none_or(|toolchain| matches!(toolchain.verdict(), DogfoodGateVerdict::Pass));
+        let verdict = if matches!(
+            scan.gate.passes(),
+            enforcer_domain::findings::ReportOutcome::Clean
+        ) && toolchain_green
+        {
+            DogfoodGateVerdict::Pass
+        } else {
+            DogfoodGateVerdict::Fail
+        };
+        Self {
+            schema_version: RecordSchemaVersion::V1,
+            execution: DogfoodExecution::NativeRust,
+            ran_count: scan.coverage.ran_count(),
+            finding_count: finding_count(scan.report.findings.len()),
+            new_violation_count: finding_count(scan.gate.errors.len()),
+            baselined_violation_count: finding_count(scan.gate.warnings.len()),
+            toolchain_included: outcome.toolchain.is_some(),
+            verdict,
+        }
+    }
+
+    /// Serialize the exact JSON record the process boundary emits.
+    pub fn to_json(&self) -> Result<String, DogfoodError> {
+        serde_json::to_string(self).map_err(DogfoodError::from_display)
+    }
+}
+
+/// Widen an in-memory collection size for the stable manifest wire count.
+fn finding_count(length: usize) -> FindingCount {
+    // CAST-JUSTIFICATION: `usize` is at most 64 bits on every supported
+    // target, so this widening to the manifest's u64 count cannot truncate.
+    FindingCount::new(length as u64)
+}
 
 /// Translate a directory-shaped ignore glob (`**/<segment>/**`,
 /// `<segment>/**`) into the bare directory segment
@@ -151,8 +214,9 @@ pub fn run_toolchain_checks(repo_root: &Path) -> Result<ToolchainOutcome, Dogfoo
 
 #[cfg(test)]
 mod tests {
-    use super::{dir_segment_of, ignore_rules_from_config};
-    use crate::boundary::testkit::seed_config;
+    use super::{dir_segment_of, ignore_rules_from_config, NativeDogfoodManifestDto};
+    use crate::boundary::testkit::{clean_body, seed, seed_config};
+    use crate::dogfood::run_dogfood;
     use enforcer_domain::xtask_types::{
         ToolchainOutcome, ToolchainStepOutcome, XtaskFailureDetail,
     };
@@ -235,5 +299,31 @@ mod tests {
             red.verdict(),
             enforcer_domain::xtask_types::DogfoodGateVerdict::Fail
         );
+    }
+
+    #[test]
+    fn native_dogfood_manifest_dto_round_trip_names_only_the_rust_execution_path(
+    ) -> Result<(), std::io::Error> {
+        let temp = tempfile::tempdir()?;
+        seed_config(temp.path())?;
+        seed(temp.path(), "crates/sample/src/lib.rs", &clean_body())?;
+        seed(temp.path(), "xtask/src/main.rs", &clean_body())?;
+        let outcome = run_dogfood(
+            temp.path(),
+            &temp.path().join("baseline.json"),
+            enforcer_domain::xtask_types::ToolchainMode::Skip,
+        )
+        .map_err(std::io::Error::other)?;
+        let manifest = NativeDogfoodManifestDto::from_outcome(&outcome);
+        let payload = serde_json::to_string(&manifest)?;
+        let decoded: NativeDogfoodManifestDto = serde_json::from_str(&payload)?;
+        assert_eq!(
+            decoded, manifest,
+            "native manifest wire round-trip diverged"
+        );
+        assert!(payload.contains("\"execution\":\"native-rust\""));
+        assert!(!payload.to_ascii_lowercase().contains("mjs"));
+        assert!(!payload.to_ascii_lowercase().contains("node"));
+        Ok(())
     }
 }

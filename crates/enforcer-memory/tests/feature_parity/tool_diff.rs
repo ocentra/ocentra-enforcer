@@ -51,7 +51,6 @@ use enforcer_memory::code_graph::{CodeGraph, CodeNode, Manifest};
 use enforcer_memory::code_search::{self, SearchQuery};
 use enforcer_memory::cross_repo::match_cross_repo;
 use enforcer_memory::graph_schema;
-use enforcer_memory::parsers;
 use enforcer_memory::projects;
 use enforcer_memory::resolution::{self};
 use enforcer_memory::search::search_graph::{search_graph, SearchGraphSpec};
@@ -60,6 +59,7 @@ use enforcer_memory::similarity::{
     SimilarToEdge,
 };
 use enforcer_memory::snippet;
+use enforcer_syntax::parsers;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};

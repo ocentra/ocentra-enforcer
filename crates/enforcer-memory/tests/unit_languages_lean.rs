@@ -1,9 +1,9 @@
 //! Hard tests for Lean, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_lean`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_lean`])
 //! -- there is no bespoke `languages::lean` extractor to prove
 //! zero-regression against (Lean has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::lean`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::lean`]'s own doc comment
 //! directly: `definition`'s own real, direct `name` field covering
 //! def/theorem/instance/abbrev, `structure`/`inductive`'s own SEPARATE
 //! top-level node kind (not a `definition` variant -- the corrected
@@ -11,8 +11,8 @@
 //! real `name`/`arguments` fields (no quirk needed), and `import`'s own
 //! repeated `[module]`-field dotted-path reconstruction.
 
-use enforcer_memory::languages::generic::parse_lean;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_lean;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_lean";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

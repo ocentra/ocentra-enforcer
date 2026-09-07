@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-67",
+  "baselineCommit": "1c06fd87cc009348986c52ba6a8a1865debe62fe",
+  "family": "Defensive control, deception, secrets, integrity, validation, and recovery evidence predicates",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "implementing-deception-based-detection-with-canarytoken",
+      "implementing-delinea-secret-server-for-pam",
+      "implementing-diamond-model-analysis",
+      "implementing-disk-encryption-with-bitlocker",
+      "implementing-endpoint-dlp-controls",
+      "implementing-file-integrity-monitoring-with-aide",
+      "implementing-fuzz-testing-in-cicd-with-aflplusplus",
+      "implementing-hashicorp-vault-dynamic-secrets",
+      "implementing-honeytokens-for-breach-detection",
+      "implementing-immutable-backup-with-restic"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-66."
+  },
+  "accounting": {
+    "acceptedPrior": 660,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 670,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-deception-based-detection-with-canarytoken",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-deception-based-detection-with-canarytoken/SKILL.md",
+        "sha256": "d4e8024f7df952a72b122f1b8c1d114cd1c92fcd4ac948bd97977e3c5cdf539a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Deception-Based Detection with Canarytoken:L31"]
+      },
+      "components": [
+        {"id": "implementing-deception-based-detection-with-canarytoken::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed deception-token, placement, asset, trigger, owner, scope, event, and evidence-manifest fields without token activation or network access.", "notProved": ["token trigger", "intrusion", "attacker activity"]},
+        {"id": "implementing-deception-based-detection-with-canarytoken::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Canarytoken services, networks, DNS, endpoints, mail, SIEM, notifications, and live deception infrastructure external.", "notProved": ["event truth", "network activity", "detection efficacy"]},
+        {"id": "implementing-deception-based-detection-with-canarytoken::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain deception design, placement review, alert triage, network monitoring, and defensive response guidance as advisory.", "notProved": ["coverage", "intrusion detection", "incident resolution"]},
+        {"id": "implementing-deception-based-detection-with-canarytoken::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and network ownership, legal/privacy/ethics/safety review, notification, evidence handling, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "token finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-delinea-secret-server-for-pam",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-delinea-secret-server-for-pam/SKILL.md",
+        "sha256": "7146530466cb9b9d2d0ae1bbce334767256e46a2d895e7cb00833304bc4c397f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Delinea Secret Server for PAM:L62"]
+      },
+      "components": [
+        {"id": "implementing-delinea-secret-server-for-pam::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed privileged identity, secret, vault, role, session, approval, rotation, owner, scope, and evidence-manifest fields without secret or session access.", "notProved": ["secret custody", "privileged access", "session authorization"]},
+        {"id": "implementing-delinea-secret-server-for-pam::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Delinea Secret Server, PAM vaults, identity providers, directories, credentials, sessions, endpoints, and production systems external.", "notProved": ["vault state", "credential validity", "access outcome"]},
+        {"id": "implementing-delinea-secret-server-for-pam::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain PAM governance, least privilege, key custody, rotation, approval, monitoring, and defensive hardening guidance as advisory.", "notProved": ["coverage", "rotation efficacy", "control effectiveness"]},
+        {"id": "implementing-delinea-secret-server-for-pam::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, identity and system ownership, key custody, legal/privacy/safety review, approval, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "PAM finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-diamond-model-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-diamond-model-analysis/SKILL.md",
+        "sha256": "b373bb800cd81a83461cad510b552179e05c011ea9d9dba83f2379ca2ee4dfa8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Diamond Model Analysis:L33"]
+      },
+      "components": [
+        {"id": "implementing-diamond-model-analysis::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed adversary, capability, infrastructure, victim, relationship, source, confidence, scope, and evidence-manifest fields without intelligence collection.", "notProved": ["actor identity", "relationship truth", "attribution"]},
+        {"id": "implementing-diamond-model-analysis::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep OSINT, CTI feeds, MISP, OpenCTI, DNS, WHOIS, enrichment, dark web, and live analyst authorities external.", "notProved": ["source truth", "infrastructure ownership", "actor activity"]},
+        {"id": "implementing-diamond-model-analysis::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain structured intelligence analysis, uncertainty review, relationship mapping, and defensive research guidance as advisory.", "notProved": ["coverage", "confidence accuracy", "intelligence outcome"]},
+        {"id": "implementing-diamond-model-analysis::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, legal/privacy/ethics review, source terms, analyst validation, uncertainty handling, attribution, dissemination, escalation, and disclosure decisions.", "notProved": ["authorization", "attribution validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-disk-encryption-with-bitlocker",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-disk-encryption-with-bitlocker/SKILL.md",
+        "sha256": "56dd4c9c10302f4502cae8116d8586c6771c1ba4cbb376152843a0c01c0a87ec",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Disk Encryption with BitLocker:L35"]
+      },
+      "components": [
+        {"id": "implementing-disk-encryption-with-bitlocker::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed device, disk, volume, encryption, key, recovery, policy, owner, scope, and evidence-manifest fields without endpoint or TPM access.", "notProved": ["encryption state", "key protection", "recovery readiness"]},
+        {"id": "implementing-disk-encryption-with-bitlocker::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep BitLocker, Windows endpoints, TPM, Active Directory, key escrow, recovery services, and production devices external.", "notProved": ["device state", "encryption truth", "data protection"]},
+        {"id": "implementing-disk-encryption-with-bitlocker::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain disk-encryption design, key rotation, recovery planning, escrow review, and endpoint-hardening guidance as advisory.", "notProved": ["coverage", "encryption efficacy", "recovery outcome"]},
+        {"id": "implementing-disk-encryption-with-bitlocker::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, device and key ownership, legal/privacy/safety review, key custody, recovery approval, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "encryption finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-endpoint-dlp-controls",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-endpoint-dlp-controls/SKILL.md",
+        "sha256": "cabfd1e252fb32f09bb35d33c63df782099cadca0b794d5e180a716d1e5f27f9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Endpoint DLP Controls:L43"]
+      },
+      "components": [
+        {"id": "implementing-endpoint-dlp-controls::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed endpoint, data, label, policy, rule, alert, action, owner, scope, and evidence-manifest fields without endpoint or data access.", "notProved": ["DLP alert", "data movement", "policy enforcement"]},
+        {"id": "implementing-endpoint-dlp-controls::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep endpoint DLP engines, filesystems, devices, users, cloud storage, mail, EDR, and production enforcement external.", "notProved": ["endpoint state", "data exposure", "DLP efficacy"]},
+        {"id": "implementing-endpoint-dlp-controls::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain data governance, policy design, label review, privacy, alert triage, and defensive control guidance as advisory.", "notProved": ["coverage", "classification accuracy", "incident resolution"]},
+        {"id": "implementing-endpoint-dlp-controls::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, endpoint and data ownership, legal/privacy/ethics review, data handling, analyst validation, severity, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "DLP finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-file-integrity-monitoring-with-aide",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-file-integrity-monitoring-with-aide/SKILL.md",
+        "sha256": "f363690d2b1287b52627be90c90aa11fee742982ff42aa01e55a0da14d2537d1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing File Integrity Monitoring with AIDE:L31"]
+      },
+      "components": [
+        {"id": "implementing-file-integrity-monitoring-with-aide::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed file, path, hash, baseline, change, host, owner, time, scope, and evidence-manifest fields without filesystem or endpoint access.", "notProved": ["file integrity", "file change", "tampering"]},
+        {"id": "implementing-file-integrity-monitoring-with-aide::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AIDE, filesystems, hosts, processes, endpoints, EDR, schedulers, and live telemetry external.", "notProved": ["filesystem state", "baseline truth", "detection efficacy"]},
+        {"id": "implementing-file-integrity-monitoring-with-aide::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain integrity-baseline design, change review, monitoring, triage, and defensive hardening guidance as advisory.", "notProved": ["coverage", "integrity detection", "incident resolution"]},
+        {"id": "implementing-file-integrity-monitoring-with-aide::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host and file ownership, legal/privacy/safety review, chain of custody, analyst validation, containment, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "integrity finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-fuzz-testing-in-cicd-with-aflplusplus",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-fuzz-testing-in-cicd-with-aflplusplus/SKILL.md",
+        "sha256": "29ceff642a69c9e18d34e11c6a53899112f53ecf499f37264a467ef6eadbc27e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Fuzz Testing in CI/CD with AFL++:L40"]
+      },
+      "components": [
+        {"id": "implementing-fuzz-testing-in-cicd-with-aflplusplus::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed target, build, input, corpus, coverage, result, authorization, scope, and evidence-manifest fields without fuzz execution.", "notProved": ["fuzz execution", "crash", "vulnerability"]},
+        {"id": "implementing-fuzz-testing-in-cicd-with-aflplusplus::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep AFL++, CI runners, compilers, targets, inputs, sandboxes, payloads, production systems, and live test infrastructure external.", "notProved": ["run result", "coverage truth", "exploitability"]},
+        {"id": "implementing-fuzz-testing-in-cicd-with-aflplusplus::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive fuzz planning, corpus design, CI review, triage, and remediation guidance as advisory.", "notProved": ["coverage", "fuzz efficacy", "remediation effectiveness"]},
+        {"id": "implementing-fuzz-testing-in-cicd-with-aflplusplus::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, scope, asset and code ownership, legal/safety review, stop conditions, analyst validation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "fuzz finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-hashicorp-vault-dynamic-secrets",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-hashicorp-vault-dynamic-secrets/SKILL.md",
+        "sha256": "d859f0c541a19e967f6d4b9e062f70ea4c82466ee755fc576e8c21aa9bd2edc3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing HashiCorp Vault Dynamic Secrets:L67"]
+      },
+      "components": [
+        {"id": "implementing-hashicorp-vault-dynamic-secrets::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed secret, role, lease, TTL, policy, owner, application, rotation, scope, and audit-manifest fields without Vault or secret access.", "notProved": ["secret issuance", "lease state", "credential validity"]},
+        {"id": "implementing-hashicorp-vault-dynamic-secrets::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep HashiCorp Vault, KMS, identity providers, databases, cloud APIs, production secrets, and sessions external.", "notProved": ["Vault state", "secret custody", "access outcome"]},
+        {"id": "implementing-hashicorp-vault-dynamic-secrets::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain secrets governance, lease design, rotation, key custody, least privilege, monitoring, and defensive hardening guidance as advisory.", "notProved": ["coverage", "rotation efficacy", "control effectiveness"]},
+        {"id": "implementing-hashicorp-vault-dynamic-secrets::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, secret and system ownership, key custody, legal/privacy/safety review, revocation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "secret finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-honeytokens-for-breach-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-honeytokens-for-breach-detection/SKILL.md",
+        "sha256": "78196ffb70b3ec8f72ff1a9b8ea77dd3e242759ebeb0734a8df827167d1c450d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Honeytokens for Breach Detection:L34"]
+      },
+      "components": [
+        {"id": "implementing-honeytokens-for-breach-detection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed honeytoken, placement, asset, owner, trigger, event, scope, and evidence-manifest fields without token activation or live collection.", "notProved": ["honeytoken trigger", "breach", "attacker activity"]},
+        {"id": "implementing-honeytokens-for-breach-detection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep honeytoken services, networks, endpoints, mail, cloud storage, SIEM, notifications, and production deception infrastructure external.", "notProved": ["event truth", "breach state", "detection efficacy"]},
+        {"id": "implementing-honeytokens-for-breach-detection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain deception design, token placement, alert triage, monitoring, and defensive incident-response guidance as advisory.", "notProved": ["coverage", "breach detection", "incident resolution"]},
+        {"id": "implementing-honeytokens-for-breach-detection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset and data ownership, legal/privacy/ethics/safety review, notification, evidence handling, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "honeytoken finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "implementing-immutable-backup-with-restic",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-immutable-backup-with-restic/SKILL.md",
+        "sha256": "08fa644b6cae0ca3aee4343a21dc160c269e34eb1b728cb0cd4e5642b0e2e4d1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Immutable Backup with Restic:L45"]
+      },
+      "components": [
+        {"id": "implementing-immutable-backup-with-restic::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed repository, snapshot, retention, lock, hash, restore-plan, owner, scope, and evidence-manifest fields without backup or restore access.", "notProved": ["backup immutability", "snapshot state", "restore readiness"]},
+        {"id": "implementing-immutable-backup-with-restic::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Restic, backup repositories, storage, credentials, endpoints, live filesystems, and production restore systems external.", "notProved": ["repository state", "backup integrity", "recovery outcome"]},
+        {"id": "implementing-immutable-backup-with-restic::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain backup immutability, retention, key custody, restore planning, testing, and defensive recovery guidance as advisory.", "notProved": ["coverage", "backup efficacy", "recovery success"]},
+        {"id": "implementing-immutable-backup-with-restic::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, repository and data ownership, legal/privacy/safety review, key custody, restore approval, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "backup finding validity", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, filesystem, storage, identity, credential, cloud, network, SaaS, mail, SIEM, EDR, or production telemetry is proved.",
+    "No token trigger, privileged access, actor attribution, encryption, DLP, file-integrity change, fuzz execution, secret issuance, honeytoken breach, backup immutability, compromise, detection, enforcement, or recovery outcome is proved.",
+    "No detection efficacy, attribution, data exposure, containment, remediation, recovery, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}

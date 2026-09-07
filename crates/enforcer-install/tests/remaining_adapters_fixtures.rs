@@ -180,7 +180,7 @@ macro_rules! json_adapter_proof {
                     .get_mut("mcpServers")
                     .and_then(serde_json::Value::as_object_mut)
                 {
-                    if let Some(entry) = servers.remove(enforcer_mcp::name::SERVER_NAME) {
+                    if let Some(entry) = servers.remove(enforcer_domain::mcp_types::SERVER_NAME) {
                         servers.insert("renamed-server".to_owned(), entry);
                     }
                 }

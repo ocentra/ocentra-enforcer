@@ -49,17 +49,24 @@ fn read_summary_from(
         return Ok(None);
     }
     let mut summary: Value = serde_json::from_str(&std::fs::read_to_string(&summary_path)?)?;
-    if summary.get("storage").is_none() {
-        let storage = serde_json::json!({
-            "root": normalize_rel(repo_root, storage_root),
-            "retention": crate::storage::retention_summary_json(config),
-        });
-        let object = summary.as_object_mut().ok_or_else(|| {
-            enforcer_core::error::Error::InvalidConfig(
-                "summary.json root must be an object".to_owned(),
-            )
-        })?;
-        object.insert("storage".to_owned(), storage);
+    let storage_root = normalize_rel(repo_root, storage_root);
+    let object = summary.as_object_mut().ok_or_else(|| {
+        enforcer_core::error::Error::InvalidConfig("summary.json root must be an object".to_owned())
+    })?;
+    object.insert("runId".to_owned(), Value::String(run_id.to_owned()));
+    match object.get_mut("storage").and_then(Value::as_object_mut) {
+        Some(storage) => {
+            storage.insert("root".to_owned(), Value::String(storage_root));
+        }
+        None => {
+            object.insert(
+                "storage".to_owned(),
+                serde_json::json!({
+                    "root": storage_root,
+                    "retention": crate::storage::retention_summary_json(config),
+                }),
+            );
+        }
     }
     Ok(Some(summary))
 }

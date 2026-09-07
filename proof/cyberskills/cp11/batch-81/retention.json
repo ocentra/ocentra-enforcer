@@ -1,0 +1,277 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-81",
+  "family": "IF/threat-hunting",
+  "baselineCommit": "1e2c775f711ed81ee6a6d3b6060ee09f5cfa06ed",
+  "scope": "Retain the final threat-hunting hypotheses, persistence, identity, network, service, web, supply-chain, YARA, evidence, and analyst decision guidance from immutable CP08 evidence; native predicates are limited to static supplied endpoint, event, process, identity, persistence, registry, task, network, package, message, scope, and evidence manifests; live endpoints, hosts, processes, credentials, directories, packets, servers, mailboxes, SIEM, EDR, cloud, network, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "hunting-for-startup-folder-persistence",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-startup-folder-persistence/SKILL.md",
+        "sha256": "0c5a8e3ce71ae16eab52e49627bf4b515c5268b165a1b76f2c604129e9c8b1f7",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hunting for Startup Folder Persistence:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-65/decomposition.json",
+        "artifactSha256": "f604722c098e992418b96a79fc8c2eb4b2fe723912bcad4264e9088acde1de65"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-hunting, supplied telemetry, hypothesis, evidence, detection, triage, and response guidance as advisory.",
+        "notProved": [
+          "No live startup folder, host, process, persistence, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, finding validity, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hunting-for-supply-chain-compromise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-supply-chain-compromise/SKILL.md",
+        "sha256": "97b35ddb51bb2cfe114cfb5deeb730c7ec410ba6dd3e06ff380cf1147f89558d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "author": "mahipal",
+        "anchors": [
+          "# Hunting For Supply Chain Compromise:L37"
+        ],
+        "references": [
+          "source:## Prerequisites"
+        ],
+        "scripts": []
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json",
+        "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-hunting, supplied telemetry, hypothesis, evidence, detection, triage, and response guidance as advisory.",
+        "notProved": [
+          "No live package, dependency, repository, supply-chain event, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, finding validity, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hunting-for-suspicious-scheduled-tasks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-suspicious-scheduled-tasks/SKILL.md",
+        "sha256": "820b1ae98af00fc09a321f579644975f91ce4439d2aa86b129b47f8eb0fb2318",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hunting for Suspicious Scheduled Tasks:L31"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-65/decomposition.json",
+        "artifactSha256": "f604722c098e992418b96a79fc8c2eb4b2fe723912bcad4264e9088acde1de65"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-hunting, supplied telemetry, hypothesis, evidence, detection, triage, and response guidance as advisory.",
+        "notProved": [
+          "No live task, host, process, persistence, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, finding validity, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hunting-for-t1098-account-manipulation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-t1098-account-manipulation/SKILL.md",
+        "sha256": "64b558c82ff1571e71ec6e581adf3f4c4dc3ec4318c2e222bc6e3d61650c4271",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hunting for T1098 Account Manipulation:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-65/decomposition.json",
+        "artifactSha256": "f604722c098e992418b96a79fc8c2eb4b2fe723912bcad4264e9088acde1de65"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-hunting, supplied telemetry, hypothesis, evidence, detection, triage, and response guidance as advisory.",
+        "notProved": [
+          "No live identity, account, directory, privilege, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, finding validity, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hunting-for-unusual-network-connections",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-unusual-network-connections/SKILL.md",
+        "sha256": "27d21f517b9fe502dc1c035757779387da01e8df2b0090aa1d4bbc27ba4d3db5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hunting For Unusual Network Connections:L37"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-65/decomposition.json",
+        "artifactSha256": "f604722c098e992418b96a79fc8c2eb4b2fe723912bcad4264e9088acde1de65"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-hunting, supplied telemetry, hypothesis, evidence, detection, triage, and response guidance as advisory.",
+        "notProved": [
+          "No live network, host, connection, packet, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, finding validity, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hunting-for-unusual-service-installations",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-unusual-service-installations/SKILL.md",
+        "sha256": "3f61d69e2d74b1d9e662b8da2d849ca2c5d700bb5ec734e43ba17b3a086caec5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hunting for Unusual Service Installations:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-65/decomposition.json",
+        "artifactSha256": "f604722c098e992418b96a79fc8c2eb4b2fe723912bcad4264e9088acde1de65"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-hunting, supplied telemetry, hypothesis, evidence, detection, triage, and response guidance as advisory.",
+        "notProved": [
+          "No live service, host, process, installation, persistence, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, finding validity, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "hunting-for-webshell-activity",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-webshell-activity/SKILL.md",
+        "sha256": "12165b087b9f0f54e0abc133124a1a6ade558b70d49ee7f9b313e399fa72ac04",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Hunting For Webshell Activity:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-65/decomposition.json",
+        "artifactSha256": "f604722c098e992418b96a79fc8c2eb4b2fe723912bcad4264e9088acde1de65"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-hunting, supplied telemetry, hypothesis, evidence, detection, triage, and response guidance as advisory.",
+        "notProved": [
+          "No live web server, shell, process, endpoint, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, finding validity, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-threat-hunting-with-yara-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-hunting-with-yara-rules/SKILL.md",
+        "sha256": "11e3834b50ebae2fd65f3f60ee40f7636abbbb8e97b13fe50f27ccb05fd42396",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Threat Hunting with YARA Rules:L37"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-hunting, supplied telemetry, hypothesis, evidence, detection, triage, and response guidance as advisory.",
+        "notProved": [
+          "No live file, memory, YARA execution, endpoint, hunt, or detection result is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/ethics/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, finding validity, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 8,
+    "advisoryRetained": 8,
+    "manualRetained": 8,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live endpoint, host, process, credential, directory, registry, task, package, service, cloud, packet, network, mailbox, server, SIEM, EDR, or production execution.",
+    "No persistence, credential access, account manipulation, supply-chain conclusion, webshell activity, YARA detection efficacy, hunting result, attribution, containment, remediation, recovery, or security outcome is proved.",
+    "This packet covers the final eight threat-hunting skills and completes CP11 retention for this family; it does not complete native implementation or executable proof.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, SIEM, EDR, directories, endpoints, networks, mail systems, servers, package registries, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

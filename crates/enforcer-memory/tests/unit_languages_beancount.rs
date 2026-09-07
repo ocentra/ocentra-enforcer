@@ -1,12 +1,12 @@
 //! Hard tests for Beancount, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_beancount`]). Tier-0
-//! (see [`enforcer_memory::languages::spec::LangSpec::beancount`]'s own
+//! ([`enforcer_syntax::languages::generic::parse_beancount`]). Tier-0
+//! (see [`enforcer_syntax::languages::spec::LangSpec::beancount`]'s own
 //! doc comment): `include`'s sole `string` child is fieldless, so
-//! [`enforcer_memory::languages::generic::beancount_quirk`] reads it
+//! [`enforcer_syntax::languages::generic::beancount_quirk`] reads it
 //! positionally, quotes stripped.
 
-use enforcer_memory::languages::generic::parse_beancount;
+use enforcer_syntax::languages::generic::parse_beancount;
 use std::error::Error;
 use std::fs;
 use std::path::Path;

@@ -1,9 +1,9 @@
 //! Hard tests for SCSS, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_scss`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_scss`])
 //! -- there is no bespoke `languages::scss` extractor to prove
 //! zero-regression against (SCSS has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::scss`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::scss`]'s own doc comment
 //! directly: `function_statement`/`mixin_statement`'s own real `name`
 //! field (no quirk needed for the def-name case, contradicting the
 //! baseline's own doc comment), their unfielded `block` body child,
@@ -11,8 +11,8 @@
 //! `import_statement`/`use_statement`'s quote-stripped `string_value`
 //! path.
 
-use enforcer_memory::languages::generic::parse_scss;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_scss;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_scss";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

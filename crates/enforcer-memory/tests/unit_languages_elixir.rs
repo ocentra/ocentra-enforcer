@@ -1,10 +1,10 @@
 //! Hard tests for Elixir, onboarded directly through the generic
 //! spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_elixir`]) -- there is
+//! ([`enforcer_syntax::languages::generic::parse_elixir`]) -- there is
 //! no bespoke `languages::elixir` extractor to prove zero-regression
 //! against (Elixir has never had one in this crate), so these tests
 //! assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::elixir`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::elixir`]'s own doc
 //! comment directly: `defmodule` as a Class symbol, `def`/`defp` as
 //! Function symbols (incl. the guard-clause `when` unwrap -- a
 //! deliberate improvement over the baseline's own
@@ -12,8 +12,8 @@
 //! entirely), `alias`/`import`/`use`/`require` IMPORTS, and ordinary
 //! `identifier`/`dot`-target calls.
 
-use enforcer_memory::languages::generic::parse_elixir;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_elixir;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -23,7 +23,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_elixir";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

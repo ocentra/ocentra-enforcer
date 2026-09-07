@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-82",
+  "baselineCommit": "5e74236fcfabf21b3303d6ca9eb3489d50f99835",
+  "family": "Static incident triage, prioritization, AI/data assessment, and recovery evidence manifests",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "testing-prompt-injection-in-rag-pipelines",
+      "triaging-security-alerts-in-splunk",
+      "triaging-security-incident",
+      "triaging-security-incident-with-ir-playbook",
+      "triaging-vulnerabilities-with-ssvc-framework",
+      "validating-backup-integrity-for-recovery"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic final remainder selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-81.",
+    "setEquality": "accepted CP08 IDs union proposed IDs equals all 816 non-protected vendor catalog IDs; protected detecting-fileless-malware-techniques is excluded and not eligible."
+  },
+  "accounting": {"acceptedPrior": 810, "proposed": 6, "overlap": 0, "combined": 816, "protectedExcluded": 1, "nonProtectedVendorTotal": 816, "setEquality": true},
+  "skills": [
+    {
+      "catalogId": "testing-prompt-injection-in-rag-pipelines",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/testing-prompt-injection-in-rag-pipelines/SKILL.md", "sha256": "ab5d167bbb09c1827c5ef011ce0d78f199f4c166b95796d24b6adb8782248f7b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Testing Prompt Injection in RAG Pipelines:L23"]},
+      "components": [
+        {"id": "testing-prompt-injection-in-rag-pipelines::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed prompt, corpus, retrieval, source, chunk, permission, instruction, scope, owner, and evidence-manifest fields without model or agent execution.", "notProved": ["prompt injection", "retrieval leakage", "secret disclosure"]},
+        {"id": "testing-prompt-injection-in-rag-pipelines::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep model providers, RAG indexes, retrievers, agents, tools, chat sessions, credentials, and production inference systems external.", "notProved": ["live injection", "prompt extraction", "tool abuse"]},
+        {"id": "testing-prompt-injection-in-rag-pipelines::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain retrieval isolation, instruction hierarchy, source trust, tool least privilege, output review, and defensive AI testing guidance as advisory.", "notProved": ["finding validity", "model safety", "remediation effectiveness"]},
+        {"id": "testing-prompt-injection-in-rag-pipelines::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, model and data ownership, legal/privacy review, secret handling, safety scope, stop conditions, analyst validation, and disclosure decisions.", "notProved": ["authorization", "live model test", "AI security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "triaging-security-alerts-in-splunk",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/triaging-security-alerts-in-splunk/SKILL.md", "sha256": "87d8021a9b90404cb288afd102aced77af6c16e3eb3c5f5420e95a14182b7aba", "availability": "available", "license": "Apache-2.0", "anchors": ["# Triaging Security Alerts in Splunk:L34"]},
+      "components": [
+        {"id": "triaging-security-alerts-in-splunk::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed alert, event, indicator, timestamp, severity, confidence, owner, disposition, timeline, and evidence-manifest fields without SIEM access.", "notProved": ["alert truth", "incident", "detection efficacy"]},
+        {"id": "triaging-security-alerts-in-splunk::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Splunk, SIEM indexes, search engines, logs, forwarders, endpoints, telemetry, credentials, and production monitoring external.", "notProved": ["live alert", "event truth", "attribution"]},
+        {"id": "triaging-security-alerts-in-splunk::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain alert triage, correlation, prioritization, investigation, escalation, and defensive monitoring guidance as advisory.", "notProved": ["triage validity", "coverage", "response effectiveness"]},
+        {"id": "triaging-security-alerts-in-splunk::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, telemetry ownership, privacy/data review, analyst interpretation, escalation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "live triage", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "triaging-security-incident",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/triaging-security-incident/SKILL.md", "sha256": "701971c8c12b206abc6820cf476722c1ddf05d392d1d3b7390661756e67f969d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Triaging Security Incidents:L40"]},
+      "components": [
+        {"id": "triaging-security-incident::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed incident, asset, indicator, timeline, severity, owner, action, scope, approval, and evidence-manifest fields without operational response.", "notProved": ["incident occurrence", "compromise", "impact"]},
+        {"id": "triaging-security-incident::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep SOC, SIEM, EDR, NDR, endpoints, hosts, networks, ticketing, communications, and production response systems external.", "notProved": ["live incident", "containment", "attribution"]},
+        {"id": "triaging-security-incident::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain incident triage, severity assessment, evidence preservation, escalation, communications, and defensive response guidance as advisory.", "notProved": ["triage validity", "response efficacy", "recovery effectiveness"]},
+        {"id": "triaging-security-incident::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require incident-owner authorization, legal/privacy review, analyst interpretation, incident-command decisions, containment, remediation, recovery, and disclosure approval.", "notProved": ["authorization", "live response", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "triaging-security-incident-with-ir-playbook",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/triaging-security-incident-with-ir-playbook/SKILL.md", "sha256": "2fbe719850b0a97e243c7567c220bf267cb71fa9a206d8aa046d660e9ce74f67", "availability": "available", "license": "Apache-2.0", "anchors": ["# Triaging Security Incidents with IR Playbooks:L29"]},
+      "components": [
+        {"id": "triaging-security-incident-with-ir-playbook::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed playbook, phase, role, trigger, action, approval, escalation, scope, owner, and evidence-manifest fields without playbook execution.", "notProved": ["incident", "playbook execution", "response outcome"]},
+        {"id": "triaging-security-incident-with-ir-playbook::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep orchestration, ticketing, SOAR, SIEM, EDR, endpoints, communications, identity, and production response authorities external.", "notProved": ["live response", "containment", "recovery"]},
+        {"id": "triaging-security-incident-with-ir-playbook::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain incident-response phases, roles, decision points, evidence handling, communications, and recovery planning as advisory.", "notProved": ["playbook completeness", "response efficacy", "remediation effectiveness"]},
+        {"id": "triaging-security-incident-with-ir-playbook::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, incident-command approval, legal/privacy/safety review, stop conditions, analyst interpretation, containment, recovery, rollback, and disclosure decisions.", "notProved": ["authorization", "live playbook", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "triaging-vulnerabilities-with-ssvc-framework",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/triaging-vulnerabilities-with-ssvc-framework/SKILL.md", "sha256": "e341161bd136c7ecb8ea11d90aa10046a8128e9daecce8092e5caca544034c64", "availability": "available", "license": "Apache-2.0", "anchors": ["# Triaging Vulnerabilities with SSVC Framework:L31"]},
+      "components": [
+        {"id": "triaging-vulnerabilities-with-ssvc-framework::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed vulnerability, decision, mission impact, utility, exploitation, exposure, owner, scope, and evidence-manifest fields without scanner or decision-engine execution.", "notProved": ["vulnerability truth", "SSVC priority", "exploitability"]},
+        {"id": "triaging-vulnerabilities-with-ssvc-framework::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep scanners, CVE/CVSS/EPSS authorities, SSVC engines, asset inventories, ticketing, exploit feeds, and production systems external.", "notProved": ["live finding", "priority truth", "remediation state"]},
+        {"id": "triaging-vulnerabilities-with-ssvc-framework::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain SSVC decision factors, vulnerability triage, mission impact, exploitation context, owner review, and defensive prioritization guidance as advisory.", "notProved": ["decision validity", "risk truth", "remediation effectiveness"]},
+        {"id": "triaging-vulnerabilities-with-ssvc-framework::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, asset ownership, legal/data review, analyst and owner validation, risk acceptance, exception, severity, remediation, and disclosure decisions.", "notProved": ["authorization", "live prioritization", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "validating-backup-integrity-for-recovery",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/validating-backup-integrity-for-recovery/SKILL.md", "sha256": "c645ab3792d36845d82d329338e4b4ac99b192be8a8f3c6aa9c0dba02c7fb84d", "availability": "available", "license": "Apache-2.0", "anchors": ["# Validating Backup Integrity for Recovery:L52"]},
+      "components": [
+        {"id": "validating-backup-integrity-for-recovery::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed backup, manifest, hash, timestamp, retention, storage, custody, restore-plan, RTO/RPO, scope, and evidence-manifest fields without restore execution.", "notProved": ["backup integrity", "restore success", "recoverability"]},
+        {"id": "validating-backup-integrity-for-recovery::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep backup stores, databases, storage systems, restore tools, hosts, production data, live filesystems, and recovery infrastructure external.", "notProved": ["live validation", "data restoration", "recovery state"]},
+        {"id": "validating-backup-integrity-for-recovery::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain backup integrity planning, immutable storage, hashing, retention, restore testing, disaster recovery, and defensive resilience guidance as advisory.", "notProved": ["integrity validity", "RTO/RPO achievement", "recovery effectiveness"]},
+        {"id": "validating-backup-integrity-for-recovery::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, data ownership, legal/privacy review, chain of custody, recovery safety, RTO/RPO approval, analyst validation, rollback, and disclosure decisions.", "notProved": ["authorization", "live restore", "recovery outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 6, "availableSkills": 6, "sourceUnavailableSkills": 0, "nativePredicateProposed": 6, "externalEngineBlocked": 6, "advisoryRetained": 6, "manualRequired": 6, "componentsProposedOrRetained": 24, "protectedExcludedSkills": 1, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "completionBoundary": "Approval and integration of this artifact would complete CP08 catalog decomposition only; it would not complete native implementation, external adapters, live proofs, overall CyberSkills parity, or security outcomes.",
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, database, mail, SIEM, EDR, OT, mobile, model, backup, scanner, ticketing, or production state is proved.",
+    "No prompt injection, alert truth, incident occurrence, incident attribution, vulnerability priority, backup integrity, restore success, compromise, detection, containment, remediation, recovery, or enforcement outcome is proved.",
+    "No source truth, evidentiary validity, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, severity decision, exception approval, RTO/RPO achievement, or disclosure decision is proved.",
+    "No security, privacy, operational, compliance, AI safety, or recovery outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity was not read, touched, counted, proposed, or accepted in this batch."
+  ]
+}

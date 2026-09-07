@@ -1,17 +1,17 @@
 //! Hard tests for Pkl, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_pkl`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_pkl`])
 //! -- there is no bespoke `languages::pkl` extractor to prove
 //! zero-regression against (Pkl has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::pkl`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::pkl`]'s own doc comment
 //! directly: `clazz`'s own name is a bare positional `identifier` child,
 //! `classMethod`'s own name lives two levels down on its `methodHeader`
 //! child, and `importClause`/`extendsOrAmendsClause` both resolve their
 //! own path through a `stringConstant` child (this grammar's own bare
 //! `import` keyword token carries no path text of its own).
 
-use enforcer_memory::languages::generic::parse_pkl;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_pkl;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -21,7 +21,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_pkl";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

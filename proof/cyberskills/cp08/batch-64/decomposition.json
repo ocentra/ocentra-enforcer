@@ -1,0 +1,215 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-64",
+  "baselineCommit": "06aa0cfb21729d2f9f5036ca179ef51e1ba157ee",
+  "family": "Canonical-order defensive threat-hunting and evidence-manifest predicates",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "hunting-for-dcsync-attacks",
+      "hunting-for-defense-evasion-via-timestomping",
+      "hunting-for-lateral-movement-via-wmi",
+      "hunting-for-living-off-the-cloud-techniques",
+      "hunting-for-living-off-the-land-binaries",
+      "hunting-for-lolbins-execution-in-endpoint-logs",
+      "hunting-for-ntlm-relay-attacks",
+      "hunting-for-persistence-via-wmi-subscriptions",
+      "hunting-for-process-injection-techniques",
+      "hunting-for-scheduled-task-persistence"
+    ],
+    "excludedByBossBoundary": {
+      "catalogId": "detecting-fileless-malware-techniques",
+      "reason": "Permanently excluded by boss boundary; protected unresolved deletion is not read, touched, counted, proposed, or accepted."
+    },
+    "reason": "Deterministic lexicographic next-ten selection from the eligible non-protected vendor catalog after reconciling accepted CP08 batches 1-63."
+  },
+  "accounting": {
+    "acceptedPrior": 630,
+    "proposed": 10,
+    "overlap": 0,
+    "combined": 640,
+    "protectedExcluded": 1
+  },
+  "skills": [
+    {
+      "catalogId": "hunting-for-dcsync-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-dcsync-attacks/SKILL.md",
+        "sha256": "a39594e99fea58ba5a2cb9e4d386b66654d2c9f003d9949d9c3adf643c50f451",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for DCSync Attacks:L38"]
+      },
+      "components": [
+        {"id": "hunting-for-dcsync-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed identity, domain, replication-right, event, scope, and evidence-manifest fields without contacting directory services or executing replication.", "notProved": ["DCSync activity", "live replication", "credential access"]},
+        {"id": "hunting-for-dcsync-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep Active Directory, domain controllers, DRS/RPC, credentials, replication tools, endpoints, and live telemetry external.", "notProved": ["domain state", "replication truth", "domain compromise"]},
+        {"id": "hunting-for-dcsync-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain replication-rights review, monitoring, identity hardening, and defensive hunting guidance as advisory.", "notProved": ["coverage", "hunt efficacy", "control effectiveness"]},
+        {"id": "hunting-for-dcsync-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, domain ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, revocation, remediation, and disclosure decisions.", "notProved": ["authorization", "finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-defense-evasion-via-timestomping",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-defense-evasion-via-timestomping/SKILL.md",
+        "sha256": "885e81dc78f59848ed66ce9d279837078ec14c30e811bcf12f52585949183d7f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Defense Evasion via Timestomping:L37"]
+      },
+      "components": [
+        {"id": "hunting-for-defense-evasion-via-timestomping::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed file, timestamp, path, owner, hash, process, scope, and evidence-manifest fields without accessing filesystems or endpoints.", "notProved": ["timestamp manipulation", "file tampering", "malware activity"]},
+        {"id": "hunting-for-defense-evasion-via-timestomping::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep endpoints, filesystems, processes, EDR, live file access, and production telemetry external.", "notProved": ["file state", "endpoint activity", "detection efficacy"]},
+        {"id": "hunting-for-defense-evasion-via-timestomping::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain file-integrity review, timestamp-anomaly monitoring, triage, and defensive hunting guidance as advisory.", "notProved": ["coverage", "anomaly truth", "incident resolution"]},
+        {"id": "hunting-for-defense-evasion-via-timestomping::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, host ownership, legal/privacy/ethics/safety review, chain of custody, analyst interpretation, remediation, and disclosure decisions.", "notProved": ["authorization", "evidentiary validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-lateral-movement-via-wmi",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-lateral-movement-via-wmi/SKILL.md",
+        "sha256": "2c08ea29ad03550e928bf3ca75440b0ff722afbb8181b9a2f2b250ccd6a66793",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Lateral Movement via WMI:L30"]
+      },
+      "components": [
+        {"id": "hunting-for-lateral-movement-via-wmi::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed host, principal, WMI namespace, process, authentication event, time, scope, and evidence-manifest fields without remote access or execution.", "notProved": ["lateral movement", "remote execution", "credential use"]},
+        {"id": "hunting-for-lateral-movement-via-wmi::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep WMI, Windows hosts, RPC, endpoints, credentials, EDR, SIEM, and live sessions external.", "notProved": ["host state", "WMI activity", "compromise"]},
+        {"id": "hunting-for-lateral-movement-via-wmi::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain lateral-movement monitoring, least-privilege review, WMI hardening, and defensive triage guidance as advisory.", "notProved": ["coverage", "movement detection", "control effectiveness"]},
+        {"id": "hunting-for-lateral-movement-via-wmi::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host and identity ownership, credential evidence handling, legal/privacy/safety review, containment, and remediation decisions.", "notProved": ["authorization", "analyst finding", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-living-off-the-cloud-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-living-off-the-cloud-techniques/SKILL.md",
+        "sha256": "9991e1b50e0ae306ea396f5d6506d7ca2d0e1b6971b102813c3c7cd1aeb4458a",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting For Living Off The Cloud Techniques:L37"]
+      },
+      "components": [
+        {"id": "hunting-for-living-off-the-cloud-techniques::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed cloud identity, service, API, configuration, event, asset, scope, and evidence-manifest fields without cloud access.", "notProved": ["cloud access", "service abuse", "exfiltration"]},
+        {"id": "hunting-for-living-off-the-cloud-techniques::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep cloud APIs, tenants, CloudTrail, Defender, CSPM, command-line tools, production sessions, and live telemetry external.", "notProved": ["tenant state", "cloud activity", "shadow administration"]},
+        {"id": "hunting-for-living-off-the-cloud-techniques::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cloud governance, identity hardening, audit design, and defensive hunting guidance as advisory.", "notProved": ["coverage", "finding truth", "detection efficacy"]},
+        {"id": "hunting-for-living-off-the-cloud-techniques::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require tenant ownership, written authorization, legal/privacy/safety review, data handling, analyst validation, remediation, rollback, and disclosure decisions.", "notProved": ["authorization", "cloud finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-living-off-the-land-binaries",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-living-off-the-land-binaries/SKILL.md",
+        "sha256": "deb1eaef2464847115e4b40a48aec33aeaa1383669bcc5354e39f00cde26922d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Living-off-the-Land Binaries (LOLBins):L37"]
+      },
+      "components": [
+        {"id": "hunting-for-living-off-the-land-binaries::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed binary, parent-child process, command, host, hash, time, policy, and evidence-manifest fields without process execution.", "notProved": ["binary execution", "payload delivery", "endpoint compromise"]},
+        {"id": "hunting-for-living-off-the-land-binaries::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep endpoints, operating systems, processes, EDR, LOLBin execution, credentials, and live telemetry external.", "notProved": ["process state", "execution truth", "detection efficacy"]},
+        {"id": "hunting-for-living-off-the-land-binaries::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain application-control, allowlisting, endpoint-monitoring, triage, and defensive hunting guidance as advisory.", "notProved": ["coverage", "control effectiveness", "incident resolution"]},
+        {"id": "hunting-for-living-off-the-land-binaries::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "execution finding", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-lolbins-execution-in-endpoint-logs",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-lolbins-execution-in-endpoint-logs/SKILL.md",
+        "sha256": "7ec91c6e6c538be4ccaecb2ef55482bc679c5f392f9f700509cf1556596ce285",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for LOLBins Execution in Endpoint Logs:L38"]
+      },
+      "components": [
+        {"id": "hunting-for-lolbins-execution-in-endpoint-logs::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed endpoint-log, process, binary, command, host, time, query, scope, and evidence-manifest fields without reading live logs.", "notProved": ["log truth", "execution", "endpoint activity"]},
+        {"id": "hunting-for-lolbins-execution-in-endpoint-logs::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep live logs, EDR, endpoints, processes, SIEM, collectors, and production telemetry external.", "notProved": ["collection completeness", "event truth", "detection efficacy"]},
+        {"id": "hunting-for-lolbins-execution-in-endpoint-logs::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain endpoint hunting, logging, query design, triage, and defensive response guidance as advisory.", "notProved": ["coverage", "hunt efficacy", "incident resolution"]},
+        {"id": "hunting-for-lolbins-execution-in-endpoint-logs::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require authorization, host and data ownership, legal/privacy review, chain of custody, analyst interpretation, containment, and remediation decisions.", "notProved": ["authorization", "log finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-ntlm-relay-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-ntlm-relay-attacks/SKILL.md",
+        "sha256": "6ffd0af2d8c29f86f319e6106785784191faf5856c276e60f582cce245a76cf6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for NTLM Relay Attacks:L41"]
+      },
+      "components": [
+        {"id": "hunting-for-ntlm-relay-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed authentication event, principal, host, protocol, time, correlation, scope, and evidence-manifest fields without network or credential access.", "notProved": ["NTLM relay", "credential capture", "identity compromise"]},
+        {"id": "hunting-for-ntlm-relay-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep NTLM relay tools, Active Directory, domain controllers, network sensors, credentials, endpoints, SIEM, and live sessions external.", "notProved": ["authentication state", "relay activity", "detection efficacy"]},
+        {"id": "hunting-for-ntlm-relay-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain NTLM reduction, identity hardening, event correlation, monitoring, and defensive hunting guidance as advisory.", "notProved": ["coverage", "control effectiveness", "incident resolution"]},
+        {"id": "hunting-for-ntlm-relay-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, identity ownership, credential handling, legal/privacy/ethics/safety review, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "identity finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-persistence-via-wmi-subscriptions",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-persistence-via-wmi-subscriptions/SKILL.md",
+        "sha256": "029e35c213f6c6e5928cc8bce8a5093e5a06ce73e133c48a74344e78cacf8ed5",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Persistence via WMI Subscriptions:L37"]
+      },
+      "components": [
+        {"id": "hunting-for-persistence-via-wmi-subscriptions::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed namespace, filter, consumer, event, host, process, owner, scope, and evidence-manifest fields without accessing WMI or endpoints.", "notProved": ["persistence", "WMI execution", "endpoint compromise"]},
+        {"id": "hunting-for-persistence-via-wmi-subscriptions::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep WMI, Windows systems, registry, processes, EDR, endpoints, and live telemetry external.", "notProved": ["subscription state", "execution", "detection efficacy"]},
+        {"id": "hunting-for-persistence-via-wmi-subscriptions::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain WMI inventory, namespace hardening, monitoring, triage, and defensive response guidance as advisory.", "notProved": ["coverage", "persistence detection", "incident resolution"]},
+        {"id": "hunting-for-persistence-via-wmi-subscriptions::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, and remediation decisions.", "notProved": ["authorization", "persistence finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-process-injection-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-process-injection-techniques/SKILL.md",
+        "sha256": "d7686dcc503324cbb1af2d35e8f96e80d9101ae9b6099fda480ba8210e95de77",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting for Process Injection Techniques:L38"]
+      },
+      "components": [
+        {"id": "hunting-for-process-injection-techniques::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed process, image, thread, module, memory, event, host, time, and evidence-manifest fields without inspecting live memory or processes.", "notProved": ["process injection", "code execution", "malware activity"]},
+        {"id": "hunting-for-process-injection-techniques::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep live processes, debuggers, EDR, kernel interfaces, memory access, endpoints, and production telemetry external.", "notProved": ["process state", "injection truth", "detection efficacy"]},
+        {"id": "hunting-for-process-injection-techniques::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain process telemetry, endpoint hardening, triage, correlation, and defensive hunting guidance as advisory.", "notProved": ["coverage", "hunt efficacy", "incident resolution"]},
+        {"id": "hunting-for-process-injection-techniques::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, endpoint ownership, legal/privacy/ethics/safety review, evidence handling, analyst interpretation, containment, and remediation decisions.", "notProved": ["authorization", "process finding validity", "security outcome"]}
+      ]
+    },
+    {
+      "catalogId": "hunting-for-scheduled-task-persistence",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/hunting-for-scheduled-task-persistence/SKILL.md",
+        "sha256": "8beb372e008a87b25bd219fa9adec54ed9f9b5630b1561a7c23c55bc9ea9c7be",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Hunting For Scheduled Task Persistence:L36"]
+      },
+      "components": [
+        {"id": "hunting-for-scheduled-task-persistence::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate supplied typed task, name, trigger, action, principal, host, time, policy, scope, and evidence-manifest fields without task-scheduler or process access.", "notProved": ["task persistence", "task execution", "endpoint compromise"]},
+        {"id": "hunting-for-scheduled-task-persistence::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Keep task schedulers, Windows hosts, processes, EDR, endpoints, credentials, and live telemetry external.", "notProved": ["task state", "execution truth", "detection efficacy"]},
+        {"id": "hunting-for-scheduled-task-persistence::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain task inventory, least-privilege review, endpoint monitoring, triage, and defensive hunting guidance as advisory.", "notProved": ["coverage", "persistence detection", "incident resolution"]},
+        {"id": "hunting-for-scheduled-task-persistence::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, host and account ownership, legal/privacy/ethics/safety review, evidence handling, analyst validation, containment, remediation, and disclosure decisions.", "notProved": ["authorization", "persistence finding validity", "security outcome"]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "protectedExcludedSkills": 1,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "No live endpoint, process, memory, filesystem, cloud, network, identity, credential, firmware, SIEM, EDR, or production telemetry is proved.",
+    "No DCSync, timestomping, WMI movement or persistence, cloud technique, LOLBin, NTLM relay, process injection, scheduled-task activity, execution, compromise, or credential access is proved.",
+    "No detection efficacy, attribution, data exposure, containment, remediation, recovery, authorization, ownership, legal/privacy/ethics/safety approval, analyst decision, or disclosure decision is proved.",
+    "No security outcome is proved."
+  ]
+}

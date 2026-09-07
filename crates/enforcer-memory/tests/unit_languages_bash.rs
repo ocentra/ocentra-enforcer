@@ -1,9 +1,9 @@
 //! Hard tests for Bash, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_bash`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_bash`])
 //! -- there is no bespoke `languages::bash` extractor to prove
 //! zero-regression against (Bash has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::bash`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::bash`]'s own doc comment
 //! directly: `function`-keyword and bare-POSIX `function_definition`
 //! naming, `command`-node CALLS with `argument`-field `arg_texts`,
 //! `source`/`.` IMPORTS detection, and `if`/`while`/`for`/`case` branch
@@ -11,8 +11,8 @@
 //! own `ParsedFile` shape has no complexity field, see
 //! `crates/enforcer-memory/src/parsers/mod.rs`'s module doc).
 
-use enforcer_memory::languages::generic::parse_bash;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_bash;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -22,7 +22,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_bash";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

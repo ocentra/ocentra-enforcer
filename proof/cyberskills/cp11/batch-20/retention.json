@@ -1,0 +1,211 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-20",
+  "family": "IF/cryptography",
+  "baselineCommit": "edb3221b5415f8dd8cfca4f5621b5ad426f74998",
+  "scope": "Retain advisory and manual content for the final deterministic cryptography packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "migrating-to-post-quantum-cryptography",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/migrating-to-post-quantum-cryptography/SKILL.md",
+        "sha256": "854586d906963dc1afbbdb9ed3653dc5266913941cf25e21f469e0c44ff20b5e",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Migrating to Post-Quantum Cryptography:L23"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain migration planning, algorithm inventory, compatibility, and staged-transition guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain manual algorithm selection, interoperability, rollout, and rollback decisions.",
+        "notProved": [
+          "No live operational, governance, or security-outcome proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-cryptographic-audit-of-application",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-cryptographic-audit-of-application/SKILL.md",
+        "sha256": "c39ca781b08e121cb8f439090078bacff3cfb629cbe524c40e2de203aa4f86f9",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Cryptographic Audit of Application:L49"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-25/decomposition.json",
+        "artifactSha256": "165547360420e1d944b6fa3ef4eca6134dbd5a106dd01c281456df0a0e0efa6a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain application cryptography review checklists, evidence requests, and finding documentation guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain manual audit scope, reviewer interpretation, risk acceptance, and remediation decisions.",
+        "notProved": [
+          "No live operational, governance, or security-outcome proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-hardware-security-module-integration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-hardware-security-module-integration/SKILL.md",
+        "sha256": "50e0dfe37f023202437d91e876d01728d1661a1fc78cf2dc0946e1060cf02f6d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Hardware Security Module Integration:L39"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain HSM integration, key ceremony, custody, configuration, and recovery guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain manual HSM ownership, key-custody, ceremony, failover, and provider authorization decisions.",
+        "notProved": [
+          "No live operational, governance, or security-outcome proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-hash-cracking-with-hashcat",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-hash-cracking-with-hashcat/SKILL.md",
+        "sha256": "462ce2482a1791212a54386657eb60983f178a5dd91cf9d9b944d4f3daaaf1ac",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Hash Cracking with Hashcat:L26"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-75/decomposition.json",
+        "artifactSha256": "0a091e58e4a53b0699707defe2d203fbe6fae3a8de821f5e3a12a124fe4468c1"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain authorized offline password-audit, hash-format, wordlist, and reporting guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain written authorization, target scope, privacy, stop conditions, legal review, and remediation decisions.",
+        "notProved": [
+          "No live operational, governance, or security-outcome proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-post-quantum-cryptography-migration",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-post-quantum-cryptography-migration/SKILL.md",
+        "sha256": "5306f1b76b9a9af4df2cfce66f9d50ec4cc7d5d16b71d2f86ef49862b8aa7845",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing Post-Quantum Cryptography Migration:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain post-quantum migration assessment, inventory, compatibility, and transition guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain manual protocol selection, deployment sequencing, interoperability, rollback, and risk decisions.",
+        "notProved": [
+          "No live operational, governance, or security-outcome proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "performing-ssl-certificate-lifecycle-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-ssl-certificate-lifecycle-management/SKILL.md",
+        "sha256": "6663b5076eff9b30f6a00f8a1bea6daed4104722525ced5b01fbdabd18280ab8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Performing SSL Certificate Lifecycle Management:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-25/decomposition.json",
+        "artifactSha256": "165547360420e1d944b6fa3ef4eca6134dbd5a106dd01c281456df0a0e0efa6a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain certificate issuance, renewal, rotation, revocation, inventory, and custody guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain manual CA ownership, approval, revocation, incident, disclosure, and recovery decisions.",
+        "notProved": [
+          "No live operational, governance, or security-outcome proof."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 6,
+    "advisoryRetained": 6,
+    "manualRetained": 6,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live OpenSSL, HSM, KMS, TLS endpoint, certificate authority, messaging service, identity provider, hashcat, cloud, device, key store, network, or production cryptographic execution is proved.",
+    "No key strength, confidentiality, authenticity, integrity, signature, certificate, rotation, encryption, decryption, authentication, interoperability, migration, audit, cracking, compliance, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

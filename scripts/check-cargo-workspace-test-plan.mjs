@@ -12,6 +12,7 @@ const TEST_TARGET_KINDS = new Map([
 
 const PROCESS_ISOLATED_TARGETS = new Set([
   "enforcer-memory/property_parser_contracts",
+  "enforcer-syntax/property_parser_contracts",
 ]);
 
 const TARGET_ARTIFACT_REMOVE_OPTIONS = Object.freeze({
@@ -21,6 +22,7 @@ const TARGET_ARTIFACT_REMOVE_OPTIONS = Object.freeze({
   retryDelay: 250,
 });
 
+/** Maximum number of non-isolated targets grouped into one package-local batch. */
 export const DEFAULT_TEST_TARGET_BATCH_SIZE = 8;
 
 /** Builds a deterministic one-target-at-a-time workspace test plan. */

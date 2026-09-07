@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-43",
+  "baselineCommit": "827f352b780dd1ad8cfcd643c17791a732be2e98",
+  "family": "Malware reverse engineering, configuration extraction, covert-channel analysis, and YARA detection artifacts",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "analyzing-network-covert-channels-in-malware",
+      "extracting-config-from-agent-tesla-rat",
+      "performing-firmware-malware-analysis",
+      "performing-threat-hunting-with-yara-rules",
+      "performing-yara-rule-development-for-detection",
+      "reverse-engineering-android-malware-with-jadx",
+      "reverse-engineering-dotnet-malware-with-dnspy",
+      "reverse-engineering-malware-with-ghidra",
+      "reverse-engineering-ransomware-encryption-routine",
+      "reverse-engineering-rust-malware"
+    ],
+    "reason": "Ten disjoint malware reverse-engineering skills covering covert-channel analysis, configuration extraction, firmware malware, YARA hunting and rule artifacts, and Android, .NET, native, ransomware, and Rust reverse engineering. Native checks are limited to static typed supplied manifests; execution, detonation, attribution, and security outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-network-covert-channels-in-malware",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-network-covert-channels-in-malware/SKILL.md",
+        "sha256": "72063ca4a9c080cc12c85afa0d804c1d081752d9f6888adc6f15bea2f32dfb8c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Network Covert Channels in Malware:L36"]
+      },
+      "components": [
+        {"componentId": "analyzing-network-covert-channels-in-malware::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied sample, network-indicator, protocol, timestamp, configuration, IOC, provenance, analyst, and evidence manifests.", "notProved": ["No live network, malware execution, covert-channel truth, attribution, IOC validity, or security outcome proof."]},
+        {"componentId": "analyzing-network-covert-channels-in-malware::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use malware samples, endpoints, packet capture, network sensors, sandboxes, detonation, filesystems, or production authorities.", "notProved": ["No live network, capture, endpoint, execution, sandbox, or normalized analysis result."]},
+        {"componentId": "analyzing-network-covert-channels-in-malware::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive covert-channel, malware-analysis, and evidence-handling guidance.", "notProved": ["Guidance is not enforcement and does not prove covert-channel behavior."]},
+        {"componentId": "analyzing-network-covert-channels-in-malware::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human analysis, attribution, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "extracting-config-from-agent-tesla-rat",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/extracting-config-from-agent-tesla-rat/SKILL.md",
+        "sha256": "94e69527da11f000ced0a2ed5252a633209057d3e276b554eeacadbd08a41316",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Extracting Config from Agent Tesla RAT:L39"]
+      },
+      "components": [
+        {"componentId": "extracting-config-from-agent-tesla-rat::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied sample, family, configuration, string, IOC, hash, provenance, analyst, and evidence manifests.", "notProved": ["No sample execution, configuration truth, credential access, persistence, attribution, IOC validity, or security outcome proof."]},
+        {"componentId": "extracting-config-from-agent-tesla-rat::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Agent Tesla samples, deobfuscators, debuggers, sandboxes, endpoints, memory, filesystems, or production authorities.", "notProved": ["No live sample, debugger, execution, endpoint, extraction engine, or normalized result."]},
+        {"componentId": "extracting-config-from-agent-tesla-rat::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive malware configuration, IOC, safe handling, and analysis guidance.", "notProved": ["Guidance is not enforcement and does not prove family or configuration truth."]},
+        {"componentId": "extracting-config-from-agent-tesla-rat::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human extraction, attribution, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-firmware-malware-analysis",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-firmware-malware-analysis/SKILL.md",
+        "sha256": "744a833148a3c02e3108c2cf7f78f25b236500d9bc8dc108858c754ff36bcc34",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Firmware Malware Analysis:L34"]
+      },
+      "components": [
+        {"componentId": "performing-firmware-malware-analysis::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied firmware, image, section, hash, architecture, configuration, IOC, provenance, analyst, and evidence manifests.", "notProved": ["No firmware acquisition, flashing, execution, device access, malware behavior, attribution, or security outcome proof."]},
+        {"componentId": "performing-firmware-malware-analysis::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use firmware images, devices, emulators, debuggers, disassemblers, extraction tools, endpoints, or production authorities.", "notProved": ["No live firmware, device, emulator, execution, extraction, or normalized analysis result."]},
+        {"componentId": "performing-firmware-malware-analysis::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive firmware, embedded-malware, safe handling, and reverse-engineering guidance.", "notProved": ["Guidance is not enforcement and does not prove firmware behavior or compromise."]},
+        {"componentId": "performing-firmware-malware-analysis::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human firmware, attribution, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-threat-hunting-with-yara-rules",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-threat-hunting-with-yara-rules/SKILL.md",
+        "sha256": "11e3834b50ebae2fd65f3f60ee40f7636abbbb8e97b13fe50f27ccb05fd42396",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing Threat Hunting with YARA Rules:L37"]
+      },
+      "components": [
+        {"componentId": "performing-threat-hunting-with-yara-rules::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied YARA rule, sample, match, IOC, hash, source, confidence, provenance, analyst, and evidence manifests.", "notProved": ["No YARA execution, sample scan, detection truth, false-positive rate, attribution, or security outcome proof."]},
+        {"componentId": "performing-threat-hunting-with-yara-rules::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use YARA engines, EDR, endpoints, filesystems, memory, SIEM, sandboxes, malware samples, or production detection authorities.", "notProved": ["No live rule engine, endpoint, sample, scan, SIEM, or normalized detection result."]},
+        {"componentId": "performing-threat-hunting-with-yara-rules::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive YARA, threat-hunting, analyst-review, and detection guidance.", "notProved": ["Guidance is not enforcement and does not prove detection efficacy."]},
+        {"componentId": "performing-threat-hunting-with-yara-rules::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human hunt, attribution, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "performing-yara-rule-development-for-detection",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/performing-yara-rule-development-for-detection/SKILL.md",
+        "sha256": "28e86ed2a26835c7e6b9bd292af165f8a691d90a2f73b414fd62f3894570eaff",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Performing YARA Rule Development for Detection:L30"]
+      },
+      "components": [
+        {"componentId": "performing-yara-rule-development-for-detection::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied YARA source, rule metadata, pattern, condition, test fixture manifest, provenance, analyst, and evidence manifests.", "notProved": ["No YARA compilation, execution, sample match, detection efficacy, false-positive truth, attribution, or security outcome proof."]},
+        {"componentId": "performing-yara-rule-development-for-detection::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use YARA compilers, engines, samples, endpoints, EDR, memory, filesystems, sandboxes, SIEM, or production detection authorities.", "notProved": ["No live rule engine, sample, endpoint, scan, runtime, or normalized detection result."]},
+        {"componentId": "performing-yara-rule-development-for-detection::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive YARA rule design, testing, review, and detection guidance.", "notProved": ["Guidance is not enforcement and does not prove rule efficacy."]},
+        {"componentId": "performing-yara-rule-development-for-detection::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human rule approval, attribution, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "reverse-engineering-android-malware-with-jadx",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-android-malware-with-jadx/SKILL.md",
+        "sha256": "91eb61b48b0823b5935867953974c23e1b02628e040162b39199e0fc9b10f845",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Reverse Engineering Android Malware with JADX:L35"]
+      },
+      "components": [
+        {"componentId": "reverse-engineering-android-malware-with-jadx::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied APK, package, class, string, permission, configuration, IOC, hash, provenance, analyst, and evidence manifests.", "notProved": ["No APK execution, device access, decompilation runtime, behavior, persistence, attribution, or security outcome proof."]},
+        {"componentId": "reverse-engineering-android-malware-with-jadx::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use JADX, Android devices, emulators, runtimes, debuggers, sandboxes, endpoints, or production authorities.", "notProved": ["No live APK, JADX runtime, device, emulator, execution, or normalized analysis result."]},
+        {"componentId": "reverse-engineering-android-malware-with-jadx::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Android-malware, safe handling, reverse-engineering, and IOC guidance.", "notProved": ["Guidance is not enforcement and does not prove application behavior or attribution."]},
+        {"componentId": "reverse-engineering-android-malware-with-jadx::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human mobile analysis, attribution, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "reverse-engineering-dotnet-malware-with-dnspy",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-dotnet-malware-with-dnspy/SKILL.md",
+        "sha256": "fa959431c9480a13eb59120a69473a29500f2982ace844c820c572c512e18bfd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Reverse Engineering .NET Malware with dnSpy:L33"]
+      },
+      "components": [
+        {"componentId": "reverse-engineering-dotnet-malware-with-dnspy::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied .NET assembly, method, string, configuration, IOC, hash, provenance, analyst, and evidence manifests.", "notProved": ["No assembly execution, dnSpy runtime, behavior, persistence, credential access, attribution, or security outcome proof."]},
+        {"componentId": "reverse-engineering-dotnet-malware-with-dnspy::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use dnSpy, .NET runtimes, debuggers, sandboxes, endpoints, memory, filesystems, or production authorities.", "notProved": ["No live assembly, debugger, runtime, endpoint, execution, or normalized analysis result."]},
+        {"componentId": "reverse-engineering-dotnet-malware-with-dnspy::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive .NET-malware, safe handling, reverse-engineering, and IOC guidance.", "notProved": ["Guidance is not enforcement and does not prove assembly behavior or attribution."]},
+        {"componentId": "reverse-engineering-dotnet-malware-with-dnspy::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human .NET analysis, attribution, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "reverse-engineering-malware-with-ghidra",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-malware-with-ghidra/SKILL.md",
+        "sha256": "485453831a5c52ec9e0e2ea0a43807b357c8afcdddfee90e6cb093f35a88e7c0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Reverse Engineering Malware with Ghidra:L34"]
+      },
+      "components": [
+        {"componentId": "reverse-engineering-malware-with-ghidra::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied binary, architecture, function, string, configuration, IOC, hash, provenance, analyst, and evidence manifests.", "notProved": ["No binary execution, Ghidra runtime, behavior, persistence, attribution, exploitability, or security outcome proof."]},
+        {"componentId": "reverse-engineering-malware-with-ghidra::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Ghidra, disassemblers, debuggers, emulators, sandboxes, endpoints, memory, filesystems, or production authorities.", "notProved": ["No live binary, Ghidra runtime, debugger, endpoint, execution, or normalized analysis result."]},
+        {"componentId": "reverse-engineering-malware-with-ghidra::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive binary-malware, safe handling, reverse-engineering, and IOC guidance.", "notProved": ["Guidance is not enforcement and does not prove binary behavior or attribution."]},
+        {"componentId": "reverse-engineering-malware-with-ghidra::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human binary analysis, attribution, or remediation decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "reverse-engineering-ransomware-encryption-routine",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-ransomware-encryption-routine/SKILL.md",
+        "sha256": "a6f48f1d93975b060ef554355aa8ec1721734a6c9203f465257852d65468eb29",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Reverse Engineering Ransomware Encryption Routine:L56"]
+      },
+      "components": [
+        {"componentId": "reverse-engineering-ransomware-encryption-routine::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied ransomware sample, routine, algorithm, key, configuration, hash, IOC, provenance, analyst, and evidence manifests.", "notProved": ["No ransomware execution, encryption, decryption, key recovery, file impact, attribution, or security outcome proof."]},
+        {"componentId": "reverse-engineering-ransomware-encryption-routine::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use ransomware samples, debuggers, disassemblers, sandboxes, endpoints, filesystems, backups, or production authorities.", "notProved": ["No live sample, encryption, endpoint, filesystem, recovery action, or normalized analysis result."]},
+        {"componentId": "reverse-engineering-ransomware-encryption-routine::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive ransomware, safe handling, recovery, reverse-engineering, and incident guidance.", "notProved": ["Guidance is not enforcement and does not prove encryption behavior or recovery."]},
+        {"componentId": "reverse-engineering-ransomware-encryption-routine::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human ransomware, attribution, containment, or recovery decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "reverse-engineering-rust-malware",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-rust-malware/SKILL.md",
+        "sha256": "4cadacc54b66c2876aa9e180de3a076b2ead85931bc26115011cb414bd31c12f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Reverse Engineering Rust Malware:L30"]
+      },
+      "components": [
+        {"componentId": "reverse-engineering-rust-malware::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Rust binary, symbol, string, configuration, IOC, hash, provenance, analyst, and evidence manifests.", "notProved": ["No Rust-malware execution, behavior, persistence, attribution, exploitability, or security outcome proof."]},
+        {"componentId": "reverse-engineering-rust-malware::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Rust binaries, Ghidra, debuggers, disassemblers, sandboxes, endpoints, memory, filesystems, or production authorities.", "notProved": ["No live binary, tool runtime, endpoint, execution, or normalized analysis result."]},
+        {"componentId": "reverse-engineering-rust-malware::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive Rust-malware, safe handling, reverse-engineering, and IOC guidance.", "notProved": ["Guidance is not enforcement and does not prove binary behavior or attribution."]},
+        {"componentId": "reverse-engineering-rust-malware::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, safe sample handling, legal scope, privacy, chain of custody, analyst interpretation, severity, disclosure, containment, remediation, and recovery decisions.", "notProved": ["No human Rust-malware, attribution, or remediation decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Ghidra, JADX, dnSpy, firmware tools, YARA engines, malware execution, detonation, sandboxes, endpoints, memory, filesystems, live network, and production authorities remain blocked external engines.",
+    "No execution, detonation, persistence, attribution, family identity, IOC validity, covert-channel truth, detection efficacy, exploitability, containment, remediation, recovery, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content."
+  ]
+}

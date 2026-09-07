@@ -1,13 +1,13 @@
 //! Hard tests for reStructuredText, onboarded directly through the
 //! generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_rst`]). Grammar:
+//! ([`enforcer_syntax::languages::generic::parse_rst`]). Grammar:
 //! `tree-sitter-rst` 0.2.0, a real crates.io crate (directly compatible
 //! with this workspace's `tree-sitter` core, no vendoring needed).
 //! Matches the baseline's own `CBM_LANG_RST` row -- `empty_types` for
 //! every array except `module_types = {"document"}`.
 
-use enforcer_memory::languages::generic::parse_rst;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_rst;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 

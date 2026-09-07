@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "catalogId": "exploiting-nosql-injection-vulnerabilities",
+  "sourcePath": "vendor/anthropic-cybersecurity-skills/skills/exploiting-nosql-injection-vulnerabilities/SKILL.md",
+  "sourceSha256": "1d3c9cc04615bab8e4bac5731f23ffbb3f41c46dbf42906c9deb9c1d84559445",
+  "sourceAnchors": ["$ne", "$gt", "$regex", "$where"],
+  "nativeRuleId": "CYBER-NOSQL-INJECT.1",
+  "nativeValidatorPath": "crates/enforcer-lang-security/src/rules/cyberskills/nosql_injection.rs",
+  "failFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.nosql-injection/bad/vuln.js",
+  "passFixture": "crates/enforcer-lang-security/tests/fixtures/cyberskills/web.nosql-injection/good/safe.js",
+  "coverage": "narrowed-predicate",
+  "predicate": "Static source detection of untrusted request input entering NoSQL operator, regex, or $where query shapes.",
+  "notProved": "Live response-differential testing, authentication bypass, and data extraction."
+}

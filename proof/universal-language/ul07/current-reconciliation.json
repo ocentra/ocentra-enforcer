@@ -1,0 +1,232 @@
+{
+  "schemaVersion": "ul07.current-reconciliation.v1",
+  "workpackId": "EXT/UL07",
+  "baseCommit": "ca0f33d410098da3521507091ee5053c499151e4",
+  "generatedAtUtc": "2026-08-09T19:52:16.7455947Z",
+  "snapshotKind": "current bounded tool-adapter and execution-contract reconciliation",
+  "authority": {
+    "domainOwner": "crates/enforcer-domain/src/harness_types.rs",
+    "harnessOwner": "crates/enforcer-harness/src/",
+    "executionBoundary": "crates/enforcer-harness/src/execution.rs",
+    "availabilityBoundary": "crates/enforcer-harness/src/availability.rs",
+    "adapterBoundary": "crates/enforcer-harness/src/adapters/",
+    "contractTests": [
+      "crates/enforcer-harness/tests/tool_adapter_contract.rs",
+      "crates/enforcer-harness/tests/cargo_pilot.rs"
+    ],
+    "authorityReason": "Validated tool identity, requirement, limit, availability, input-scope, execution, diagnostic, and evidence types remain owned by the existing domain and harness crates; no new external engine or second adapter authority was introduced."
+  },
+  "sourceEvidence": [
+    {
+      "path": "crates/enforcer-domain/src/harness_types.rs",
+      "sha256": "2bd90c85a3c73cde2407410ece327b7ada741a32beccba00c115c67985a9c1b0",
+      "bytes": 28787,
+      "role": "validated ToolSpec, availability, requirement, limit, evidence, diagnostic, and policy domain types"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters.rs",
+      "sha256": "ede1211e44eb9d0d8703a4a0d4dd6431a6ccc80d98874dc1f35ae8606476425e",
+      "bytes": 395,
+      "role": "private adapter module ownership"
+    },
+    {
+      "path": "crates/enforcer-harness/src/availability.rs",
+      "sha256": "cc4b5085d32224430b6dafdebabb1ab18e1ea61d1d79780cb47bdb5d71acd88e",
+      "bytes": 4983,
+      "role": "typed availability probing and version identity normalization"
+    },
+    {
+      "path": "crates/enforcer-harness/src/execution.rs",
+      "sha256": "885f593b53899cf42cad93a1b0eb69a40f86db5686a597bd02f2aab3204ec1cd",
+      "bytes": 18448,
+      "role": "allowlisted bounded execution, process cleanup, timeout, output, environment, and network/credential policy"
+    },
+    {
+      "path": "crates/enforcer-harness/src/input_scope.rs",
+      "sha256": "66e3f60e054366125b60a51be5d75c00b4b600d7d5cdf644f918f3c88c7f43b9",
+      "bytes": 19723,
+      "role": "repository-relative input and working-tree scope validation"
+    },
+    {
+      "path": "crates/enforcer-harness/src/parsers.rs",
+      "sha256": "6c0789267aad1746ffc48fd2cc0942b70ce2047d88cc488a18c040e135fb5034",
+      "bytes": 30797,
+      "role": "bounded diagnostic and adapter-result parsing"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters/cargo.rs",
+      "sha256": "cd9d4c9537ce24be806e609bf1894b7660b926edbc331d08b691dc94e80e54dc",
+      "bytes": 27307,
+      "role": "pinned offline Cargo pilot adapter and input-tree evidence"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters/cyberskills/gate.rs",
+      "sha256": "29a5ca92873f19cf479d74c5ea8696bd048050a098aecb2ecdcd34c278b842ab",
+      "bytes": 8556,
+      "role": "CyberSkills gate adapter boundary"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters/cyberskills/mod.rs",
+      "sha256": "b414b5e2e61b4a830670342da3aefb8ab1c4055df27fae3aa5f6ca79a75fe179",
+      "bytes": 2669,
+      "role": "CyberSkills adapter module ownership"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
+      "sha256": "94322df77f2a9b918eef2bb457379822a33fa19e1037c4d29f48c08ceb8c5989",
+      "bytes": 8910,
+      "role": "recorded CyberSkills result and evidence adapter"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters/cyberskills/seam.rs",
+      "sha256": "0a78bbce2c7d7edbc067b68861e20d26ef838fd66d5e2b92d884a7dd3d8c7bbe",
+      "bytes": 11166,
+      "role": "CyberSkills integration seam and typed result boundary"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/tool_adapter_contract.rs",
+      "sha256": "b1182a0c3261a346556fced71827b9a8e3f80480c1672f9ec9b22cb034481b74",
+      "bytes": 38322,
+      "role": "39-case contract suite for bounded allowlisted and separately user-invoked execution"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/cargo_pilot.rs",
+      "sha256": "e746f61304cf032d589ca55e87edc51c96dbf2271a13fa45a65610e41d34cc94",
+      "bytes": 26294,
+      "role": "19-case real Cargo pilot, path-boundary, digest, configuration, and tamper suite"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/fixtures/tool_adapters/cargo_pilot/Cargo.toml.fixture",
+      "sha256": "dbf3cfabb730915261f099a585a7b28a0a925813a1edfaf33a90237c9bb296ed",
+      "bytes": 106,
+      "role": "minimal offline Cargo pilot manifest fixture"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/fixtures/tool_adapters/cargo_pilot/Cargo.lock",
+      "sha256": "596a620bae9d01fada7dfa8e7fe88cf0dba2367d6827af11f1915754a734c09b",
+      "bytes": 168,
+      "role": "locked Cargo pilot dependency fixture"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/fixtures/tool_adapters/cargo_pilot/src/lib.rs",
+      "sha256": "cbf2d68afc04e906bb6f0059ae7be1a8bd3f2371eaa723aa2c9ffab1fd4ae1eb",
+      "bytes": 159,
+      "role": "minimal Cargo pilot source fixture"
+    }
+  ],
+  "availabilityStates": [
+    "available",
+    "missing",
+    "version-mismatch",
+    "misconfigured",
+    "timed-out",
+    "failed",
+    "malformed-output"
+  ],
+  "requirements": [
+    {
+      "kind": "required",
+      "behavior": "unavailable, mismatched, malformed, timed-out, or failed required tools cannot silently pass"
+    },
+    {
+      "kind": "optional",
+      "behavior": "availability is explicit in the typed result and does not manufacture a successful gate"
+    },
+    {
+      "kind": "advisory",
+      "behavior": "advisory output remains visible and cannot be promoted to required proof"
+    }
+  ],
+  "bounds": [
+    "repository-contained relative working directory and input tree",
+    "allowlisted command template identity rather than arbitrary command substitution",
+    "wall time, output bytes, file count, total bytes, recursion depth, exit status, environment, network, and credential bounds",
+    "child-process cleanup and descendant reaping after timeout or overflow"
+  ],
+  "evidenceContract": [
+    "tool identity and version",
+    "configuration digest and command-template identity",
+    "input/tree digest and run identifier",
+    "exit status, output digest, and normalized diagnostics",
+    "diagnostic rule ID, severity, file, span, message fingerprint, language, and provider"
+  ],
+  "executionSeparation": {
+    "allowlistedGate": "validated bounded adapter request only",
+    "arbitraryRun": "remains an explicit user-invoked surface and is not accepted as an allowlisted gate",
+    "externalEngines": "not installed, invoked, or treated as native proof by this reconciliation"
+  },
+  "testEvidence": [
+    {
+      "runId": "20260809-ul07-domain-types",
+      "command": "cargo test --locked -p enforcer-domain --quiet",
+      "status": "passed",
+      "exitCode": 0,
+      "testsPassed": "all package test groups passed"
+    },
+    {
+      "runId": "20260809-ul07-tool-adapter-contract",
+      "command": "cargo test --locked -p enforcer-harness --test tool_adapter_contract -- --nocapture",
+      "status": "passed",
+      "exitCode": 0,
+      "testsPassed": 39,
+      "testsFailed": 0
+    },
+    {
+      "runId": "20260809-ul07-cargo-pilot",
+      "command": "cargo test --locked -p enforcer-harness --test cargo_pilot -- --nocapture",
+      "status": "passed",
+      "exitCode": 0,
+      "testsPassed": 19,
+      "testsFailed": 0
+    },
+    {
+      "runId": "20260809-ul07-harness-package",
+      "command": "cargo test --locked -p enforcer-harness --quiet",
+      "status": "passed",
+      "exitCode": 0,
+      "testsPassed": 158,
+      "testsFailed": 0
+    },
+    {
+      "runId": "20260809-ul07-harness-check",
+      "command": "cargo check --locked -p enforcer-harness --quiet",
+      "status": "passed",
+      "exitCode": 0,
+      "warnings": "ts-rs emitted existing serde-attribute parsing warnings; no compiler failure"
+    }
+  ],
+  "gateEvidence": {
+    "cargoFmt": {
+      "command": "cargo fmt -p enforcer-domain -p enforcer-harness -- --check",
+      "status": "passed",
+      "exitCode": 0
+    },
+    "diffCheck": {
+      "command": "git diff --check",
+      "status": "passed",
+      "exitCode": 0
+    },
+    "enforcer": {
+      "route": "files scope routed to strict Rust/domain/source/dependency/security rules",
+      "strictScanFindings": 0,
+      "sourceShapeFindings": 0,
+      "secretFindings": 0,
+      "literalRisk": "not used as a release gate for this unchanged source surface"
+    },
+    "protectedVendorPathPresent": false
+  },
+  "proves": [
+    "the current UL07 typed adapter contract is integrated and mechanically tested",
+    "allowlisted execution has explicit availability states, required/optional/advisory behavior, bounded process and input policy, and normalized evidence",
+    "the Cargo pilot is a real locked offline adapter with digest and configuration tamper coverage",
+    "arbitrary user-invoked execution remains separate from allowlisted gate execution",
+    "the graph can record UL07 as done without promoting native CyberSkills implementation, executable proof, or overall parity"
+  ],
+  "doesNotProve": [
+    "native implementation of any CyberSkills intent or third-party engine",
+    "execution or correctness of Burp, YARA, Volatility, cloud, EDR, SIEM, scanner, or other external authorities",
+    "live network, cloud, endpoint, credential, exploit, attribution, detection, remediation, or security outcomes",
+    "overall CyberSkills parity, Universal Language plan completion, or completion of any downstream workpack",
+    "the protected detecting-fileless-malware-techniques source, which remains excluded and untouched"
+  ]
+}

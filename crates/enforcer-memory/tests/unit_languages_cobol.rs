@@ -1,9 +1,9 @@
 //! Hard tests for COBOL, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_cobol`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_cobol`])
 //! -- there is no bespoke `languages::cobol` extractor to prove
 //! zero-regression against (COBOL has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::cobol`]'s own doc
+//! [`enforcer_syntax::languages::spec::LangSpec::cobol`]'s own doc
 //! comment directly: `program_definition`'s own two-level
 //! `identification_division > program_name` name resolution,
 //! `call_statement`'s own quoted-string-literal callee, `copy_statement`'s
@@ -13,8 +13,8 @@
 //! -- see that crate's own `src/lib.rs` module doc for the full
 //! grammar-sourcing rationale.
 
-use enforcer_memory::languages::generic::parse_cobol;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_cobol;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -24,7 +24,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_cobol";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

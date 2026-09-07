@@ -1,16 +1,16 @@
 //! Hard tests for Elm, onboarded directly through the generic
-//! spec-table engine ([`enforcer_memory::languages::generic::parse_elm`])
+//! spec-table engine ([`enforcer_syntax::languages::generic::parse_elm`])
 //! -- there is no bespoke `languages::elm` extractor to prove
 //! zero-regression against (Elm has never had one in this crate), so
 //! these tests assert against the grammar-shape ground truth recorded in
-//! [`enforcer_memory::languages::spec::LangSpec::elm`]'s own doc comment
+//! [`enforcer_syntax::languages::spec::LangSpec::elm`]'s own doc comment
 //! directly: `value_declaration`'s own name resolution off the nested
 //! `functionDeclarationLeft` field's first child, its own real `"body"`
 //! field, and `function_call_expr`'s module-qualifier-dropping callee
 //! reconstruction.
 
-use enforcer_memory::languages::generic::parse_elm;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_elm;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 use std::path::Path;
@@ -20,7 +20,7 @@ type TestResult = Result<(), Box<dyn Error>>;
 const FIXTURE_DIR: &str = "tests/fixtures/memory/lang_elm";
 
 fn symbol_kind<'a>(
-    symbols: &'a [enforcer_memory::parsers::SymbolRef],
+    symbols: &'a [enforcer_syntax::parsers::SymbolRef],
     name: &str,
 ) -> Option<&'a SymbolKind> {
     symbols.iter().find(|s| s.name == name).map(|s| &s.kind)

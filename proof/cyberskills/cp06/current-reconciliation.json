@@ -1,0 +1,202 @@
+{
+  "schemaVersion": "cp06.current-reconciliation.v1",
+  "workpackId": "WP/CP06",
+  "baseCommit": "d14140f36d0865b03105d20ea0049dfe197687f2",
+  "generatedAtUtc": "2026-08-09T20:00:00Z",
+  "snapshotKind": "CyberSkills security-engine consumer contract over accepted UL07",
+  "authority": {
+    "consumerContract": "crates/enforcer-harness/tests/cp06_security_consumer_contract.rs",
+    "consumerFixture": "crates/enforcer-harness/tests/fixtures/cp06_security_consumer/security-engine-contract.json",
+    "sharedContractOwner": "crates/enforcer-domain/src/harness_types.rs",
+    "sharedExecutionOwner": "crates/enforcer-harness/src/execution.rs",
+    "sharedRecordedOwner": "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
+    "authorityReason": "CP06 declares one CyberSkills security-demand contract and consumes UL07 types and parser behavior. It does not create a generic runner, registry, normalized-result schema, workspace dependency, or engine-specific adapter."
+  },
+  "ul07Dependency": {
+    "artifact": "proof/universal-language/ul07/current-reconciliation.json",
+    "artifactSha256": "3f5e9431bcd002587e6ee216edad1e00ba97be3a3eac072e777531633e275a4d",
+    "requiredBehavior": [
+      "typed executable and argument template",
+      "repository-relative working directory",
+      "bounded wall time and output",
+      "explicit availability and requirement decisions",
+      "recorded-output parser with honest unavailable/error outcomes"
+    ]
+  },
+  "securityDemand": {
+    "schemaVersion": "cyberskills.security-engine-consumer.v1",
+    "engineId": "security-engine-reference",
+    "targetKinds": [
+      "source-tree",
+      "artifact-manifest",
+      "dependency-lock"
+    ],
+    "outputProtocol": {
+      "name": "cyberskills-recorded-adapter",
+      "version": "1"
+    },
+    "policy": {
+      "executable": "security-engine-reference",
+      "argumentTemplate": [
+        "--input",
+        "{target}"
+      ],
+      "workingDirectory": "repo-relative",
+      "environment": "allowlist-only",
+      "network": "denied",
+      "credentials": "denied",
+      "timeoutMs": 1000,
+      "maxOutputBytes": 8192,
+      "maxArtifacts": 4
+    },
+    "requiredEvidence": [
+      "tool-version",
+      "executable-fingerprint",
+      "command-digest",
+      "configuration-digest",
+      "input-hashes",
+      "timestamps",
+      "normalized-findings",
+      "coverage-limitations"
+    ],
+    "outcomes": [
+      "ran",
+      "unavailable",
+      "policy-rejected",
+      "timed-out",
+      "errored",
+      "invalid-output"
+    ]
+  },
+  "conformanceMatrix": [
+    {
+      "ul07State": "available",
+      "requirement": "required",
+      "decision": "run",
+      "maySatisfyEngineComponent": true
+    },
+    {
+      "ul07State": "missing",
+      "requirement": "required",
+      "decision": "block",
+      "maySatisfyEngineComponent": false
+    },
+    {
+      "ul07State": "version-mismatch",
+      "requirement": "required",
+      "decision": "block",
+      "maySatisfyEngineComponent": false
+    },
+    {
+      "ul07State": "misconfigured",
+      "requirement": "required",
+      "decision": "block",
+      "maySatisfyEngineComponent": false
+    },
+    {
+      "ul07State": "timed-out",
+      "requirement": "required",
+      "decision": "block",
+      "maySatisfyEngineComponent": false
+    },
+    {
+      "ul07State": "failed",
+      "requirement": "required",
+      "decision": "block",
+      "maySatisfyEngineComponent": false
+    },
+    {
+      "ul07State": "malformed-output",
+      "requirement": "required",
+      "decision": "block",
+      "maySatisfyEngineComponent": false
+    },
+    {
+      "ul07State": "missing",
+      "requirement": "optional",
+      "decision": "warn",
+      "maySatisfyEngineComponent": false
+    },
+    {
+      "ul07State": "missing",
+      "requirement": "advisory",
+      "decision": "not-applicable",
+      "maySatisfyEngineComponent": false
+    },
+    {
+      "ul07State": "policy-rejected",
+      "requirement": "required",
+      "decision": "block",
+      "maySatisfyEngineComponent": false
+    }
+  ],
+  "sourceEvidence": [
+    {
+      "path": "crates/enforcer-harness/tests/cp06_security_consumer_contract.rs",
+      "sha256": "c08f5c71b81bb12bc67198bc76daf693e7e6a10f322d258d3889412298aee133",
+      "bytes": 8485,
+      "role": "typed CP06 demand contract, round-trip, policy-rejection, unavailable-outcome, and no-live-execution conformance tests"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/fixtures/cp06_security_consumer/security-engine-contract.json",
+      "sha256": "efecc4c59df9f9aea8c2009be2f799b90873add9015b89b3b10727e3cafc00f0",
+      "bytes": 1459,
+      "role": "versioned security consumer demand fixture"
+    },
+    {
+      "path": "crates/enforcer-domain/src/harness_types.rs",
+      "sha256": "2bd90c85a3c73cde2407410ece327b7ada741a32beccba00c115c67985a9c1b0",
+      "bytes": 28787,
+      "role": "accepted UL07 typed requirement, availability, decision, command, and limit contracts"
+    },
+    {
+      "path": "crates/enforcer-harness/src/execution.rs",
+      "sha256": "885f593b53899cf42cad93a1b0eb69a40f86db5686a597bd02f2aab3204ec1cd",
+      "bytes": 18448,
+      "role": "accepted UL07 allowlisted request policy boundary"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters/cyberskills/recorded.rs",
+      "sha256": "94322df77f2a9b918eef2bb457379822a33fa19e1037c4d29f48c08ceb8c5989",
+      "bytes": 8910,
+      "role": "accepted recorded-output honesty parser"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters/cyberskills/seam.rs",
+      "sha256": "0a78bbce2c7d7edbc067b68861e20d26ef838fd66d5e2b92d884a7dd3d8c7bbe",
+      "bytes": 11166,
+      "role": "accepted normalized external finding and outcome seam"
+    }
+  ],
+  "testEvidence": [
+    {
+      "runId": "20260809-cp06-security-consumer-contract",
+      "command": "cargo test --locked -p enforcer-harness --test cp06_security_consumer_contract -- --nocapture",
+      "status": "passed",
+      "exitCode": 0,
+      "testsPassed": 6,
+      "testsFailed": 0
+    },
+    {
+      "runId": "20260809-cp06-existing-cyberskills-adapters",
+      "command": "cargo test --locked -p enforcer-harness --test cyberskills_adapters -- --nocapture",
+      "status": "passed",
+      "exitCode": 0,
+      "testsPassed": 4,
+      "testsFailed": 0
+    }
+  ],
+  "proves": [
+    "CP06 has a versioned CyberSkills security-demand contract with target kinds, output protocol, policy, evidence fields, and closed outcome vocabulary",
+    "the contract consumes UL07 typed requirements, availability decisions, allowlisted request validation, and recorded-output parsing without adding a generic runner or registry",
+    "required engine components cannot be satisfied by missing, mismatched, misconfigured, timed-out, failed, malformed, policy-rejected, or dishonest recorded outcomes",
+    "the consumer contract explicitly denies network and credential access and uses repository-relative, allowlisted execution policy",
+    "the CP06 fixture and tests do not execute a live external engine"
+  ],
+  "doesNotProve": [
+    "a real third-party engine installation, executable fingerprint, live run, or engine correctness",
+    "native CyberSkills implementation, vulnerability detection, exploitability, attribution, remediation, or security outcomes",
+    "CP07 engine pilot, CP10 engine mappings, CP09 native capability waves, CP11 advisory/manual retention, or overall parity",
+    "that the protected detecting-fileless-malware-techniques source exists; it remains excluded and untouched"
+  ]
+}

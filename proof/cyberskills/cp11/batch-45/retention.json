@@ -1,0 +1,122 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-45",
+  "family": "IF/mobile-security",
+  "baselineCommit": "72b6c042e192ddc66d679758445ded596ab416fb",
+  "scope": "Retain advisory and manual content for the deterministic final mobile-security packet from immutable CP08 evidence; no native implementation, live device/app execution, endpoint/device/network/session access, credential/session handling, traffic interception, exploit delivery, runtime instrumentation, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "reverse-engineering-ios-app-with-frida",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/reverse-engineering-ios-app-with-frida/SKILL.md",
+        "sha256": "2bf855064781913c4176beeaeebec561d85e1cbdb537aa948c97d8a6276b223d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Reverse Engineering iOS App with Frida:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-81/decomposition.json",
+        "artifactSha256": "ff701913c6bad304bcf96c60eba0865b71d51e80f9a6f446fa7105839a4072cc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, certificate, and mobile API guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "testing-android-intents-for-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-android-intents-for-vulnerabilities/SKILL.md",
+        "sha256": "ea3aba349b2dc4f8d65a1e3422cd49f20042dbba0750815af6f9cb99846b9df1",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Testing Android Intents for Vulnerabilities:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-81/decomposition.json",
+        "artifactSha256": "ff701913c6bad304bcf96c60eba0865b71d51e80f9a6f446fa7105839a4072cc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, certificate, and mobile API guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "testing-mobile-api-authentication",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/testing-mobile-api-authentication/SKILL.md",
+        "sha256": "41a67ba95bc2508d236d99dd056e96fdec843abec9efa4602cb9c8dfe20d3fc8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Testing Mobile API Authentication:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-21/decomposition.json",
+        "artifactSha256": "ab23e9a0475943eb58110ebc0167d0649160da8242c36a2533a6340543ede33b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain mobile application security, static and dynamic assessment, traffic, malware, storage, deep-link, certificate, and mobile API guidance.",
+        "notProved": [
+          "Guidance is not a live device or app security assessment, exploit, or security outcome."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and app scope, legal/privacy/safety controls, data handling, analyst validation, and remediation/escalation decisions.",
+        "notProved": [
+          "No live device, app, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 3,
+    "advisoryRetained": 3,
+    "manualRetained": 3,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live mobile device, app, exploit, credential, session, traffic, endpoint, runtime instrumentation, or security outcome is proved.",
+    "No vulnerability validity, exploitability, certificate-pinning bypass success, malware detection efficacy, privacy conclusion, legal conclusion, remediation success, or security outcome is proved.",
+    "This final packet contains the remaining 3 mobile-security skills and completes CP11 retention for this intent family; it does not complete native mobile-security implementation or executable proof.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

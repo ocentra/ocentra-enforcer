@@ -1,12 +1,12 @@
 //! Hard tests for SOSL (Salesforce Object Search Language), onboarded
 //! directly through the generic spec-table engine
-//! ([`enforcer_memory::languages::generic::parse_sosl`]). Grammar:
+//! ([`enforcer_syntax::languages::generic::parse_sosl`]). Grammar:
 //! `tree-sitter-sfapex` 3.0.0's own `sosl` module, the same crate as
 //! SOQL/Apex. Matches the baseline's own `CBM_LANG_SOSL` row --
 //! `empty_types` for every array except `module_types = {"source_file"}`.
 
-use enforcer_memory::languages::generic::parse_sosl;
-use enforcer_memory::parsers::SymbolKind;
+use enforcer_syntax::languages::generic::parse_sosl;
+use enforcer_syntax::parsers::SymbolKind;
 use std::error::Error;
 use std::fs;
 

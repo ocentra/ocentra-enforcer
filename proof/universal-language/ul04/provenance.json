@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "workpack": "UL04",
+  "baselineCommit": "137f301509cd63870d217f21b92ffca7a767dd0a",
+  "managerMergeCommit": "9cf3fcf6d48f40428d39bd1172abc465b4c8564a",
+  "graph": {
+    "project": "E-ocentra-enforcer-rust-build",
+    "status": "ready",
+    "note": "post-UL03 moved syntax paths are not reflected in the existing graph index; bounded rg/source fallback was used for those symbols"
+  },
+  "runs": [
+    { "runId": "20260803040023-31c34bca", "command": "cargo test -p enforcer-syntax --test fact_contract", "status": "passed" },
+    { "runId": "20260803040030-da15439b", "command": "cargo check -p enforcer-domain", "status": "passed" },
+    { "runId": "20260803040035-d315bee1", "command": "cargo check -p enforcer-syntax", "status": "passed" },
+    { "runId": "20260803035932-09b0aadd", "command": "cargo clippy -p enforcer-syntax -- -D warnings", "status": "failed-pre-existing", "outsideScope": "crates/enforcer-domain/src/coordination_types.rs:132" }
+  ],
+  "enforcer": {
+    "exactFileScan": { "violations": 0, "warnings": 0 },
+    "scope": "13 claimed UL04 paths",
+    "diffCheck": "passed: git diff --check; rustfmt --edition 2021 --check on six Rust paths"
+  },
+  "proves": [
+    "typed syntax-domain values compile through enforcer-domain",
+    "selected fact providers distinguish parse quality and refusal outcomes",
+    "focused UL04 contract tests pass"
+  ],
+  "doesNotProve": [
+    "full workspace clippy cleanliness; pre-existing coordination_types.rs:132 remains outside UL04 ownership",
+    "semantic enforcement parity or universal language-rule coverage",
+    "production migration of validator/rule consumers"
+  ]
+}

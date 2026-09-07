@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-37",
+  "baselineCommit": "7fb43a934004fdb55264b6b7e6744fea46618c28",
+  "family": "Cloud threat detection, cloud-account discovery, credential exposure, and authorized cloud assessment",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["analyzing-azure-activity-logs-for-threats", "detecting-aws-cloudtrail-anomalies", "detecting-cloud-threats-with-guardduty", "detecting-compromised-cloud-credentials", "detecting-cryptomining-in-cloud", "detecting-shadow-it-cloud-usage", "emulating-cloud-attacks-with-stratus-red-team", "enumerating-cloud-with-cloudfox", "exploiting-aws-with-pacu", "performing-aws-account-enumeration-with-scout-suite"],
+    "reason": "Ten disjoint cloud threat, discovery, credential, cryptomining, shadow-IT, and authorized-assessment skills. Native checks are limited to static typed supplied manifests; cloud APIs, live engines, sessions, and outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-azure-activity-logs-for-threats",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-azure-activity-logs-for-threats/SKILL.md", "sha256": "f4b3c4570a860803923d76d1ab379f3e1d32a123cc26c77e301953f37164212e", "availability": "available", "license": "Apache-2.0", "anchors": ["# Analyzing Azure Activity Logs for Threats:L34"]},
+      "components": [
+        {"componentId": "analyzing-azure-activity-logs-for-threats::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Azure activity event, identity, resource, policy, finding, owner, and evidence manifests.", "notProved": ["No live Azure access, log truth, threat finding, attribution, remediation, or security outcome proof."]},
+        {"componentId": "analyzing-azure-activity-logs-for-threats::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Azure APIs, activity-log services, cloud identity, SIEM, endpoint, threat intelligence, and production authorities.", "notProved": ["No pinned adapter, live telemetry, cloud session, or normalized evidence."]},
+        {"componentId": "analyzing-azure-activity-logs-for-threats::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Azure activity-log threat-analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "analyzing-azure-activity-logs-for-threats::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, tenant/owner validation, data boundary, safety, legal/data handling, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live Azure investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-aws-cloudtrail-anomalies",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-aws-cloudtrail-anomalies/SKILL.md", "sha256": "363865b0494e93aa43154a1d613f1a8311df283207c19a901631a410e47b47f2", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting AWS CloudTrail Anomalies:L57"]},
+      "components": [
+        {"componentId": "detecting-aws-cloudtrail-anomalies::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied CloudTrail event, actor, resource, action, anomaly, owner, and evidence fields.", "notProved": ["No live CloudTrail truth, anomaly detection, attribution, containment, remediation, or security outcome proof."]},
+        {"componentId": "detecting-aws-cloudtrail-anomalies::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use AWS APIs, CloudTrail, GuardDuty, IAM/session, SIEM, endpoint, threat intelligence, and production authorities.", "notProved": ["No pinned adapter, live log service, session runtime, or normalized evidence."]},
+        {"componentId": "detecting-aws-cloudtrail-anomalies::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain CloudTrail anomaly-detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-aws-cloudtrail-anomalies::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, account/owner validation, tenant/data boundary, safety, legal/data handling, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live CloudTrail investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-cloud-threats-with-guardduty",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-cloud-threats-with-guardduty/SKILL.md", "sha256": "cefe4f2868d229653d81f673b522c9cf1773a508f690b66c7142a23301a574a5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Cloud Threats with GuardDuty:L34"]},
+      "components": [
+        {"componentId": "detecting-cloud-threats-with-guardduty::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied cloud finding, account, resource, threat, severity, owner, and evidence manifests.", "notProved": ["No GuardDuty finding truth, cloud compromise, attribution, containment, remediation, or security outcome proof."]},
+        {"componentId": "detecting-cloud-threats-with-guardduty::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use GuardDuty, cloud APIs/providers, IAM/session, SIEM, endpoint, threat intelligence, and production authorities.", "notProved": ["No pinned adapter, detection service, cloud session, or normalized evidence."]},
+        {"componentId": "detecting-cloud-threats-with-guardduty::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain GuardDuty-oriented cloud threat-detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-cloud-threats-with-guardduty::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, account/owner and tenant validation, data boundary, safety, legal/data handling, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live GuardDuty investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-compromised-cloud-credentials",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-compromised-cloud-credentials/SKILL.md", "sha256": "9c41d41d4ebbf511b41015bf0f30a93a20c6e0f573139b6cb42ed6fa4477c673", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Compromised Cloud Credentials:L61"]},
+      "components": [
+        {"componentId": "detecting-compromised-cloud-credentials::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied credential, identity, session, account, event, risk, owner, and evidence manifests.", "notProved": ["No credential compromise, session access, identity truth, revocation, containment, remediation, or security outcome proof."]},
+        {"componentId": "detecting-compromised-cloud-credentials::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud IAM/APIs, credential/session authorities, CloudTrail, GuardDuty, SIEM, endpoint, and production systems.", "notProved": ["No pinned adapter, credential authority, live session, or normalized evidence."]},
+        {"componentId": "detecting-compromised-cloud-credentials::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cloud-credential exposure and response guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-compromised-cloud-credentials::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, account/owner and tenant validation, data boundary, safety, legal/data handling, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live credential response proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-cryptomining-in-cloud",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-cryptomining-in-cloud/SKILL.md", "sha256": "401b2b47c9c753aa2d2e9344a49cb69818dd3d40fd6369ab10b1fa7f220d8611", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Cryptomining in Cloud:L57"]},
+      "components": [
+        {"componentId": "detecting-cryptomining-in-cloud::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied workload, resource, identity, usage, cost, event, finding, owner, and evidence manifests.", "notProved": ["No cryptomining activity, cloud resource truth, attribution, containment, remediation, or security outcome proof."]},
+        {"componentId": "detecting-cryptomining-in-cloud::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud providers/APIs, billing, workload, endpoint, SIEM, GuardDuty, threat intelligence, and production authorities.", "notProved": ["No pinned adapter, resource telemetry, cloud session, or normalized evidence."]},
+        {"componentId": "detecting-cryptomining-in-cloud::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cloud cryptomining detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-cryptomining-in-cloud::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, account/owner and tenant validation, data boundary, safety, legal/data handling, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live cryptomining response proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-shadow-it-cloud-usage",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-shadow-it-cloud-usage/SKILL.md", "sha256": "08619d31e4d61e97d1ea262219a9ba46bed045245ef743037232fee377591a64", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Shadow IT Cloud Usage:L31"]},
+      "components": [
+        {"componentId": "detecting-shadow-it-cloud-usage::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied cloud service, account, owner, data boundary, policy, usage, finding, and evidence manifests.", "notProved": ["No shadow-IT truth, cloud discovery, data access, attribution, containment, remediation, or security outcome proof."]},
+        {"componentId": "detecting-shadow-it-cloud-usage::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud APIs/providers, CASB/SIEM, identity/session, endpoint, network, discovery, and production authorities.", "notProved": ["No pinned adapter, cloud inventory, session runtime, or normalized evidence."]},
+        {"componentId": "detecting-shadow-it-cloud-usage::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain cloud shadow-IT governance and detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-shadow-it-cloud-usage::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization, tenant/account and owner validation, data boundary, safety, legal/data handling, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live shadow-IT investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "emulating-cloud-attacks-with-stratus-red-team",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/emulating-cloud-attacks-with-stratus-red-team/SKILL.md", "sha256": "9328fddce8fa8e43f07aa2e2c2b4db79995a21ded1bd92b4d50d1e10e593e545", "availability": "available", "license": "Apache-2.0", "anchors": ["# Emulating Cloud Attacks with Stratus Red Team:L24"]},
+      "components": [
+        {"componentId": "emulating-cloud-attacks-with-stratus-red-team::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied cloud-emulation plan, technique, scope, authorization, safety, evidence, and cleanup manifests.", "notProved": ["No Stratus execution, cloud attack, impact, detection efficacy, containment, remediation, or security outcome proof."]},
+        {"componentId": "emulating-cloud-attacks-with-stratus-red-team::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Stratus Red Team, cloud APIs/providers, IAM/session, SIEM, endpoint, threat intelligence, and production authorities.", "notProved": ["No pinned adapter, emulation runtime, cloud session, or normalized evidence."]},
+        {"componentId": "emulating-cloud-attacks-with-stratus-red-team::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized cloud attack-emulation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "emulating-cloud-attacks-with-stratus-red-team::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require explicit written authorization, account/tenant and owner validation, safety approval, data boundary, legal review, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live emulation proof and no authorization is inferred."]}
+      ]
+    },
+    {
+      "catalogId": "enumerating-cloud-with-cloudfox",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/enumerating-cloud-with-cloudfox/SKILL.md", "sha256": "6e37d27733bd9db29d362068baf901609ef8efcdc0313ab44d9ab954975e4dbf", "availability": "available", "license": "Apache-2.0", "anchors": ["# Enumerating Cloud with CloudFox:L24"]},
+      "components": [
+        {"componentId": "enumerating-cloud-with-cloudfox::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied cloud account, resource, identity, permission, route, owner, scope, and evidence manifests.", "notProved": ["No live cloud enumeration, permission truth, credential/session access, attribution, or security outcome proof."]},
+        {"componentId": "enumerating-cloud-with-cloudfox::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use CloudFox, cloud providers/APIs, IAM/session, SIEM, endpoint, network, and production authorities.", "notProved": ["No pinned adapter, cloud discovery runtime, session, or normalized evidence."]},
+        {"componentId": "enumerating-cloud-with-cloudfox::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized cloud inventory and assessment guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "enumerating-cloud-with-cloudfox::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require explicit written authorization, account/tenant and owner validation, data boundary, safety, legal review, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live enumeration proof and no authorization is inferred."]}
+      ]
+    },
+    {
+      "catalogId": "exploiting-aws-with-pacu",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/exploiting-aws-with-pacu/SKILL.md", "sha256": "13ecfee8a425bc0bfa48fa2ce881cf91e5240276440ebf1c092abdd0c33526e9", "availability": "available", "license": "Apache-2.0", "anchors": ["# Exploiting AWS with Pacu:L23"]},
+      "components": [
+        {"componentId": "exploiting-aws-with-pacu::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied AWS account, identity, permission, technique, authorization, scope, evidence, and cleanup manifests.", "notProved": ["No Pacu execution, exploitation, privilege change, credential/session access, impact, or security outcome proof."]},
+        {"componentId": "exploiting-aws-with-pacu::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Pacu, AWS APIs/providers, IAM/session, CloudTrail, GuardDuty, SIEM, endpoint, and production authorities.", "notProved": ["No pinned adapter, exploit runtime, cloud session, or normalized evidence."]},
+        {"componentId": "exploiting-aws-with-pacu::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized AWS assessment and defensive-testing guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "exploiting-aws-with-pacu::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require explicit written authorization, account/tenant and owner validation, safety approval, data boundary, legal review, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live AWS exploitation proof and no authorization is inferred."]}
+      ]
+    },
+    {
+      "catalogId": "performing-aws-account-enumeration-with-scout-suite",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-aws-account-enumeration-with-scout-suite/SKILL.md", "sha256": "4390ced60253502f3e2dc820330d4a44085e1f095aa365dfc14ccdfc4e297742", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing AWS Account Enumeration with ScoutSuite:L32"]},
+      "components": [
+        {"componentId": "performing-aws-account-enumeration-with-scout-suite::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied AWS account, resource, identity, permission, finding, owner, scope, and evidence manifests.", "notProved": ["No ScoutSuite execution, account enumeration, permission truth, credential/session access, remediation, or security outcome proof."]},
+        {"componentId": "performing-aws-account-enumeration-with-scout-suite::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use ScoutSuite, AWS APIs/providers, IAM/session, CloudTrail, GuardDuty, SIEM, endpoint, and production authorities.", "notProved": ["No pinned adapter, discovery runtime, cloud session, or normalized evidence."]},
+        {"componentId": "performing-aws-account-enumeration-with-scout-suite::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain authorized AWS account-assessment guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-aws-account-enumeration-with-scout-suite::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require explicit written authorization, account/tenant and owner validation, safety approval, data boundary, legal review, severity, containment, remediation, rollback, and disclosure decisions.", "notProved": ["No live AWS enumeration proof and no authorization is inferred."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Cloud providers/APIs, Azure activity logs, CloudTrail, GuardDuty, CloudFox, Pacu, ScoutSuite, Stratus Red Team, sessions, SIEM, endpoints, and production authorities remain blocked external engines.",
+    "No live discovery, enumeration, log truth, credential compromise, cryptomining, shadow-IT finding, attack emulation, exploitation, attribution, containment, remediation, rollback, disclosure, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}

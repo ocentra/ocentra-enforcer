@@ -1,0 +1,332 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-41",
+  "family": "IF/malware-analysis",
+  "baselineCommit": "2c9135414bc48617aafd7aa1846d71ad93daeb07",
+  "scope": "Retain advisory and manual content for the deterministic second malware-analysis packet from immutable CP08 evidence; no native implementation, live sample execution, detonation, reverse engineering, attribution, endpoint, network, sandbox, scanner, or external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "analyzing-malware-behavior-with-cuckoo-sandbox",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-malware-behavior-with-cuckoo-sandbox/SKILL.md",
+        "sha256": "f3966c7347c6e044dc6cee38438712d83455f9371918edf0851e6a8229a510fe",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Malware Behavior with Cuckoo Sandbox:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-malware-persistence-with-autoruns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-malware-persistence-with-autoruns/SKILL.md",
+        "sha256": "50d8ae2e572a14431bfc0ffc7ca2e1a221e3f0f6293011f28859f44f8f761c35",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Malware Persistence with Autoruns:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-malware-sandbox-evasion-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-malware-sandbox-evasion-techniques/SKILL.md",
+        "sha256": "d606558fa08cd8a4dbae71f5bd8d3c6c31c3437a22e73153f3c1d46a26b1fd71",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Malware Sandbox Evasion Techniques:L37"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-memory-dumps-with-volatility",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-memory-dumps-with-volatility/SKILL.md",
+        "sha256": "59e91aebae4dbc1f6f7bc980118e7ec5e7bfe0f0e679f3202e8bddf74933a84b",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Memory Dumps with Volatility:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-15/decomposition.json",
+        "artifactSha256": "0567ccb73747be5c0cb5840c2ac1fdc1ccd66a6f396ab1e8739485956314c2f2"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-network-covert-channels-in-malware",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-network-covert-channels-in-malware/SKILL.md",
+        "sha256": "72063ca4a9c080cc12c85afa0d804c1d081752d9f6888adc6f15bea2f32dfb8c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Network Covert Channels in Malware:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-43/decomposition.json",
+        "artifactSha256": "7d0adb562e5d6720ddadfaaee40d2b53aee6156518e74efb242db1b23cea56fc"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-network-traffic-of-malware",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-network-traffic-of-malware/SKILL.md",
+        "sha256": "83c6be312c1b2a4e2037ed6e0ff9665cbf98cf0eee5c422adea710392ee0a09c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Network Traffic of Malware:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-13/decomposition.json",
+        "artifactSha256": "3afbaad52b35c81b2bb1c6aa9150cc405d59449346a9bb61e73e21b195940aea"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-packed-malware-with-upx-unpacker",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-packed-malware-with-upx-unpacker/SKILL.md",
+        "sha256": "cb7f97168627a46b22c47bcb8be2eb1b99552290f7bc6eef976501e4d83316e3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Packed Malware with UPX Unpacker:L32"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-pdf-malware-with-pdfid",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-pdf-malware-with-pdfid/SKILL.md",
+        "sha256": "b0415bfc73d56cd6e0ea4f489b212f9a684f1c0caeffefae697058c064c5b4f0",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing PDF Malware with PDFiD:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-ransomware-encryption-mechanisms",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-ransomware-encryption-mechanisms/SKILL.md",
+        "sha256": "9b0ad1aeba938fb63912ea25b83f01b14be7bc3e968dff16a06e11859f8aa062",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Ransomware Encryption Mechanisms:L51"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-17/decomposition.json",
+        "artifactSha256": "49182980dd31f0dc45b729d283dae3efd3d2f481a5ba7a21e2aff069ce9a658b"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "analyzing-supply-chain-malware-artifacts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-supply-chain-malware-artifacts/SKILL.md",
+        "sha256": "4a899059f4421c14115db16b5b5c37852845817cfecc58f188f747c8f2b5cc95",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Analyzing Supply Chain Malware Artifacts:L44"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-14/decomposition.json",
+        "artifactSha256": "4a4c8f1c9aa2da11921fb81700d3bfdde182c9f6aca81eb3eb2f6520cfbfd3a5"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain malware behavior, persistence, sandbox-evasion, memory, network, packing, PDF, ransomware, and supply-chain analysis guidance.",
+        "notProved": [
+          "Guidance is not sample execution, detonation, attribution, or analysis outcome truth."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, legal scope, isolated-lab safety, privacy controls, evidence handling, analyst validation, and escalation decisions.",
+        "notProved": [
+          "No live sample, endpoint, process, network, tool execution, attribution, or security outcome is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live malware execution, detonation, reverse engineering, analysis, attribution, endpoint, network, sandbox, scanner, or production execution is proved.",
+    "No sample validity, family attribution, persistence, exploitability, detection efficacy, remediation success, legal conclusion, privacy conclusion, or security outcome is proved.",
+    "This packet contains malware-analysis skills 11 through 20; the remaining 18 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

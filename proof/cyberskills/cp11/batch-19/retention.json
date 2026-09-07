@@ -1,0 +1,331 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-19",
+  "family": "IF/cryptography",
+  "baselineCommit": "7da281f08432d8178ac73c7eab4e6d204d6e9cc2",
+  "scope": "Retain advisory and manual content for the next deterministic cryptography packet from immutable CP08 evidence; no native implementation, external execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "configuring-certificate-authority-with-openssl",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-certificate-authority-with-openssl/SKILL.md",
+        "sha256": "64c09e09497a6556396f08fd699cabf8c823ddc38037d11c1da0f9a92610f47d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring Certificate Authority with OpenSSL:L27"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-25/decomposition.json",
+        "artifactSha256": "165547360420e1d944b6fa3ef4eca6134dbd5a106dd01c281456df0a0e0efa6a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain CA hierarchy, extension, and operational configuration guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain trust, key ceremony, revocation, and administrator decisions.",
+        "notProved": [
+          "No live operational or governance proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-hsm-for-key-storage",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-hsm-for-key-storage/SKILL.md",
+        "sha256": "75852f7ce6aefdf042916a4a1afc78092bee02318f25aa76f2e54ad75b7cb742",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring HSM for Key Storage:L34"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-25/decomposition.json",
+        "artifactSha256": "165547360420e1d944b6fa3ef4eca6134dbd5a106dd01c281456df0a0e0efa6a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain HSM architecture, compliance, and operational guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain key ceremony, custody, recovery, and authorization decisions.",
+        "notProved": [
+          "No live operational or governance proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "configuring-tls-1-3-for-secure-communications",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/configuring-tls-1-3-for-secure-communications/SKILL.md",
+        "sha256": "f98d7ad59b93bf0fe740ba07dc0651c98c94fdb946a5f52755365a9698624e28",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Configuring TLS 1.3 for Secure Communications:L28"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-25/decomposition.json",
+        "artifactSha256": "165547360420e1d944b6fa3ef4eca6134dbd5a106dd01c281456df0a0e0efa6a"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain TLS version, cipher, trust, and deployment guidance.",
+        "notProved": [
+          "Guidance is not enforcement."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Retain endpoint ownership, compatibility, exception, and rollout decisions.",
+        "notProved": [
+          "No live operational or governance proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-aes-encryption-for-data-at-rest",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-aes-encryption-for-data-at-rest/SKILL.md",
+        "sha256": "7a1c78a8d8e6945d84b98c583295b6f2a584d4649b7f9579f8c9cb82393cf221",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing AES Encryption for Data at Rest:L27"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive AES selection, data-at-rest protection, key-management, rotation, and validation guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove confidentiality or cryptographic strength."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, ownership, key custody, legal/privacy/safety review, data handling, algorithm approval, validation, rotation, revocation, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human encryption, key-custody, rotation, or recovery decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-digital-signatures-with-ed25519",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-digital-signatures-with-ed25519/SKILL.md",
+        "sha256": "32475fb6bf39692a605fb120a2500c84771386077c9ff26736fd8097e4054417",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Digital Signatures with Ed25519:L26"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive signature, key lifecycle, artifact integrity, verification, and trust-chain guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove authenticity or integrity."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, ownership, key custody, legal/privacy/safety review, signer approval, trust validation, rotation, revocation, release, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human signing, trust, release, revocation, or recovery decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-end-to-end-encryption-for-messaging",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-end-to-end-encryption-for-messaging/SKILL.md",
+        "sha256": "b3c497542f0c8910d7e1b7af5d22397bead328c6fdee7df477fa9bef74f18f3d",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing End-to-End Encryption for Messaging:L27"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive secure-messaging, participant verification, key lifecycle, metadata, and recovery guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove message confidentiality or authenticity."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, participant ownership, legal/privacy/safety review, data handling, key custody, enrollment, recovery, validation, revocation, and disclosure decisions.",
+        "notProved": [
+          "No human participant, key, recovery, privacy, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-envelope-encryption-with-aws-kms",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-envelope-encryption-with-aws-kms/SKILL.md",
+        "sha256": "40eb866b281428f5eebb100847ee7a451b34951a73a230a6163e9c41f879d535",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "### Envelope Encryption Flow:L62"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-04/decomposition.json",
+        "artifactSha256": "04cdd6b0cda44129373c802694deb5bf606b8a8910003663f52ced1ce7f41df9"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain envelope-encryption design, rotation, error handling, and integration guidance.",
+        "notProved": [
+          "No cryptographic assurance claim."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Choose key ownership, rotation, data classification, and application rollout controls.",
+        "notProved": [
+          "No KMS or application proof."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-jwt-signing-and-verification",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-jwt-signing-and-verification/SKILL.md",
+        "sha256": "2a21f1cb82ab50da3e2ddceb37ef6ae2c999243b3d78ff9415fd03980e303231",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing JWT Signing and Verification:L26"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive JWT algorithm, claim, key lifecycle, validation, issuer, audience, and session guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove token validity or authorization."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, owner approval, legal/privacy/safety review, data handling, claim validation, key custody, rotation, revocation, session, and disclosure decisions.",
+        "notProved": [
+          "No human token, authorization, key, revocation, or session decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-rsa-key-pair-management",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-rsa-key-pair-management/SKILL.md",
+        "sha256": "eb4a37b4d46fe5409fde7de535f28697df38fc8758cd082a7d7b76860b2f2932",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing RSA Key Pair Management:L27"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive RSA key generation, storage, certificate, rotation, revocation, backup, and recovery guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove key protection or trust."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, ownership, key custody, legal/privacy/safety review, purpose approval, validation, rotation, revocation, recovery, and disclosure decisions.",
+        "notProved": [
+          "No human key-custody, certificate, rotation, revocation, or recovery decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "implementing-zero-knowledge-proof-for-authentication",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-zero-knowledge-proof-for-authentication/SKILL.md",
+        "sha256": "0173432187bfcea2a239a240780d8f4c78ae67a654370d2afef94168197b2c74",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Implementing Zero-Knowledge Proof for Authentication:L26"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-45/decomposition.json",
+        "artifactSha256": "c7e7b62aaa9e99145f493f3bfcc5cddb5b37c65f49c6c8da874f4954120fa570"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive zero-knowledge, protocol, credential, verifier, privacy, and recovery guidance.",
+        "notProved": [
+          "Guidance is not enforcement and does not prove zero-knowledge or authentication properties."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, scope, participant ownership, legal/privacy/safety review, data handling, protocol approval, enrollment, recovery, revocation, validation, and disclosure decisions.",
+        "notProved": [
+          "No human proof, enrollment, authentication, revocation, or recovery decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live OpenSSL, HSM, KMS, TLS endpoint, certificate authority, messaging service, identity provider, hashcat, cloud, device, key store, network, or production cryptographic execution is proved.",
+    "No key strength, confidentiality, authenticity, integrity, signature, certificate, rotation, encryption, decryption, authentication, interoperability, migration, audit, cracking, compliance, or security outcome is proved.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

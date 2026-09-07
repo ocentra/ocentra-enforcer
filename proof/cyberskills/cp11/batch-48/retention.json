@@ -1,0 +1,272 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-48",
+  "family": "IF/network-security",
+  "baselineCommit": "ad04376c49aa4b9d9bb630bc8714f9fce601c435",
+  "scope": "Retain advisory and manual content for the deterministic third network-security packet from immutable CP08 evidence; native predicates are limited to static supplied route, protocol, DNS, flow, segmentation, firewall, IDS, control, and evidence manifests; no live network, host, DNS, packet capture, scanner, exploit, credential, session, or production execution, vendor read, or ledger mutation.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "implementing-bgp-security-with-rpki",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-bgp-security-with-rpki/SKILL.md",
+        "sha256": "ec89c2b5347ce15334ed3272d3d62e84482fac32ef1778a3fe1916255d3cc04f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing BGP Security with RPKI:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-66/decomposition.json",
+        "artifactSha256": "4f7cae0bfe4d287767ddc758df9fcd729a6e879f93376818cccf55d4503e3f9c"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain routing policy, RPKI, route validation, network resilience, monitoring, and defensive network-hardening guidance.",
+        "notProved": ["Guidance is not live route validation, BGP state, hijack prevention, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, ASN and network ownership, legal/privacy/safety review, change approval, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live router, registry, repository, route, credential, session, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-browser-isolation-for-zero-trust",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-browser-isolation-for-zero-trust/SKILL.md",
+        "sha256": "36eb00c5faffac7b22a345698e0c2afb3345e9f319a91f26f66174a8bf4e76c2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Browser Isolation for Zero Trust:L69"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-19/decomposition.json",
+        "artifactSha256": "9b74d5c4e77fad1360856a687f44adc3c230254f695d5bcfe627a8e866e953aa"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain browser isolation, URL classification, zero-trust access, identity, monitoring, and rollout guidance.",
+        "notProved": ["Guidance is not live browser isolation, policy enforcement, telemetry truth, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, browser and identity ownership, legal/privacy/safety review, data handling, exception approval, rollback, and disclosure decisions.",
+        "notProved": ["No live browser, identity provider, endpoint, session, credential, or production action is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-ddos-mitigation-with-cloudflare",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-ddos-mitigation-with-cloudflare/SKILL.md",
+        "sha256": "daed2fabc2e09dcac9226b7f50b8025d6f2deb40690bb2fc169dd9575192a962",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing DDoS Mitigation with Cloudflare:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-66/decomposition.json",
+        "artifactSha256": "4f7cae0bfe4d287767ddc758df9fcd729a6e879f93376818cccf55d4503e3f9c"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain DDoS planning, resilience, capacity, CDN/WAF review, monitoring, and defensive continuity guidance.",
+        "notProved": ["Guidance is not live traffic, Cloudflare zone state, mitigation efficacy, availability, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, zone and origin ownership, legal/privacy/safety review, change approval, stop conditions, rollback, remediation, and disclosure decisions.",
+        "notProved": ["No live Cloudflare, DNS, WAF, CDN, origin, traffic, credential, session, or production mitigation is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-network-access-control",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-access-control/SKILL.md",
+        "sha256": "2ececc3814916d44dba213ddff06309623e8ecfd9db3eef1fa59f8d1e80d1bd2",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Access Control:L30"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain network admission, segmentation, identity, device posture, policy review, monitoring, and defensive control guidance.",
+        "notProved": ["Guidance is not live NAC enforcement, device posture, identity state, network access, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network ownership, legal/privacy/safety review, least-privilege approval, change control, rollback, and remediation decisions.",
+        "notProved": ["No live switch, controller, endpoint, identity, session, credential, or production enforcement is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-network-access-control-with-cisco-ise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-access-control-with-cisco-ise/SKILL.md",
+        "sha256": "9a0d1fa0124884917d623001b574cea7c1c115306ddb14b5a2c7a494774da318",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Access Control with Cisco ISE:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-42/decomposition.json",
+        "artifactSha256": "4f467e2614aba571a4af6cf521b1676d3bcf043b92f4169e94dbc20953bd9685"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain Cisco ISE, 802.1X, posture, identity, VLAN, policy, monitoring, and defensive admission-control guidance.",
+        "notProved": ["Guidance is not live Cisco ISE state, authentication, authorization, posture, network access, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, device and network ownership, legal/privacy/safety review, credential custody, change approval, rollback, and incident decisions.",
+        "notProved": ["No live Cisco ISE, switch, endpoint, identity, session, credential, or production enforcement is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-network-intrusion-prevention-with-suricata",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-intrusion-prevention-with-suricata/SKILL.md",
+        "sha256": "4ea61fa392fa24e631afc3f1861eb02fa778854d0bfb485190569f1d33e3e347",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Intrusion Prevention with Suricata:L33"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain IDS/IPS rule review, packet analysis, alert triage, monitoring, tuning, and defensive network-detection guidance.",
+        "notProved": ["Guidance is not live packet capture, Suricata execution, detection efficacy, blocking, attribution, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, network scope, legal/privacy/safety review, safe mode, change approval, stop conditions, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live Suricata, interface, packet stream, rule deployment, credential, session, or production blocking is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-network-segmentation-with-firewall-zones",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-segmentation-with-firewall-zones/SKILL.md",
+        "sha256": "19ac72a46949dec9d904e127cc2959dfd80081bfb0c2f426bfa38445c0390cc3",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Segmentation with Firewall Zones:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain segmentation, firewall-zone, trust-boundary, rule-review, monitoring, and defensive isolation guidance.",
+        "notProved": ["Guidance is not live firewall state, route behavior, segmentation enforcement, isolation efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and network ownership, legal/privacy/safety review, rule approval, maintenance window, rollback, and remediation decisions.",
+        "notProved": ["No live firewall, controller, route, endpoint, credential, session, or production enforcement is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-network-traffic-analysis-with-arkime",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-traffic-analysis-with-arkime/SKILL.md",
+        "sha256": "4cd36418496ee2b2b1b2144a50784b60f8a28b3b754153e2e695b0a1442d8998",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Traffic Analysis with Arkime:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain packet and flow analysis, session review, indexing, hunting, retention, monitoring, and defensive network-investigation guidance.",
+        "notProved": ["Guidance is not live Arkime, packet capture, session truth, attribution, detection efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, capture scope, legal/privacy review, data handling, retention approval, analyst validation, and disclosure decisions.",
+        "notProved": ["No live interface, packet capture, browser, endpoint, credential, session, or production investigation is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-network-traffic-baselining",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-traffic-baselining/SKILL.md",
+        "sha256": "0a3285e1277530a265f6bcb0655ef9a0e52bff60ee883a2afad06e550431d07f",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Network Traffic Baselining:L31"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain traffic-baseline design, flow metrics, anomaly review, thresholds, monitoring, and defensive network-operations guidance.",
+        "notProved": ["Guidance is not live traffic, baseline truth, anomaly detection efficacy, network state, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, network scope, privacy/data review, threshold approval, stop conditions, analyst validation, rollback, and remediation decisions.",
+        "notProved": ["No live flow source, packet capture, endpoint, session, credential, or production monitoring is proved."]
+      }
+    },
+    {
+      "catalogId": "implementing-next-generation-firewall-with-palo-alto",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/implementing-next-generation-firewall-with-palo-alto/SKILL.md",
+        "sha256": "7e06cdcf4481fd6bbc6b86b6e39207b56d5985f9729d0f48e5cd98e44d04d865",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Implementing Next-Generation Firewall with Palo Alto:L34"]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-46/decomposition.json",
+        "artifactSha256": "6950c185e0bb842a1887e2e0713d92ac5f9431365133aa804664b0ea4047b8d7"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain firewall policy, application control, segmentation, threat prevention, logging, change review, and defensive network-control guidance.",
+        "notProved": ["Guidance is not live Palo Alto state, traffic inspection, policy enforcement, detection efficacy, or security outcome truth."]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, firewall and network ownership, legal/privacy/safety review, rule approval, maintenance window, rollback, analyst validation, and disclosure decisions.",
+        "notProved": ["No live firewall, controller, interface, packet, endpoint, credential, session, or production enforcement is proved."]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 10,
+    "advisoryRetained": 10,
+    "manualRetained": 10,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live network, host, DNS, packet capture, scanner, exploit, credential, session, wireless interface, or production action is proved.",
+    "No route, RPKI, browser-isolation, DDoS, NAC, IDS/IPS, segmentation, packet-analysis, traffic-baseline, firewall, detection, enforcement, attribution, or security outcome is proved.",
+    "This packet contains the third 10 network-security skills; the remaining 13 family skills are not included.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools and repositories are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

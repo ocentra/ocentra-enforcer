@@ -1,0 +1,204 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-52",
+  "baselineCommit": "82d8639e2999a5150aa41e4506f8cf751895041a",
+  "family": "Canonical-order mixed identity, cloud, blockchain, memory, IOC, URL, audit-log, and PowerShell analysis skills",
+  "status": "approved",
+  "selection": {
+    "catalogIds": [
+      "abusing-dpapi-for-credential-access",
+      "abusing-shadow-credentials-for-privesc",
+      "analyzing-cloud-storage-access-patterns",
+      "analyzing-ethereum-smart-contract-vulnerabilities",
+      "analyzing-heap-spray-exploitation",
+      "analyzing-indicators-of-compromise",
+      "analyzing-malicious-url-with-urlscan",
+      "analyzing-office365-audit-logs-for-compromise",
+      "analyzing-powershell-empire-artifacts",
+      "analyzing-powershell-script-block-logging"
+    ],
+    "reason": "Deterministic lexicographic selection of the next ten unaccepted vendor identities. The set is intentionally heterogeneous under canonical-order governance; each skill is decomposed independently into supplied-manifest-only native validation, blocked external authority, retained advisory guidance, and retained manual authority."
+  },
+  "skills": [
+    {
+      "catalogId": "abusing-dpapi-for-credential-access",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/abusing-dpapi-for-credential-access/SKILL.md",
+        "sha256": "c40816ddec253d2db7a8392ca9c48ec1e6f50e3c51ca040a36938396379b7e13",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Abusing DPAPI for Credential Access:L23"]
+      },
+      "components": [
+        {"componentId": "abusing-dpapi-for-credential-access::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied DPAPI, identity, credential, host, key, scope, authorization, provenance, and evidence manifests.", "notProved": ["No live DPAPI, credential access, key use, decryption, identity, host, extraction, or security outcome is proved."]},
+        {"componentId": "abusing-dpapi-for-credential-access::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Windows DPAPI, hosts, processes, credential stores, identities, endpoint tools, memory access, or production authorities.", "notProved": ["No live key, credential, host, process, endpoint, extraction, decryption, or normalized access result."]},
+        {"componentId": "abusing-dpapi-for-credential-access::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive credential protection, DPAPI key custody, detection, containment, and remediation guidance.", "notProved": ["Guidance is not credential access and does not prove protection or compromise."]},
+        {"componentId": "abusing-dpapi-for-credential-access::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, identity and host ownership, legal/privacy/safety review, credential and key handling, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human credential, key, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "abusing-shadow-credentials-for-privesc",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/abusing-shadow-credentials-for-privesc/SKILL.md",
+        "sha256": "dfa41cec76f10e0dae86311024aadae408597d83b74386a0f0937e32f5342e09",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Abusing Shadow Credentials for Privilege Escalation:L23"]
+      },
+      "components": [
+        {"componentId": "abusing-shadow-credentials-for-privesc::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied directory identity, certificate, key, device, owner, entitlement, scope, authorization, and evidence manifests.", "notProved": ["No live directory, shadow credential, certificate, privilege escalation, authentication, access, or security outcome is proved."]},
+        {"componentId": "abusing-shadow-credentials-for-privesc::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Active Directory, Entra or IdP authorities, certificate services, devices, sessions, credential tools, endpoints, or production identity systems.", "notProved": ["No live directory object, certificate, key, session, privilege, authentication, escalation, or normalized result."]},
+        {"componentId": "abusing-shadow-credentials-for-privesc::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive directory, certificate, identity lifecycle, least-privilege, detection, and remediation guidance.", "notProved": ["Guidance is not directory enforcement and does not prove identity security or escalation."]},
+        {"componentId": "abusing-shadow-credentials-for-privesc::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, directory and identity ownership, legal/privacy/safety review, key and credential handling, validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human identity, certificate, escalation, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-cloud-storage-access-patterns",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-cloud-storage-access-patterns/SKILL.md",
+        "sha256": "ce5eb7439bfcceab20129e96af4286fa7854009e046deef930eacd3163b99432",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Cloud Storage Access Patterns:L42"]
+      },
+      "components": [
+        {"componentId": "analyzing-cloud-storage-access-patterns::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied cloud bucket, object, identity, access, timestamp, region, policy, owner, provenance, and evidence manifests.", "notProved": ["No live cloud storage, access pattern, object exposure, identity activity, ownership, finding, or security outcome is proved."]},
+        {"componentId": "analyzing-cloud-storage-access-patterns::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use cloud APIs, storage services, CloudTrail, provider IAM, SIEM, CSPM, network, endpoint, or production authorities.", "notProved": ["No live bucket, object, API, log, identity, policy, exposure, finding, or normalized cloud result."]},
+        {"componentId": "analyzing-cloud-storage-access-patterns::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive cloud storage, access review, least privilege, logging, privacy, monitoring, and remediation guidance.", "notProved": ["Guidance is not cloud observation and does not prove access patterns, exposure, or control effectiveness."]},
+        {"componentId": "analyzing-cloud-storage-access-patterns::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, tenant and storage ownership, legal/privacy/safety review, data boundaries, provider terms, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human cloud, data, access, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-ethereum-smart-contract-vulnerabilities",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-ethereum-smart-contract-vulnerabilities/SKILL.md",
+        "sha256": "40c2f5b831e16f33ad86377e9c1a99d165519c798714ebcd2e1981785844aa9c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Ethereum Smart Contract Vulnerabilities:L29"]
+      },
+      "components": [
+        {"componentId": "analyzing-ethereum-smart-contract-vulnerabilities::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied contract source, bytecode, ABI, chain, address, transaction, finding, owner, scope, provenance, and evidence manifests.", "notProved": ["No live chain, contract execution, transaction, exploitability, asset loss, vulnerability, or security outcome is proved."]},
+        {"componentId": "analyzing-ethereum-smart-contract-vulnerabilities::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Ethereum nodes, wallets, chains, RPC providers, blockchain explorers, fuzzers, exploit tools, deployments, or production assets.", "notProved": ["No live node, wallet, contract, transaction, deployment, exploit, asset, finding, or normalized chain result."]},
+        {"componentId": "analyzing-ethereum-smart-contract-vulnerabilities::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive smart-contract review, access control, arithmetic, upgrade, testing, evidence, and remediation guidance.", "notProved": ["Guidance is not execution and does not prove contract safety, vulnerability, or asset protection."]},
+        {"componentId": "analyzing-ethereum-smart-contract-vulnerabilities::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, contract and asset ownership, legal/privacy/safety review, key and wallet handling, test boundaries, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human contract, wallet, exploit, asset, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-heap-spray-exploitation",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-heap-spray-exploitation/SKILL.md",
+        "sha256": "93825dc2e7d0ba8cc87356cc2edf5d7837b23d41cbec273dcb2d1c870602f4bd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Heap Spray Exploitation:L27"]
+      },
+      "components": [
+        {"componentId": "analyzing-heap-spray-exploitation::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied sample, memory-layout, browser or process, payload, mitigation, test-scope, owner, provenance, and evidence manifests.", "notProved": ["No live heap, process, browser, payload, memory corruption, exploitation, code execution, or security outcome is proved."]},
+        {"componentId": "analyzing-heap-spray-exploitation::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use browsers, processes, runtimes, debuggers, memory access, exploit frameworks, payload execution, endpoints, or production systems.", "notProved": ["No live process, heap, browser, debugger, payload, exploit, code execution, finding, or normalized result."]},
+        {"componentId": "analyzing-heap-spray-exploitation::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive memory-safety, browser hardening, mitigation, exploit analysis, containment, and remediation guidance.", "notProved": ["Guidance is not execution and does not prove memory safety, exploitability, or mitigation effectiveness."]},
+        {"componentId": "analyzing-heap-spray-exploitation::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, sample and system ownership, legal/safety/privacy review, payload and data boundaries, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human sample, memory, exploit, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-indicators-of-compromise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-indicators-of-compromise/SKILL.md",
+        "sha256": "4d6ef90f4bbd4a5ff414201a6606f2492bbd1149afd06570c9318dae8fcae7ff",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Indicators of Compromise:L61"]
+      },
+      "components": [
+        {"componentId": "analyzing-indicators-of-compromise::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied IOC, artifact, hash, domain, IP, URL, timestamp, source, confidence, relationship, provenance, and evidence manifests.", "notProved": ["No live IOC collection, enrichment, freshness, validity, attribution, detection, compromise, or security outcome is proved."]},
+        {"componentId": "analyzing-indicators-of-compromise::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live threat feeds, DNS, WHOIS, URL, malware, endpoint, SIEM, TIP, MISP, OpenCTI, enrichment, or network authorities.", "notProved": ["No live IOC, source, feed, enrichment, endpoint, network, detection, attribution, finding, or normalized IOC result."]},
+        {"componentId": "analyzing-indicators-of-compromise::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive IOC handling, defanging, source evaluation, confidence, enrichment, detection, sharing, and remediation guidance.", "notProved": ["Guidance is not enrichment and does not prove IOC validity, detection, attribution, or compromise."]},
+        {"componentId": "analyzing-indicators-of-compromise::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, source and asset ownership, legal/privacy/ethics review, provider terms, data handling, analyst validation, uncertainty, severity, containment, remediation, escalation, and disclosure decisions.", "notProved": ["No human IOC validation, attribution, containment, remediation, escalation, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-malicious-url-with-urlscan",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-malicious-url-with-urlscan/SKILL.md",
+        "sha256": "82f4a952f988eb241bed631580afd6fb3287bcb4463ceaf3648fe29ba1a7eedd",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Malicious URL with URLScan:L31"]
+      },
+      "components": [
+        {"componentId": "analyzing-malicious-url-with-urlscan::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied URL, domain, redirect, certificate, source, timestamp, IOC, reputation, scope, provenance, and evidence manifests.", "notProved": ["No live URLScan submission, browser navigation, content, redirect, reputation, maliciousness, attribution, or security outcome is proved."]},
+        {"componentId": "analyzing-malicious-url-with-urlscan::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use URLScan, browsers, live URLs, DNS, certificate, hosting, malware, network, reputation, or production authorities.", "notProved": ["No live URL, browser, scan, redirect, certificate, host, content, reputation, finding, or normalized URL result."]},
+        {"componentId": "analyzing-malicious-url-with-urlscan::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive URL triage, defanging, source evaluation, privacy, browsing safety, evidence, reporting, and remediation guidance.", "notProved": ["Guidance is not browsing or scanning and does not prove URL maliciousness, ownership, or detection."]},
+        {"componentId": "analyzing-malicious-url-with-urlscan::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, URL and asset ownership, legal/privacy/ethics review, provider terms, data handling, safe-browsing boundaries, analyst validation, severity, containment, remediation, and disclosure decisions.", "notProved": ["No human URL scan, browsing, finding, attribution, containment, remediation, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-office365-audit-logs-for-compromise",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-office365-audit-logs-for-compromise/SKILL.md",
+        "sha256": "9e9561397e5e34f45771fe3570536163fca1a07c64e299643dc1578717438bb4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing Office 365 Audit Logs for Compromise:L31"]
+      },
+      "components": [
+        {"componentId": "analyzing-office365-audit-logs-for-compromise::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Office 365 audit event, identity, mailbox, application, timestamp, IP, action, source, confidence, owner, and evidence manifests.", "notProved": ["No live Office 365 tenant, audit log truth, account compromise, identity activity, attribution, finding, or security outcome is proved."]},
+        {"componentId": "analyzing-office365-audit-logs-for-compromise::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Microsoft 365 APIs, tenants, audit services, mailboxes, IdP sessions, Defender, SIEM, endpoints, or production authorities.", "notProved": ["No live tenant, mailbox, API, log, identity, session, alert, finding, attribution, or normalized audit result."]},
+        {"componentId": "analyzing-office365-audit-logs-for-compromise::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive audit-log review, identity monitoring, source validation, incident triage, containment, and remediation guidance.", "notProved": ["Guidance is not log access and does not prove tenant activity, compromise, or detection."]},
+        {"componentId": "analyzing-office365-audit-logs-for-compromise::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, tenant and mailbox ownership, legal/privacy review, data boundaries, provider terms, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human tenant, log, compromise, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-powershell-empire-artifacts",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-powershell-empire-artifacts/SKILL.md",
+        "sha256": "30e3d4497fc0a6d6f5ff6ad9fd41d80904ef91a51b7fb08da01f1e8dd6110668",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing PowerShell Empire Artifacts:L44"]
+      },
+      "components": [
+        {"componentId": "analyzing-powershell-empire-artifacts::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied PowerShell, Empire, script, command, process, host, timestamp, IOC, source, confidence, and evidence manifests.", "notProved": ["No live PowerShell, Empire, process, host, script execution, persistence, attribution, finding, or security outcome is proved."]},
+        {"componentId": "analyzing-powershell-empire-artifacts::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use PowerShell, Empire, hosts, processes, endpoints, memory, EDR, SIEM, sandboxes, script runtimes, or production authorities.", "notProved": ["No live script, process, host, runtime, endpoint, EDR, SIEM, execution, persistence, or normalized artifact result."]},
+        {"componentId": "analyzing-powershell-empire-artifacts::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive PowerShell, Empire artifact, script-block, endpoint, detection, triage, containment, and remediation guidance.", "notProved": ["Guidance is not execution or endpoint analysis and does not prove malware, persistence, or detection."]},
+        {"componentId": "analyzing-powershell-empire-artifacts::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, host and artifact ownership, legal/privacy/safety review, sample and data handling, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human script, artifact, host, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    },
+    {
+      "catalogId": "analyzing-powershell-script-block-logging",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/analyzing-powershell-script-block-logging/SKILL.md",
+        "sha256": "6d2aaf3523f8ad82828365000f286f5dab23aa4c162e1850ea92fd1ceca68db4",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": ["# Analyzing PowerShell Script Block Logging:L33"]
+      },
+      "components": [
+        {"componentId": "analyzing-powershell-script-block-logging::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied script-block event, command, host, user, process, timestamp, policy, source, confidence, owner, and evidence manifests.", "notProved": ["No live PowerShell logging, event truth, script execution, process, identity, attribution, detection, or security outcome is proved."]},
+        {"componentId": "analyzing-powershell-script-block-logging::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use PowerShell, Windows eventing, hosts, processes, EDR, SIEM, log collectors, endpoints, script runtimes, or production authorities.", "notProved": ["No live event, host, process, script, collector, EDR, SIEM, execution, detection, or normalized logging result."]},
+        {"componentId": "analyzing-powershell-script-block-logging::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain defensive script-block logging, policy, privacy, event validation, detection, triage, containment, and remediation guidance.", "notProved": ["Guidance is not logging and does not prove event completeness, execution, attribution, or detection."]},
+        {"componentId": "analyzing-powershell-script-block-logging::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written authorization and scope, host and log ownership, legal/privacy/safety review, data handling, retention, analyst validation, severity, containment, remediation, rollback, recovery, and disclosure decisions.", "notProved": ["No human logging, event, execution, containment, remediation, rollback, recovery, or disclosure decision is proved."]}
+      ]
+    }
+  ],
+  "derivedCounts": {
+    "skillsAudited": 10,
+    "availableSkills": 10,
+    "sourceUnavailableSkills": 0,
+    "nativePredicateProposed": 10,
+    "externalEngineBlocked": 10,
+    "advisoryRetained": 10,
+    "manualRequired": 10,
+    "componentsProposedOrRetained": 40,
+    "ledgerRowsChanged": 0,
+    "adapterMappingsAdded": 0
+  },
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Canonical-order selection is intentionally heterogeneous; native proposals validate only supplied static typed manifests and have no live executor, fixtures, endpoint calls, third-party queries, exploit proof, CLI proof, MCP proof, or CI proof in this packet.",
+    "DPAPI, directory, certificate, cloud, blockchain, memory, browser, URLScan, Office 365, PowerShell, Empire, EDR, SIEM, endpoint, network, identity, provider, chain, and production authorities remain blocked external engines.",
+    "No live credential access, privilege escalation, cloud exposure, contract vulnerability, heap-spray exploitation, IOC validity, URL maliciousness, Office 365 compromise, PowerShell execution, persistence, attribution, detection, finding, remediation, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content; written authorization, scope, ownership, legal/privacy/safety review, data and credential handling, analyst interpretation, severity, containment, remediation, rollback, recovery, and disclosure decisions remain required."
+  ]
+}

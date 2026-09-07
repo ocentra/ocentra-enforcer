@@ -1,0 +1,225 @@
+import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
+import test from "node:test";
+import { fileURLToPath } from "node:url";
+
+import { buildGraphFromConfig, deriveState, graphStatus, listBlocked, listReady, loadGraph, selectNext, validateGraph } from "../scripts/program-graph.mjs";
+
+function fixture(rows, extra = {}) {
+  const root = mkdtempSync(join(tmpdir(), "enforcer-program-graph-"));
+  mkdirSync(join(root, "docs", "plans", "fixture-plan", "workpacks"), { recursive: true });
+  for (const row of rows) writeFileSync(join(root, "docs", "plans", "fixture-plan", "workpacks", `${row.toLowerCase()}.md`), `# ${row}\n`);
+  writeFileSync(join(root, "docs", "plans", "fixture-plan", "README.md"), "# Fixture plan\n");
+  writeFileSync(join(root, "docs", "plans", "fixture-plan", "WORKPACK_INDEX.md"), [
+    "# Workpack Index",
+    "",
+    "| Status | ID | Workpack | Depends on |",
+    "|---|---|---|---|",
+    ...rows.map((row) => `| ${extra[row]?.status ?? "PLANNED"} | ${row} | [${row}](workpacks/${row.toLowerCase()}.md) | ${extra[row]?.depends ?? "none"} |`)
+  ].join("\n"));
+  const config = {
+    schemaVersion: 1,
+    graphId: "GOAL/test",
+    goal: { id: "GOAL/test", title: "Test goal", path: "docs/plans/fixture-plan/README.md" },
+    planRoot: "docs/plans",
+    programs: [],
+    crossEdges: [],
+    artifacts: [],
+    policies: {
+      declaredDone: ["DONE", "ACCEPTED"],
+      declaredActive: ["ACTIVE"],
+      declaredPaused: ["PAUSED"],
+      declaredReady: ["READY"]
+    }
+  };
+  return { root, config };
+}
+
+test("a done dependency unlocks a planned workpack", () => {
+  const { root, config } = fixture(["CP00", "CP01"], {
+    CP00: { status: "DONE" },
+    CP01: { depends: "CP00" }
+  });
+  const graph = buildGraphFromConfig(root, config);
+  const node = graph.nodes.get("WP/fixture-plan/CP01");
+  assert.equal(deriveState(graph, node), "ready");
+  assert.equal(listReady(graph).length, 1);
+});
+
+test("an unsatisfied dependency is visible as a blocker", () => {
+  const { root, config } = fixture(["CP00", "CP01"], { CP01: { depends: "CP00" } });
+  const graph = buildGraphFromConfig(root, config);
+  const blocked = listBlocked(graph);
+  assert.equal(blocked.length, 1);
+  assert.ok(blocked.find((node) => node.id.endsWith("/CP01")).reasons.some((reason) => reason.id.endsWith("/CP00")));
+});
+
+test("cycles fail graph validation", () => {
+  const { root, config } = fixture(["CP00", "CP01"], {
+    CP00: { depends: "CP01" },
+    CP01: { depends: "CP00" }
+  });
+  const result = validateGraph(buildGraphFromConfig(root, config));
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.code === "dependency-cycle"));
+});
+
+test("a done node with a missing contract path cannot validate", () => {
+  const { root, config } = fixture(["CP00"], { CP00: { status: "DONE" } });
+  writeFileSync(join(root, "docs", "plans", "fixture-plan", "WORKPACK_INDEX.md"), [
+    "# Workpack Index", "", "| Status | ID | Workpack | Depends on |", "|---|---|---|---|",
+    "| DONE | CP00 | [CP00](workpacks/missing.md) | none |"
+  ].join("\n"));
+  const result = validateGraph(buildGraphFromConfig(root, config));
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.code === "missing-path" || issue.code === "incomplete-done-contract"));
+});
+
+test("missing dependency references are actionable", () => {
+  const { root, config } = fixture(["CP00"], { CP00: { depends: "CP99" } });
+  const result = validateGraph(buildGraphFromConfig(root, config));
+  assert.equal(result.valid, false);
+  assert.ok(result.issues.some((issue) => issue.code === "missing-edge-target"));
+});
+
+test("CI lifecycle policy is exposed and rejects unsafe merge behavior", () => {
+  const { root, config } = fixture(["CP00"]);
+  config.policies.ciLifecycle = {
+    watchRequired: true,
+    headPinning: "exact-pr-head",
+    mergeGate: "all-required-checks-success",
+    mergeAction: "merge",
+    deleteBranch: false,
+    failureAction: "report-exact-check-and-stop",
+    stopOn: ["in_progress", "failure", "cancelled", "timed_out", "action_required", "stale", "unstable", "unknown"],
+    postMerge: ["verify-pr-merge-commit", "fetch-canonical-rust-build", "record-graph-lifecycle-evidence", "release-claims"],
+    doesNotProve: ["green CI is packet evidence only"]
+  };
+  const graph = buildGraphFromConfig(root, config);
+  assert.equal(graphStatus(graph).ciLifecycle.mergeGate, "all-required-checks-success");
+  assert.throws(
+    () => buildGraphFromConfig(root, { ...config, policies: { ...config.policies, ciLifecycle: { ...config.policies.ciLifecycle, deleteBranch: true } } }),
+    /invalid CI lifecycle policy.*deleteBranch must be false/
+  );
+});
+
+test("configured lifecycle overrides and control-plane nodes are explicit", () => {
+  const { root, config } = fixture(["CP00", "CP01"], { CP01: { depends: "CP00" } });
+  config.lifecycleOverrides = {
+    "WP/fixture-plan/CP00": { state: "done", source: "accepted evidence" }
+  };
+  config.extraNodes = [{
+    id: "WP/graph-bootstrap",
+    kind: "workpack",
+    title: "Graph bootstrap",
+    path: "docs/plans/fixture-plan/README.md",
+    state: "active",
+    parent: "GOAL/test",
+    metadata: { completionContract: { requiredPaths: ["docs/plans/fixture-plan/README.md"], requiredNodes: [] } }
+  }];
+  config.crossEdges = [{ from: "WP/fixture-plan/CP01", to: "WP/graph-bootstrap", kind: "depends-on", reason: "graph first" }];
+  const graph = buildGraphFromConfig(root, config);
+  assert.equal(graph.nodes.get("WP/fixture-plan/CP00").lifecycle, "done");
+  assert.equal(deriveState(graph, graph.nodes.get("WP/fixture-plan/CP01")), "blocked");
+  assert.ok(listBlocked(graph).find((node) => node.id.endsWith("/CP01")).reasons.some((reason) => reason.id === "WP/graph-bootstrap"));
+  assert.equal(deriveState(graph, graph.nodes.get("WP/graph-bootstrap")), "active");
+  assert.equal(validateGraph(graph).valid, true);
+});
+
+test("canonical intent matrix derives selectable native and retention packets", () => {
+  const { root, config } = fixture(["CP05", "CP08", "CP09", "CP11"], {
+    CP05: { status: "DONE" },
+    CP08: { status: "DONE" }
+  });
+  const matrixPath = join(root, "docs", "plans", "fixture-plan", "CYBERSKILLS_INTENT_MATRIX.json");
+  writeFileSync(matrixPath, JSON.stringify({
+    schemaVersion: 1,
+    matrixKind: "cyberskills-intent-driven-execution",
+    generatedFrom: {
+      availableSkillCount: 3,
+      protectedExcluded: ["protected-skill"],
+      sourceLicense: "Apache-2.0"
+    },
+    componentPolicy: { requiredNotProved: ["no live outcome"] },
+    routeQualification: { repositoryGraphSkillIds: [] },
+    families: [{
+      familyId: "IF/ai-security",
+      intent: "Assess supplied AI security manifests.",
+      skillCount: 3,
+      skillIds: ["skill-a", "skill-b", "skill-c"],
+      nativeRoute: "CP09",
+      nativeBatchLimit: 2,
+      retentionRoute: "CP11",
+      retentionBatchLimit: 10,
+      dependencies: ["WP/CP05", "WP/CP08"]
+    }]
+  }));
+  config.intentMatrices = [{
+    planKey: "fixture-plan",
+    path: "docs/plans/fixture-plan/CYBERSKILLS_INTENT_MATRIX.json",
+    containerWorkpacks: ["CP09", "CP11"]
+  }];
+  const graph = buildGraphFromConfig(root, config);
+  const nativeB01 = graph.nodes.get("WP/CP09/IF-ai-security/B01");
+  const nativeB02 = graph.nodes.get("WP/CP09/IF-ai-security/B02");
+  const retentionB01 = graph.nodes.get("WP/CP11/IF-ai-security/B01");
+  assert.deepEqual(nativeB01.metadata.skillIds, ["skill-a", "skill-b"]);
+  assert.equal(nativeB01.metadata.componentKinds[0], "native-predicate");
+  assert.equal(retentionB01.metadata.ownedKind, "advisory-manual");
+  assert.equal(deriveState(graph, nativeB01), "ready");
+  assert.equal(deriveState(graph, nativeB02), "ready");
+  assert.equal(deriveState(graph, retentionB01), "ready");
+  assert.equal(selectNext(graph, { plan: "fixture-plan" }).id, "WP/CP09/IF-ai-security/B01");
+  assert.equal(validateGraph(graph).valid, true);
+});
+
+test("intent matrix rejects protected skills and duplicate assignments", () => {
+  const { root, config } = fixture(["CP05", "CP08", "CP09", "CP11"], {
+    CP05: { status: "DONE" },
+    CP08: { status: "DONE" }
+  });
+  const matrixPath = join(root, "docs", "plans", "fixture-plan", "intent.json");
+  writeFileSync(matrixPath, JSON.stringify({
+    schemaVersion: 1,
+    matrixKind: "cyberskills-intent-driven-execution",
+    generatedFrom: { availableSkillCount: 2, protectedExcluded: ["protected-skill"] },
+    families: [{
+      familyId: "IF/bad",
+      intent: "invalid fixture",
+      skillCount: 2,
+      skillIds: ["protected-skill", "protected-skill"],
+      nativeRoute: "CP09",
+      nativeBatchLimit: 2,
+      retentionRoute: "CP11",
+      retentionBatchLimit: 10
+    }]
+  }));
+  config.intentMatrices = [{ planKey: "fixture-plan", path: "docs/plans/fixture-plan/intent.json", containerWorkpacks: ["CP09", "CP11"] }];
+  assert.throws(() => buildGraphFromConfig(root, config), /protected skill|more than one family/);
+});
+
+test("canonical graph routes the next cloud-security packet after policy integration", () => {
+  const root = fileURLToPath(new URL("..", import.meta.url));
+  const graph = loadGraph(root);
+  const selected = selectNext(graph, { plan: "cyberskills-parity-plan" });
+
+  assert.equal(validateGraph(graph).valid, true);
+  assert.equal(selected.id, "WP/CP09/IF-cloud-security/B13");
+  assert.equal(selected.lifecycle, "planned");
+  assert.equal(deriveState(graph, selected), "ready");
+  assert.equal(deriveState(graph, graph.nodes.get("WP/cyberskills-parity-plan/CP09")), "ready");
+  assert.equal(deriveState(graph, graph.nodes.get("WP/cyberskills-parity-plan/CP11")), "done");
+
+  for (let number = 1; number <= 12; number += 1) {
+    const batch = graph.nodes.get(`WP/CP09/IF-cloud-security/B${String(number).padStart(2, "0")}`);
+    assert.equal(deriveState(graph, batch), "validation");
+  }
+
+  assert.deepEqual(selected.dependsOn.map((dependency) => dependency.id), [
+    "WP/cyberskills-parity-plan/CP05",
+    "WP/cyberskills-parity-plan/CP08"
+  ]);
+  assert.deepEqual(selected.dependsOn.map((dependency) => dependency.state), ["done", "done"]);
+});

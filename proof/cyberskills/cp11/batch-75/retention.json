@@ -1,0 +1,242 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP11",
+  "batch": "batch-75",
+  "family": "IF/threat-detection",
+  "baselineCommit": "654eeda65a0562a4a7e43307ee7819b793797491",
+  "scope": "Retain defensive threat-detection, identity-abuse, credential, lateral-movement, and remote-access guidance from immutable CP08 evidence; native predicates are limited to static supplied alert, event, identity, credential, ticket, process, host, network, evidence, owner, severity, and response manifests; live credentials, endpoints, SIEM, EDR, directory, authentication, ticket, network, and production authorities remain external and blocked.",
+  "componentBoundary": {
+    "nativePredicate": "notOwned",
+    "externalEngine": "blocked",
+    "advisory": "retained",
+    "manual": "retained"
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-credential-dumping-techniques",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-credential-dumping-techniques/SKILL.md",
+        "sha256": "e57160357b3abd3edeeba651ed6060df44aeb8eee134f7eb48a650415f62c683",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Credential Dumping Techniques:L64"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-57/decomposition.json",
+        "artifactSha256": "41d69500ba11446d0a0d72192c2bd3ddc15c4267cc4f5feb362d5ab08c4e00ed"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive threat-detection, identity-abuse, credential, telemetry, triage, escalation, and response guidance.",
+        "notProved": [
+          "No live credential, process, endpoint, detection, attribution, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, credential, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-golden-ticket-forgery",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-golden-ticket-forgery/SKILL.md",
+        "sha256": "be56bbf82485f63782ee970ed28367f962ff75e2c9ed037acd9b9e0bc46a98de",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Golden Ticket Forgery:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-58/decomposition.json",
+        "artifactSha256": "4d29c6bcf99e3dfa0779b5aded69016b8455392b594af0e78be12403054d08c3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive identity, Kerberos, ticket, credential, telemetry, detection, triage, and response guidance.",
+        "notProved": [
+          "No live identity, ticket, credential, directory, detection, attribution, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, directory and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, identity, ticket, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-insider-threat-with-ueba",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-insider-threat-with-ueba/SKILL.md",
+        "sha256": "f15f0da5d131622a764020de8140a1f8d76648af4e946ed18c237557407394b6",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Insider Threat with UEBA:L33"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-58/decomposition.json",
+        "artifactSha256": "4d29c6bcf99e3dfa0779b5aded69016b8455392b594af0e78be12403054d08c3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive user-behavior, insider-risk, telemetry, alert, triage, privacy, and response guidance.",
+        "notProved": [
+          "No live user behavior, identity, telemetry, insider attribution, detection efficacy, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, data and telemetry ownership, legal/privacy/employee review, scope, stop conditions, analyst interpretation, escalation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, privacy, attribution, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-living-off-the-land-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-living-off-the-land-attacks/SKILL.md",
+        "sha256": "54f05bd2f638b6766d0d43e853d2ba8aaaa097c92cf4fc8d105eb6a649de1fc8",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Living Off the Land Attacks:L35"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-58/decomposition.json",
+        "artifactSha256": "4d29c6bcf99e3dfa0779b5aded69016b8455392b594af0e78be12403054d08c3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive process, command, host, endpoint, telemetry, detection, triage, and response guidance.",
+        "notProved": [
+          "No live process, command, endpoint, detection efficacy, attribution, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, process, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-living-off-the-land-with-lolbas",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-living-off-the-land-with-lolbas/SKILL.md",
+        "sha256": "56cc9697e96f09933298804fcb94f5c08be9c7639f36abdf4b2371167380ae1c",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Living Off the Land with LOLBAS:L36"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-58/decomposition.json",
+        "artifactSha256": "4d29c6bcf99e3dfa0779b5aded69016b8455392b594af0e78be12403054d08c3"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive process, command, host, endpoint, telemetry, detection, triage, and response guidance.",
+        "notProved": [
+          "No live process, command, endpoint, detection efficacy, attribution, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, process, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-pass-the-ticket-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-pass-the-ticket-attacks/SKILL.md",
+        "sha256": "e097bb2bdd7f49141875eaef11418bd055e532863b9fec86555ef5e1273af0ae",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting Pass-the-Ticket Attacks:L38"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive identity, Kerberos, ticket, credential, telemetry, detection, triage, and response guidance.",
+        "notProved": [
+          "No live identity, ticket, credential, directory, detection, attribution, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, directory and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, identity, ticket, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    },
+    {
+      "catalogId": "detecting-rdp-brute-force-attacks",
+      "source": {
+        "path": "vendor/anthropic-cybersecurity-skills/skills/detecting-rdp-brute-force-attacks/SKILL.md",
+        "sha256": "cc1ae506cb98b6847b9022b1bf70232e4d40513f2f5ff9ee0d4ff408389bb465",
+        "availability": "available",
+        "license": "Apache-2.0",
+        "anchors": [
+          "# Detecting RDP Brute Force Attacks:L29"
+        ]
+      },
+      "cp08Evidence": {
+        "artifactPath": "proof/cyberskills/cp08/batch-59/decomposition.json",
+        "artifactSha256": "2b75e6619ecbbeb580b024d3f0ce787f7e2a62ab95f6789514a3dd2cfd484379"
+      },
+      "advisory": {
+        "status": "retained",
+        "purpose": "Retain defensive remote-access, authentication, credential, event, detection, triage, and response guidance.",
+        "notProved": [
+          "No live RDP, credential, authentication, endpoint, detection efficacy, attribution, or security outcome is proved."
+        ]
+      },
+      "manual": {
+        "status": "retained",
+        "purpose": "Require written authorization, asset and telemetry ownership, legal/privacy/safety review, scope, stop conditions, analyst interpretation, containment, remediation, and disclosure decisions.",
+        "notProved": [
+          "No human authorization, credential, authentication, severity, containment, remediation, or disclosure decision is proved."
+        ]
+      }
+    }
+  ],
+  "derivedCounts": {
+    "skills": 7,
+    "advisoryRetained": 7,
+    "manualRetained": 7,
+    "nativeImplemented": 0,
+    "executableProof": 0,
+    "externalExecuted": 0
+  },
+  "notProved": [
+    "CP08 decomposition evidence and CP11 retention do not promote native implementation or executable proof.",
+    "No live credential, process, endpoint, directory, authentication, ticket, RDP, SIEM, EDR, network, or production execution.",
+    "No credential extraction, ticket forgery, insider attribution, living-off-the-land detection, brute-force detection, containment, remediation, or security outcome is proved.",
+    "This packet covers the complete seven-skill threat-detection family as retained advisory/manual evidence only; native implementation and executable proof remain absent.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity remains excluded and untouched.",
+    "External tools, SIEM, EDR, directory, authentication, endpoint, network, and production authorities are reference/parity inputs only; this packet contains no external adapter or native implementation."
+  ]
+}

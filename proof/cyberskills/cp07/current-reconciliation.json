@@ -1,0 +1,117 @@
+{
+  "schema": "cp07.current-reconciliation.v1",
+  "workpack": "WP/CP07",
+  "baseCommit": "613ff96c341d66ba751f035735a899a290d0b43d",
+  "engine": {
+    "id": "trivy",
+    "version": "0.68.2",
+    "license": "Apache-2.0",
+    "source": "https://github.com/aquasecurity/trivy",
+    "executable": "trivy",
+    "binarySha256Observed": "fa5192fcf258092fe2e1d6c061770531b1f804a61613170e7dbaf8aa1009ca8b",
+    "command": [
+      "trivy",
+      "config",
+      "--format",
+      "json",
+      "--skip-check-update",
+      "--exit-code",
+      "0",
+      "--quiet",
+      "."
+    ],
+    "target": "tests/fixtures/enforcer/iac",
+    "outputSchema": "Trivy config JSON SchemaVersion 2 Results[].Misconfigurations[]"
+  },
+  "selection": {
+    "policy": "reference-only external evidence; native Rust remains the product path",
+    "candidates": [
+      {
+        "id": "trivy",
+        "versionObserved": "0.68.2",
+        "jsonOutput": true,
+        "localNoCredentialMode": true,
+        "selection": "selected"
+      },
+      {
+        "id": "cargo-audit",
+        "versionObserved": "0.22.1",
+        "jsonOutput": true,
+        "localNoCredentialMode": false,
+        "selection": "not-selected-advisory-database-coupling"
+      },
+      {
+        "id": "semgrep",
+        "versionObserved": "installed",
+        "jsonOutput": true,
+        "localNoCredentialMode": false,
+        "selection": "not-selected-rule-pack-and-version-coupling"
+      }
+    ],
+    "reason": "Trivy is present locally, emits machine-readable output, can scan the repository-local IaC fixture without credentials, and can skip check updates; the adapter remains optional and does not ship the engine."
+  },
+  "sourceEvidence": [
+    {
+      "path": "crates/enforcer-harness/src/adapters/cyberskills/mod.rs",
+      "bytes": 2684,
+      "sha256": "dfc55e3b5f1f94e3c8375c4ed9720b81049e77aad808653683c4420f3b409a4c"
+    },
+    {
+      "path": "crates/enforcer-harness/src/adapters/cyberskills/trivy/mod.rs",
+      "bytes": 10126,
+      "sha256": "6526d0dc745ecb465bf257bc5c2f7dd888a90dec94d197cccb9c05c2d4ca9db0"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/cyberskills_trivy.rs",
+      "bytes": 3478,
+      "sha256": "3b2d1fa422bd0464a99bd4793c880d5bcdace814998fee47d1463993a873c9b7"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/good/recorded.json",
+      "bytes": 392,
+      "sha256": "b189ecbf572a2899f949cad60059b10d68e604d6717b006b0a40eca1c1b6c8c6"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/good/clean.json",
+      "bytes": 122,
+      "sha256": "4e26ee097ee43b01d2c109fb840f83bb157e77df2aec0d2c9a51de2e37484d90"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/bad/malformed.json",
+      "bytes": 31,
+      "sha256": "51c25dae285fa7ea4772169c8c80ef4c14ef6d92f76e96472739d2077b605daf"
+    },
+    {
+      "path": "crates/enforcer-harness/tests/fixtures/cyberskills_adapters/trivy/bad/unknown-severity.json",
+      "bytes": 378,
+      "sha256": "af41f24bfe887abcd89acb5cb0f27a1822daa84aaf559a6939dd16a4c3f25e0f"
+    }
+  ],
+  "testEvidence": {
+    "focused": "cargo test --locked -p enforcer-harness --test cyberskills_trivy -- --nocapture: 6/6",
+    "genericAdapter": "cargo test --locked -p enforcer-harness --test cyberskills_adapters -- --nocapture: prior contract remains green",
+    "live": "with OCENTRA_TRIVY_EXECUTABLE set to the observed binary, live output normalized and matched the recorded first finding; without that override, the bounded runner reports its spawn failure as Errored, never Pass",
+    "negativeCases": [
+      "missing executable -> Skipped ran=0",
+      "non-zero, timeout, and output overflow -> Errored",
+      "malformed JSON -> Errored",
+      "unknown severity -> native normalization Error",
+      "clean output -> Ran with zero findings",
+      "arbitrary parser input -> deterministic acceptance result across repeated passes"
+    ]
+  },
+  "proves": [
+    "CP07 has one bounded Trivy reference adapter using the existing Rust execution and outcome seam",
+    "recorded Trivy JSON, clean output, malformed output, unknown severity, missing, non-zero, timeout, and output-limit behavior have explicit tests",
+    "the optional live path is honest and does not require the engine for deterministic recorded CI",
+    "the graph can record CP07 evidence without promoting external evidence into native implementation or executable proof"
+  ],
+  "doesNotProve": [
+    "Trivy correctness, rule-database freshness, complete methodology, or universal live availability",
+    "native implementation of the underlying CyberSkills intents or executable security proof",
+    "user installation or purchase of Trivy; the adapter is optional reference evidence only",
+    "remediation, attribution, detection efficacy, or security outcomes",
+    "protected fileless-malware source, which remains excluded and untouched",
+    "overall CyberSkills parity or overall plan completion"
+  ]
+}

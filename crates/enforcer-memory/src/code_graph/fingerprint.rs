@@ -7,12 +7,12 @@ use std::collections::{BTreeSet, HashMap};
 
 use sha2::{Digest, Sha256};
 
-use crate::parsers;
 use enforcer_domain::memory_types::{
     ComplexitySourceBytes, GraphSourceLine, MemoryFingerprintBodyGram, MemoryFingerprintHashCount,
     MemoryFingerprintLexeme, MemoryFingerprintLexemes, MemoryFingerprintSourceHash,
     MemoryFingerprintValue, ParsedSymbolName, ParserSourceText, SnippetByteOffset,
 };
+use enforcer_syntax::parsers;
 
 const MINHASH_K: usize = 64;
 const MINHASH_MIN_TOKENS: usize = 30;

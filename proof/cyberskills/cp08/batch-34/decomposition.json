@@ -1,0 +1,123 @@
+{
+  "schemaVersion": 1,
+  "workpack": "CP08",
+  "batch": "batch-34",
+  "baselineCommit": "6c0425942ee87c4bcbd0dcda51339a2ac7339123",
+  "family": "OT/ICS protocol, historian, segmentation, remote-access, and asset-security analysis",
+  "status": "approved",
+  "selection": {
+    "catalogIds": ["detecting-attacks-on-historian-servers", "detecting-dnp3-protocol-anomalies", "detecting-modbus-command-injection-attacks", "detecting-modbus-protocol-anomalies", "implementing-iec-62443-security-zones", "implementing-network-segmentation-for-ot", "performing-ics-asset-discovery-with-claroty", "performing-s7comm-protocol-security-analysis", "securing-historian-server-in-ot-environment", "securing-remote-access-to-ot-environment"],
+    "reason": "Ten disjoint OT/ICS skills covering historian, DNP3, Modbus, S7comm, IEC 62443 zones, segmentation, asset context, and remote access. Native checks are limited to static typed supplied manifests; live OT authorities and outcomes remain unproved."
+  },
+  "skills": [
+    {
+      "catalogId": "detecting-attacks-on-historian-servers",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-attacks-on-historian-servers/SKILL.md", "sha256": "3d4b4db9fd0a6389d456b55d89cb3734477fb9a225a76f6fa3969ce40c04c05b", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Attacks on Historian Servers:L36"]},
+      "components": [
+        {"componentId": "detecting-attacks-on-historian-servers::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed historian asset, query, event, anomaly, owner, and evidence manifests.", "notProved": ["No live historian access, anomaly detection, compromise, or security outcome proof."]},
+        {"componentId": "detecting-attacks-on-historian-servers::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live historian, SCADA, PLC, OT traffic, PCAP, SIEM, IDS, and production authorities.", "notProved": ["No pinned adapter, live telemetry, runtime, or normalized evidence."]},
+        {"componentId": "detecting-attacks-on-historian-servers::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain historian attack-detection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-attacks-on-historian-servers::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require safety authorization, scope, owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live historian investigation proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-dnp3-protocol-anomalies",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-dnp3-protocol-anomalies/SKILL.md", "sha256": "2cf0b91c8708c78901f9bfb9e7862c10916aeea4748026e98b10c58c9a6db6e2", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting DNP3 Protocol Anomalies:L43"]},
+      "components": [
+        {"componentId": "detecting-dnp3-protocol-anomalies::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied DNP3 message, function, sequence, endpoint, anomaly, and evidence fields.", "notProved": ["No live DNP3 capture, anomaly detection, injection, safety, or security outcome proof."]},
+        {"componentId": "detecting-dnp3-protocol-anomalies::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use DNP3 traffic, PCAP, SCADA, PLC, IDS, SIEM, and production authorities.", "notProved": ["No pinned adapter, packet capture, protocol runtime, or normalized evidence."]},
+        {"componentId": "detecting-dnp3-protocol-anomalies::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain DNP3 defensive anomaly-analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-dnp3-protocol-anomalies::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety authorization, scope, process-owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live protocol analysis proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-modbus-command-injection-attacks",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-modbus-command-injection-attacks/SKILL.md", "sha256": "393513463711134048cd1b88b75a8011a7d1cbad3f3b4abd774b1911775dc0b5", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Modbus Command Injection Attacks:L36"]},
+      "components": [
+        {"componentId": "detecting-modbus-command-injection-attacks::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed Modbus command, register, device, authorization, anomaly, and evidence manifests.", "notProved": ["No live command injection, device access, protocol capture, safety, or security outcome proof."]},
+        {"componentId": "detecting-modbus-command-injection-attacks::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Modbus traffic, PCAP, PLC, SCADA, IDS, SIEM, and production authorities.", "notProved": ["No pinned adapter, command runtime, target access, or normalized evidence."]},
+        {"componentId": "detecting-modbus-command-injection-attacks::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Modbus command-injection defensive guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-modbus-command-injection-attacks::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety authorization, scope, asset/process-owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live command-injection proof."]}
+      ]
+    },
+    {
+      "catalogId": "detecting-modbus-protocol-anomalies",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/detecting-modbus-protocol-anomalies/SKILL.md", "sha256": "5ca739901c9953eb02eaec19dccf815bd1837581745883ee63391efd59d3074f", "availability": "available", "license": "Apache-2.0", "anchors": ["# Detecting Modbus Protocol Anomalies:L45"]},
+      "components": [
+        {"componentId": "detecting-modbus-protocol-anomalies::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied Modbus frame, function, register, device, anomaly, and evidence fields.", "notProved": ["No live Modbus capture, anomaly detection, injection, safety, or security outcome proof."]},
+        {"componentId": "detecting-modbus-protocol-anomalies::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Modbus traffic, PCAP, PLC, SCADA, IDS, SIEM, and production authorities.", "notProved": ["No pinned adapter, packet capture, protocol runtime, or normalized evidence."]},
+        {"componentId": "detecting-modbus-protocol-anomalies::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain Modbus defensive anomaly-analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "detecting-modbus-protocol-anomalies::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety authorization, scope, process-owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live protocol analysis proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-iec-62443-security-zones",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-iec-62443-security-zones/SKILL.md", "sha256": "896fd94cd66faaa00c0944e13f9165c079682d836d05d0c5cb54df5fdd50c00c", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing IEC 62443 Security Zones:L37"]},
+      "components": [
+        {"componentId": "implementing-iec-62443-security-zones::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed zone, conduit, asset, trust-level, boundary, owner, and evidence manifests.", "notProved": ["No live zoning enforcement, segmentation, safety, availability, or security outcome proof."]},
+        {"componentId": "implementing-iec-62443-security-zones::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use IEC assessment authorities, firewalls, segmentation controllers, OT assets, IAM, and production networks.", "notProved": ["No pinned adapter, controller runtime, network state, or normalized evidence."]},
+        {"componentId": "implementing-iec-62443-security-zones::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain IEC 62443 zoning and conduit guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-iec-62443-security-zones::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety/change authorization, scope, asset/process-owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live zone assessment proof."]}
+      ]
+    },
+    {
+      "catalogId": "implementing-network-segmentation-for-ot",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/implementing-network-segmentation-for-ot/SKILL.md", "sha256": "e7f5b5a4c549a9c918d3ca815d6ebfab9e4dbc8348aa8e6817fdf963b4f12b28", "availability": "available", "license": "Apache-2.0", "anchors": ["# Implementing Network Segmentation for OT:L37"]},
+      "components": [
+        {"componentId": "implementing-network-segmentation-for-ot::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed OT segment, route, zone, conduit, control, asset, and evidence fields.", "notProved": ["No live segmentation enforcement, traffic, safety, availability, or security outcome proof."]},
+        {"componentId": "implementing-network-segmentation-for-ot::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use firewalls, network controllers, PCAP, OT assets, IAM, VPN, jump hosts, IDS, and production authorities.", "notProved": ["No pinned adapter, controller runtime, network state, or normalized evidence."]},
+        {"componentId": "implementing-network-segmentation-for-ot::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain OT network segmentation guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "implementing-network-segmentation-for-ot::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety/change authorization, scope, asset/process-owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live segmentation proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-ics-asset-discovery-with-claroty",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-ics-asset-discovery-with-claroty/SKILL.md", "sha256": "36f8ddbf78898366516fb557817a9164a9e914c72b73ea8a5cfe98d85afe8127", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing ICS Asset Discovery with Claroty:L44"]},
+      "components": [
+        {"componentId": "performing-ics-asset-discovery-with-claroty::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed supplied ICS asset, protocol, location, owner, criticality, and evidence manifests.", "notProved": ["No live asset discovery, protocol capture, inventory truth, safety, or security outcome proof."]},
+        {"componentId": "performing-ics-asset-discovery-with-claroty::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use Claroty, live historian/SCADA/PLC, protocol traffic, PCAP, network discovery, and production authorities.", "notProved": ["No pinned adapter, discovery runtime, target access, or normalized evidence."]},
+        {"componentId": "performing-ics-asset-discovery-with-claroty::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain ICS asset-discovery guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-ics-asset-discovery-with-claroty::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety authorization, scope, asset/process-owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live asset inventory proof."]}
+      ]
+    },
+    {
+      "catalogId": "performing-s7comm-protocol-security-analysis",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/performing-s7comm-protocol-security-analysis/SKILL.md", "sha256": "da35181587236bdfca1c2bfe77377eb66677285b06d67e0384b34571fad5d551", "availability": "available", "license": "Apache-2.0", "anchors": ["# Performing S7comm Protocol Security Analysis:L36"]},
+      "components": [
+        {"componentId": "performing-s7comm-protocol-security-analysis::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed S7comm endpoint, function, session, command, control, and evidence fields.", "notProved": ["No live S7comm capture, command execution, PLC access, safety, or security outcome proof."]},
+        {"componentId": "performing-s7comm-protocol-security-analysis::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use S7comm traffic, PCAP, PLC, SCADA, IDS, SIEM, and production authorities.", "notProved": ["No pinned adapter, protocol runtime, target access, or normalized evidence."]},
+        {"componentId": "performing-s7comm-protocol-security-analysis::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain S7comm defensive protocol-analysis guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "performing-s7comm-protocol-security-analysis::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety authorization, scope, process-owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live protocol analysis proof."]}
+      ]
+    },
+    {
+      "catalogId": "securing-historian-server-in-ot-environment",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/securing-historian-server-in-ot-environment/SKILL.md", "sha256": "acdd142a09a280e09f165c71056a063605f83456d66d3c10ef5b524238300176", "availability": "available", "license": "Apache-2.0", "anchors": ["# Securing Historian Server in OT Environment:L38"]},
+      "components": [
+        {"componentId": "securing-historian-server-in-ot-environment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed historian asset, service, access-policy, backup, owner, and evidence manifests.", "notProved": ["No live hardening, historian access, backup integrity, availability, safety, or security outcome proof."]},
+        {"componentId": "securing-historian-server-in-ot-environment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use live historian, SCADA, PLC, IAM, firewall, SIEM, IDS, backup, and production authorities.", "notProved": ["No pinned adapter, configuration runtime, live state, or normalized evidence."]},
+        {"componentId": "securing-historian-server-in-ot-environment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain OT historian protection and recovery guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "securing-historian-server-in-ot-environment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety/change authorization, scope, owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live historian security proof."]}
+      ]
+    },
+    {
+      "catalogId": "securing-remote-access-to-ot-environment",
+      "source": {"path": "vendor/anthropic-cybersecurity-skills/skills/securing-remote-access-to-ot-environment/SKILL.md", "sha256": "fe76777077eb991c5911ccf99b27cd426e373e4f95058b7833825bacb0b52084", "availability": "available", "license": "Apache-2.0", "anchors": ["# Securing Remote Access to OT Environment:L37"]},
+      "components": [
+        {"componentId": "securing-remote-access-to-ot-environment::native-predicate", "kind": "native-predicate", "status": "proposed", "predicateOrPurpose": "Validate typed remote-access path, identity, session, approval, zone, control, and evidence fields.", "notProved": ["No live VPN, jump-host, IAM, session, OT access, safety, or security outcome proof."]},
+        {"componentId": "securing-remote-access-to-ot-environment::external-engine", "kind": "external-engine", "status": "blocked", "predicateOrPurpose": "Use IAM, VPN, jump hosts, firewalls, OT assets, SCADA, PLC, SIEM, IDS, and production authorities.", "notProved": ["No pinned adapter, authentication runtime, session state, or normalized evidence."]},
+        {"componentId": "securing-remote-access-to-ot-environment::advisory", "kind": "advisory", "status": "retained", "predicateOrPurpose": "Retain OT remote-access protection guidance.", "notProved": ["Guidance is not enforcement."]},
+        {"componentId": "securing-remote-access-to-ot-environment::manual", "kind": "manual", "status": "retained", "predicateOrPurpose": "Require written safety/change authorization, scope, asset/process-owner validation, legal/data handling, severity, containment, remediation, and recovery decisions.", "notProved": ["No live remote-access security proof."]}
+      ]
+    }
+  ],
+  "derivedCounts": {"skillsAudited": 10, "availableSkills": 10, "sourceUnavailableSkills": 0, "nativePredicateProposed": 10, "externalEngineBlocked": 10, "advisoryRetained": 10, "manualRequired": 10, "componentsProposedOrRetained": 40, "ledgerRowsChanged": 0, "adapterMappingsAdded": 0},
+  "globalNotProved": [
+    "This artifact does not modify the disposition ledger.",
+    "Native proposals have no Rust executor, fixtures, CLI proof, MCP proof, or CI proof in this packet.",
+    "Claroty, live historian/SCADA/PLC, DNP3/Modbus/S7comm traffic, PCAP, asset discovery, firewalls, segmentation controllers, IAM, VPN, jump hosts, SIEM, IDS, and production authorities remain blocked external engines.",
+    "No live discovery, capture, injection, anomaly detection, compromise, enforcement, safety, availability, remediation, recovery, or security outcome is proved.",
+    "Advisory and manual procedures are retained as non-enforcement content.",
+    "The protected detecting-fileless-malware-techniques sourceUnavailable identity is outside this batch."
+  ]
+}
