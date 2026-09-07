@@ -1,88 +1,203 @@
 {
+  "schemaVersion": 2,
   "workpack": "g01",
   "hub": "enforcer-selfhost-plan",
   "tier": "P5",
   "namedTest": "serve-surface-contract",
+  "status": "PENDING",
+  "evidenceStatus": "partial-exact-current",
+  "authority": {
+    "candidateSha": "5f6c84eddd286b3dc83f613f0c8d12c14454778c",
+    "metadataCommit": "00c45e40d50849a8cc9eddc76e520f331dd1691f",
+    "branch": "codex/g01-ui-serve-20260811",
+    "worktree": "E:\\g01",
+    "worktreeStatusBeforeEvidence": "clean",
+    "evidenceCapturedAt": "2026-08-11",
+    "cargoHome": "E:\\g01-cargo-20260811",
+    "cargoTargetDir": "E:\\g01-target-20260811",
+    "tempDir": "E:\\g01-tmp-20260811"
+  },
   "commands": [
-    "cargo test -p enforcer-ui",
-    "cargo test -p enforcer-cli",
-    "cargo test -p enforcer-mcp",
-    "cargo clippy -p enforcer-ui -p enforcer-cli -p enforcer-mcp --all-targets -- -D warnings",
-    "cargo clippy -p enforcer-cli --all-targets --no-default-features --features lite -- -D warnings",
-    "cargo fmt -p enforcer-ui -p enforcer-cli -p enforcer-mcp --check"
+    {
+      "name": "ui-tests",
+      "command": "cargo test -p enforcer-ui --locked",
+      "exitCode": 0,
+      "stdoutSha256": "592D7A8272114689D526D6BAEE94EC5C706E7592EA453D5C4CB5A27F1D18FB12",
+      "stderrSha256": "BD7B65C9F47E799C3060DA5A9710AE6F98713879BAF6A02462AED4566A45C690",
+      "stdoutBytes": 15436,
+      "stderrBytes": 11806,
+      "counts": {
+        "lib": 84,
+        "crossLangRoundtrip": 2,
+        "explorerBoundaries": 2,
+        "fileRuleWaiverAction": 4,
+        "tsDrift": 2,
+        "doctests": 0
+      }
+    },
+    {
+      "name": "cli-tests",
+      "command": "cargo test -p enforcer-cli --locked",
+      "exitCode": 0,
+      "stdoutSha256": "5DEBBCB2F9ED02132C0B1837C49ABDB456F624B7A598026E9FAA5B8F1DB0ED4D",
+      "stderrSha256": "716DF1F6850B12ADB7FFB2CD7B114CA05EAAB690E4ADCFE4A6FE19458C1D9FE6",
+      "stdoutBytes": 20204,
+      "stderrBytes": 17262,
+      "counts": {
+        "lib": 60,
+        "bin": 3,
+        "cliIntegration": 33,
+        "dogfood": 1,
+        "generatedArtifacts": 1,
+        "lifecycle": 6,
+        "onboard": 5,
+        "selfEnforce": 3,
+        "doctests": 0
+      }
+    },
+    {
+      "name": "mcp-tests",
+      "command": "cargo test -p enforcer-mcp --locked",
+      "exitCode": 0,
+      "stdoutSha256": "C360D484A799BDC04856653408CBAA48098B22E53DE9F4D758FA99258C418188",
+      "stderrSha256": "C0AB216893147148257FBD910C141586DA462A7BAC2DA5C750528B281B58B30D",
+      "stdoutBytes": 33222,
+      "stderrBytes": 11966,
+      "counts": {
+        "lib": 151,
+        "aliasProperties": 2,
+        "neutralRename": 4,
+        "stdioSmoke": 12,
+        "toolSurface": 10,
+        "wireRoundtrip": 14,
+        "doctests": 0
+      }
+    },
+    {
+      "name": "full-clippy",
+      "command": "cargo clippy -p enforcer-ui -p enforcer-cli -p enforcer-mcp --all-targets --locked -- -D warnings",
+      "exitCode": 0,
+      "stdoutSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "stderrSha256": "0E5CC145B76713500FE5AF18D698EB072D67ABE13DE53F16EF82F47855C6349B",
+      "stdoutBytes": 0,
+      "stderrBytes": 10348,
+      "notes": "Exit 0. ts-rs emitted non-fatal serde-attribute parse warnings; no clippy error occurred."
+    },
+    {
+      "name": "lite-clippy",
+      "command": "cargo clippy -p enforcer-cli --all-targets --no-default-features --features lite --locked -- -D warnings",
+      "exitCode": 0,
+      "stdoutSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "stderrSha256": "543BF28CA5CD16FBDE927D0089F93ABFF5D6620B8C06EE4C7813236B006E8E0E",
+      "stdoutBytes": 0,
+      "stderrBytes": 10348,
+      "notes": "Exit 0 after feature-gating full-only MCP install assertions in crates/enforcer-cli/tests/cli_integration.rs; ts-rs warnings remain non-fatal."
+    },
+    {
+      "name": "fmt-check",
+      "command": "cargo fmt -p enforcer-ui -p enforcer-cli -p enforcer-mcp -- --check",
+      "exitCode": 0,
+      "stdoutSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "stderrSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+      "stdoutBytes": 0,
+      "stderrBytes": 0
+    },
+    {
+      "name": "lite-dependency-tree",
+      "command": "cargo tree -p enforcer-cli --no-default-features --features lite --locked",
+      "exitCode": 0,
+      "stdoutSha256": "36EDA6EFBCECD93C8FBE0A05E572E2033CADB685DC5F5318E5C66CEBFD8C9626",
+      "stdoutBytes": 80890,
+      "assertion": "No enforcer-coordination, enforcer-mcp, enforcer-ui, or enforcer-memory package appears in the lite dependency tree."
+    }
   ],
-  "result": {
-    "enforcerUiTestsPassed": 24,
-    "enforcerCliTestsPassed": 53,
-    "enforcerMcpTestsPassed": 49,
-    "testsFailed": 0,
-    "clippy": "clean (no warnings), both full and lite feature sets",
-    "fmt": "clean (no diff)"
+  "currentValidation": {
+    "candidateSha": "cdda88a8ee109182e56ddb5e79e16ea893786f77",
+    "command": "cargo test -p enforcer-memory --test feature_parity_harness qa_gate_runs_every_row_and_reports_an_honest_wired_vs_unrunnable_split --locked -- --nocapture",
+    "exitCode": 0,
+    "stdoutSha256": "4B77D56BEBB2379D658F801D98384B6E867C816389678EE380D75FB1D5F8B497",
+    "stderrSha256": "3AC171B438CFA1470E4A3CC490F548B6E932E2C41D4858090E23386CAC4CEE0B",
+    "stdoutBytes": 636,
+    "stderrBytes": 10612,
+    "tests": 1,
+    "result": "QA-187 cyclic-dependency experience row is fully wired and passes the exact current gate"
   },
   "seededViolationCases": [
     {
-      "case": "serve-remote-no-token (unit)",
-      "test": "enforcer_ui::serve::tests::serve_surface_contract_remote_without_token_is_rejected, serve_surface_contract_remote_with_empty_token_is_still_rejected, run_refuses_remote_without_token_before_binding_any_socket",
-      "expectation": "resolve_bind returns BindError::RemoteWithoutToken for any non-loopback host with no token (or an empty token); run() never opens a socket in this case",
-      "status": "PASS"
-    },
-    {
-      "case": "serve-remote-no-token (real binary)",
-      "test": "cli_integration::ui_remote_host_without_token_refuses_to_start, serve_ui_flag_and_ui_alias_both_reject_remote_without_token_identically",
-      "expectation": "`enforcer ui --host 0.0.0.0` and `enforcer serve --ui --host 0.0.0.0` both exit InternalError (70), never a silent success",
-      "status": "PASS"
+      "case": "serve-remote-no-token",
+      "status": "PASS",
+      "coverage": "Rust unit gate and real enforcer binary reject non-loopback host without a non-empty token before binding."
     },
     {
       "case": "serve-loopback-default",
-      "test": "enforcer_ui::serve::tests::serve_surface_contract_loopback_default_holds, run_binds_loopback_and_serves_shell_with_mount_registry",
-      "expectation": "BindRequest::default() resolves to 127.0.0.1 with no token required; run() binds an ephemeral loopback port and serves the fallback shell",
-      "status": "PASS"
+      "status": "PASS",
+      "coverage": "Rust unit gate resolves 127.0.0.1 and serves the self-contained fallback shell with the view registry."
     },
     {
-      "case": "CLI alias resolution",
-      "test": "enforcer_ui::serve::tests::serve_surface_contract_cli_aliases_resolve, serve_surface_contract_aliases_resolve_to_the_same_shell",
-      "expectation": "ServeAlias::from_token resolves both `serve` and `ui`; both resolve to the identical rendered shell",
-      "status": "PASS"
+      "case": "cli-aliases",
+      "status": "PASS",
+      "coverage": "serve --ui and ui resolve to the same Rust surface."
     },
     {
-      "case": "pre-existing MCP-stdio serve contract not regressed",
-      "test": "cli_integration::serve_mode_responds_to_initialize_over_stdio",
-      "expectation": "bare `enforcer serve` (no --ui) still speaks MCP stdio identically to before this workpack",
-      "status": "PASS"
+      "case": "mcp-ui-no-launch",
+      "status": "PASS",
+      "coverage": "MCP ui responses report URL/error and launched:false without binding or auto-launching."
     },
     {
-      "case": "lite build excludes serve/ui from --help",
-      "test": "cli_integration::lite_help_omits_full_only_subcommands",
-      "expectation": "a `--no-default-features --features lite` build's top-level --help never lists `serve`/`ui`/`coordination`/`ledger`",
-      "status": "PASS"
-    },
-    {
-      "case": "MCP ui tool never auto-launches during silent agent runs",
-      "test": "enforcer_ui::serve::tests::ui_tool_response_loopback_default_reports_url_without_launching, ui_tool_response_remote_without_token_reports_refusal_without_launching; enforcer_mcp::router::tests::ui_tool_loopback_default_reports_url_without_launching, ui_tool_remote_without_token_reports_refusal_without_launching, ui_tool_still_dispatches_while_stale",
-      "expectation": "ocentra_enforcer_ui reports { ok, url|error, launched: false, viewMounts } as pure data -- never binds a socket, dispatches even on a stale server (read-only, never write-gated)",
-      "status": "PASS"
-    },
-    {
-      "case": "view-mount registry present + unique across all Track G slugs",
-      "test": "enforcer_ui::serve::tests::fallback_shell_contains_every_view_mount, view_mount_registry_is_non_empty_and_unique",
-      "expectation": "the served-HTML fallback lists every g02..g08 mount slug with no duplicates",
-      "status": "PASS"
+      "case": "view-mount-registry",
+      "status": "PASS",
+      "coverage": "Fallback shell registry is non-empty and unique."
     }
   ],
-  "keptExtendedReplaced": {
-    "crates/enforcer-ui/src/serve.rs": "EXTENDED (arc-24's render_fallback_shell/VIEW_MOUNTS kept verbatim; added ServeAlias, BindRequest/BindError/resolve_bind fail-closed gate, run() TCP transport, ui_tool_response)",
-    "crates/enforcer-ui/Cargo.toml": "CORRECTED (removed an unused enforcer-mcp dependency that arc-24 declared aspirationally but never referenced in code -- it created a Cargo cyclic-dependency error once enforcer-mcp needed to depend on enforcer-ui for the ui tool; added thiserror)",
-    "crates/enforcer-ui/src/lib.rs": "CORRECTED (doc comment describing the dependency direction; no module-list change)",
-    "crates/enforcer-cli/src/cli.rs": "EXTENDED (Command::Serve now carries ServeArgs {ui, host, port, token}; added Command::Ui(ServeArgs) alias; bare `serve` behavior unchanged)",
-    "crates/enforcer-cli/src/main.rs": "EXTENDED (dispatch routes Serve{ui:true}/Ui to run_serve_ui; run_serve, the MCP-stdio path, is byte-for-byte unchanged)",
-    "crates/enforcer-cli/Cargo.toml": "EXTENDED (enforcer-ui added as an optional dep, enabled only by the full feature, mirroring enforcer-coordination's existing split)",
-    "crates/enforcer-mcp/src/registry.rs": "EXTENDED (added ocentra_enforcer_ui to CANONICAL_TOOLS with a read-only/never-write-gated input schema)",
-    "crates/enforcer-mcp/src/router.rs": "EXTENDED (added the ui_tool dispatch handler; every existing handler unchanged)",
-    "crates/enforcer-mcp/Cargo.toml": "EXTENDED (added a hard enforcer-ui dependency; see honest-gap note below on the pre-existing lite-leak this inherits from enforcer-coordination)"
+  "browserClickThrough": {
+    "requiredByWorkpack": true,
+    "status": "UNAVAILABLE",
+    "runner": "Playwright-or-equivalent",
+    "evidence": "crates/enforcer-ui/frontend/package.json declares Playwright 1.61.1, but frontend/node_modules/playwright is absent and npx --no-install reports the package is missing; no browser was launched.",
+    "impact": "The current Rust fallback is a static shell with mount-list markup, not an interactive mounted-view/action surface. This required P5 proof is not satisfied by cargo tests alone."
+  },
+  "desktopTauri": {
+    "requiredWhereRunnerAvailable": true,
+    "status": "NOT_RUN",
+    "reason": "No Tauri desktop runner was available in this bounded E-only evidence pass."
+  },
+  "sourcePaths": {
+    "serveModule": "crates/enforcer-ui/src/boundary/serve.rs",
+    "moduleRegistration": "crates/enforcer-ui/src/lib.rs",
+    "uiManifest": "crates/enforcer-ui/Cargo.toml",
+    "cli": ["crates/enforcer-cli/src/cli.rs", "crates/enforcer-cli/src/main.rs"],
+    "mcp": ["crates/enforcer-mcp/src/registry.rs", "crates/enforcer-mcp/src/router.rs"],
+    "liteGateRepair": "crates/enforcer-cli/tests/cli_integration.rs"
+  },
+  "dependencyCycleExperience": {
+    "incident": {
+      "crateManifest": "crates/enforcer-ui/Cargo.toml",
+      "resolution": "removed an unused enforcer-mcp dependency",
+      "failure": "it created a Cargo cyclic-dependency error",
+      "trigger": "once enforcer-mcp needed to depend on enforcer-ui for the ui tool",
+      "followUp": "added thiserror"
+    },
+    "prevention": {
+      "crateSource": "crates/enforcer-ui/src/lib.rs",
+      "direction": "doc comment describing the dependency direction",
+      "moduleList": "no module-list change"
+    }
   },
   "honestGapNotes": [
-    "enforcer-mcp has no full/lite Cargo feature split of its own; its enforcer-coordination dependency ALREADY leaked into enforcer-cli's --features lite build before this workpack (cargo tree -p enforcer-cli --no-default-features --features lite -i enforcer-coordination shows it present via enforcer-mcp and enforcer-plan). This workpack's new enforcer-mcp -> enforcer-ui edge inherits the identical leak. The lite_help_omits_full_only_subcommands test (grammar-level) still passes because clap's --help output is unaffected by what is merely LINKED; the crate doc comment's claim that lite 'excludes that dependency from the graph entirely' was already inaccurate before this change and remains so. Recorded in memory/streams/g01.ndjson (mem-g01-0003) as a pre-existing gap, not a regression -- a real fix requires feature-gating enforcer-mcp's own dependencies, outside this workpack's owns:.",
-    "No real Ctrl+C/SIGINT handler is wired for the UI serve surface's shutdown path; run_serve_ui's shutdown predicate always reports \"keep running\" (documented honestly in main.rs). A caller stops the surface by killing the process today, same as any long-running local dev server."
+    "The previous proof JSON was stale: it reported 24/53/49 tests, clean warning-free clippy, and GREEN without exact-SHA command evidence. This artifact replaces those claims with current hashes and counts.",
+    "The earlier note claiming that coordination leaked into the lite dependency graph is not true at this exact SHA: the captured cargo tree contains none of enforcer-coordination, enforcer-mcp, enforcer-ui, or enforcer-memory.",
+    "No Ctrl+C/SIGINT shutdown handler is wired for the UI serve loop; callers stop the long-running process externally.",
+    "No browser click-through or Tauri desktop smoke was run, so the P5 workpack remains pending and WORKPACK_INDEX must not move to DONE."
   ],
-  "workspaceRegression": "cargo test --workspace --exclude enforcer-install: all crates green (enforcer-install excluded due to a pre-existing Windows-elevation requirement for its own test binary, unrelated to this change); cargo clippy --workspace --all-targets -- -D warnings clean; enforcer_ui/enforcer_cli/enforcer_mcp/enforcer_lang_* dogfood check (`cargo run -p enforcer-cli -- check --all`) reports zero findings in any file this workpack touched"
+  "workspaceRegression": {
+    "status": "NOT_REPRODUCED_IN_THIS_PACKET",
+    "note": "Only the three g01-adjacent crates and their required full/lite gates were rerun at the exact candidate SHA; no broad workspace claim is made."
+  },
+  "doesNotProve": [
+    "P5 completion or GREEN proof-row authorization",
+    "real browser click-through interaction and rendered Rust action response",
+    "Tauri desktop smoke on any platform",
+    "full workspace or downstream g02-g09 completion",
+    "public/MJS parity, RM03 closure, cutover, retirement, or merge to main"
+  ]
 }
